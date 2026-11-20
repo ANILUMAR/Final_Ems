@@ -1,0 +1,83 @@
+<h2 mat-dialog-title class="pt-title">
+  <mat-icon>folder_open</mat-icon>
+  <span class="pt-title__text">
+    <strong>{{ data.project }}</strong>
+    <small>{{ subtitle }}</small>
+  </span>
+</h2>
+
+<mat-dialog-content class="pt-body">
+  <div class="ems-empty" *ngIf="!tasks.length">
+    <mat-icon>inbox</mat-icon>
+    <h3>No tasks in this project</h3>
+    <p>Nothing on this board is filed under {{ data.project }} yet.</p>
+  </div>
+
+  <ul class="pt-list" *ngIf="tasks.length">
+    <li class="pt-item" *ngFor="let task of tasks">
+      <header class="pt-item__head">
+        <span class="task-code">{{ code(task) }}</span>
+        <span class="ems-badge ems-badge--neutral">{{ kindLabel(task) }}</span>
+        <span class="ems-badge" *ngIf="task.priority" [ngClass]="priorityBadge(task)">
+          {{ priorityLabel(task) }}
+        </span>
+        <span class="pt-item__status">
+          <!-- The same pill the board shows, read-only: it still opens the audit trail. -->
+          <app-task-status
+            entity="assignment"
+            [id]="task.id"
+            [title]="task.title"
+            [status]="task.status"
+            [editable]="false" />
+        </span>
+      </header>
+
+      <h3 class="pt-item__title">{{ task.title }}</h3>
+
+      <p class="pt-item__desc" *ngIf="task.hasOwnDescription">{{ task.description }}</p>
+      <p class="pt-item__desc pt-item__desc--none" *ngIf="!task.hasOwnDescription">
+        No description was given when this was raised.
+      </p>
+
+      <dl class="pt-meta">
+        <div>
+          <dt>Raised by</dt>
+          <dd>
+            {{ raisedBy(task) }}
+            <ng-container *ngIf="task.raisedAt"> · {{ task.raisedAt | date:'dd MMM yyyy' }}</ng-container>
+            <!-- Rows that predate the intake have no author; the assigner stands in. -->
+            <small class="pt-meta__fallback" *ngIf="!task.raisedBy && task.assignedBy">
+              Handed out by {{ task.assignedBy }}
+            </small>
+          </dd>
+        </div>
+        <div *ngIf="chain(task)">
+          <dt>Screen</dt>
+          <dd>{{ chain(task) }}</dd>
+        </div>
+        <div>
+          <dt>Timeline</dt>
+          <dd>{{ timeline(task) }}</dd>
+        </div>
+        <div>
+          <dt>Owner</dt>
+          <dd>{{ task.user?.name || 'Unassigned' }}</dd>
+        </div>
+      </dl>
+
+      <a
+        class="pt-file"
+        *ngIf="attachmentUrl(task)"
+        [href]="attachmentUrl(task)"
+        target="_blank"
+        rel="noopener">
+        <mat-icon>attach_file</mat-icon>
+        Open the attachment
+      </a>
+    </li>
+  </ul>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-stroked-button mat-dialog-close>Close</button>
+</mat-dialog-actions>

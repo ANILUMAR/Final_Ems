@@ -1,0 +1,138 @@
+<div class="ems-page">
+  <div class="ems-page-head">
+    <div>
+      <h1 class="ems-page-title">All tasks</h1>
+      <p class="ems-page-subtitle">
+        {{ tasks.length }} task(s) across {{ projectCount }} project(s) · {{ overdueCount }} past due
+      </p>
+    </div>
+
+    <div class="ems-actions">
+      <button mat-stroked-button (click)="load()">
+        <mat-icon>refresh</mat-icon>
+        Refresh
+      </button>
+      <a *ngIf="canRaise" mat-stroked-button routerLink="/issues/new">
+        <mat-icon>add_circle</mat-icon>
+        Raise task / bug
+      </a>
+    </div>
+  </div>
+
+  <div class="ems-auth__note ems-auth__note--error" *ngIf="errorMessage">
+    <mat-icon>error_outline</mat-icon>
+    <span>{{ errorMessage }}</span>
+  </div>
+
+  <div class="ems-stat-grid">
+    <article class="ems-stat">
+      <span class="ems-stat__label">Total tasks</span>
+      <strong class="ems-stat__value">{{ tasks.length }}</strong>
+      <span class="ems-stat__hint">Across all projects</span>
+    </article>
+    <article class="ems-stat">
+      <span class="ems-stat__label">High priority</span>
+      <strong class="ems-stat__value">{{ highPriorityCount }}</strong>
+      <span class="ems-stat__hint">Needs attention first</span>
+    </article>
+    <article class="ems-stat">
+      <span class="ems-stat__label">Past due</span>
+      <strong class="ems-stat__value">{{ overdueCount }}</strong>
+      <span class="ems-stat__hint">Due date already passed</span>
+    </article>
+    <article class="ems-stat">
+      <span class="ems-stat__label">Projects</span>
+      <strong class="ems-stat__value">{{ projectCount }}</strong>
+      <span class="ems-stat__hint">Distinct projects in use</span>
+    </article>
+  </div>
+
+  <section class="ems-card" style="margin-top: 16px">
+    <div class="ems-toolbar">
+      <h2 class="ems-section-title" style="margin: 0">
+        <mat-icon>list_alt</mat-icon>
+        Task register
+      </h2>
+      <mat-form-field appearance="outline" class="ems-search">
+        <mat-label>Search</mat-label>
+        <input matInput [(ngModel)]="search" (ngModelChange)="onSearchChange()" placeholder="Task, project, owner…" />
+        <mat-icon matPrefix>search</mat-icon>
+      </mat-form-field>
+    </div>
+
+    <div class="ems-empty" *ngIf="!loading && filteredTasks.length === 0">
+      <mat-icon>inbox</mat-icon>
+      <h3>No tasks to show</h3>
+      <p>Create a task, or clear the search to see everything again.</p>
+    </div>
+
+    <div class="ems-table-wrap" *ngIf="filteredTasks.length > 0">
+      <table>
+        <thead>
+          <tr>
+            <th>Task ID</th>
+            <th>Task</th>
+            <th>Project</th>
+            <th>Owner</th>
+            <th>Priority</th>
+            <th>Start</th>
+            <th>Due</th>
+            <th class="all-actions-col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let task of pagedTasks">
+            <td><span class="task-code">{{ code(task) }}</span></td>
+            <td>
+              <div class="ems-rows__main">
+                <strong>{{ task.taskTitle }}</strong>
+                <small>
+                  {{ isBug(task) ? 'Bug' : 'Task' }}<ng-container *ngIf="task.module"> · {{ task.module }}</ng-container
+                  >{{ task.subModule ? ' · ' + task.subModule : '' }}
+                </small>
+              </div>
+            </td>
+            <td>{{ task.project || '—' }}</td>
+            <td>
+              <div class="ems-task-card__owner">
+                <span class="ems-avatar-sm">{{ initials(task.assignedToName || '') }}</span>
+                <span>{{ task.assignedToName || 'Unassigned' }}</span>
+              </div>
+            </td>
+            <td>
+              <span class="ems-badge" [ngClass]="priorityBadge(task.priority)">{{ priorityLabel(task.priority) }}</span>
+            </td>
+            <td>{{ task.startDate | date:'dd MMM yyyy' }}</td>
+            <td [class.is-overdue]="isOverdue(task)">{{ task.endDate | date:'dd MMM yyyy' }}</td>
+            <td class="all-actions-col">
+              <button
+                *ngIf="isBug(task)"
+                mat-icon-button
+                style="color: #e11d48;"
+                matTooltip="View Bug Reproduction Diagram & Steps"
+                (click)="openBugDetails(task)"
+                aria-label="View Bug Details">
+                <mat-icon>account_tree</mat-icon>
+              </button>
+              <button mat-icon-button matTooltip="Edit task" (click)="edit(task)" aria-label="Edit task">
+                <mat-icon>edit</mat-icon>
+              </button>
+              <button mat-icon-button matTooltip="Delete task" (click)="close(task)" aria-label="Delete task">
+                <mat-icon>delete_outline</mat-icon>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Outside the table wrapper so it never scrolls sideways with the table.
+         Five records a page by default, with the dropdown to change it. -->
+    <app-pager
+      [length]="filteredTasks.length"
+      [(pageIndex)]="pageIndex"
+      [(pageSize)]="pageSize"
+      noun="task">
+    </app-pager>
+  </section>
+</div>

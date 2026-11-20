@@ -1,0 +1,159 @@
+<div class="ems-page">
+  <div class="ems-page-head">
+    <div>
+      <h1 class="ems-page-title">Task board</h1>
+      <p class="ems-page-subtitle">
+        {{ isManager ? 'Every task across the workspace' : 'Work assigned to you' }} ·
+        {{ tasks.length }} total · {{ overdueCount }} past due
+      </p>
+    </div>
+
+    <div class="ems-actions">
+      <button mat-stroked-button (click)="taskModelResponse()">
+        <mat-icon>refresh</mat-icon>
+        Refresh
+      </button>
+      <a *ngIf="canRaise" mat-flat-button color="primary" routerLink="/issues/new">
+        <mat-icon>add_circle</mat-icon>
+        Raise task / bug
+      </a>
+    </div>
+  </div>
+
+  <div class="ems-auth__note ems-auth__note--error" *ngIf="errorMessage">
+    <mat-icon>error_outline</mat-icon>
+    <span>{{ errorMessage }}</span>
+  </div>
+
+  <div class="ems-toolbar">
+    <div class="tl-filters">
+      <div class="ems-chip-row">
+        <button
+          class="ems-chip"
+          *ngFor="let chip of priorityCounts"
+          [class.is-active]="priority === chip.key"
+          (click)="setPriority(chip.key)">
+          {{ chip.label }} ({{ chip.count }})
+        </button>
+      </div>
+
+      <!-- Same strip for the lifecycle: pick one state to see that section only. -->
+      <div class="ems-chip-row">
+        <button
+          class="ems-chip"
+          *ngFor="let chip of statusCounts"
+          [class.is-active]="statusFilter === chip.key"
+          (click)="setStatusFilter(chip.key)">
+          {{ chip.label }} ({{ chip.count }})
+        </button>
+      </div>
+    </div>
+
+    <mat-form-field appearance="outline" class="ems-search">
+      <mat-label>Search tasks</mat-label>
+      <input matInput [(ngModel)]="search" (ngModelChange)="onSearchChange()" placeholder="Title, project, owner…" />
+      <mat-icon matPrefix>search</mat-icon>
+    </mat-form-field>
+  </div>
+
+  <div class="ems-empty" *ngIf="!loading && filteredTasks.length === 0">
+    <mat-icon>inbox</mat-icon>
+    <h3>No tasks match</h3>
+    <p *ngIf="tasks.length === 0">There are no tasks yet — create the first one.</p>
+    <p *ngIf="tasks.length > 0">Try clearing the search, or picking a different priority or state.</p>
+  </div>
+
+  <div class="tl-groups" *ngIf="filteredTasks.length > 0">
+    <ng-container *ngFor="let group of groups">
+      <section class="tl-group" *ngIf="group.tasks.length">
+        <header class="tl-group__head">
+          <span class="tl-group__icon" [ngClass]="group.badge">
+            <mat-icon>{{ group.icon }}</mat-icon>
+          </span>
+          <h2 class="tl-group__title">{{ group.label }}</h2>
+          <span class="tl-group__count">{{ group.tasks.length }}</span>
+        </header>
+
+        <div class="ems-task-grid">
+          <ng-container *ngFor="let task of group.tasks">
+            <ng-container *ngTemplateOutlet="card; context: { $implicit: task }"></ng-container>
+          </ng-container>
+        </div>
+      </section>
+    </ng-container>
+  </div>
+
+  <!-- Five cards a page by default, with the dropdown to change it. -->
+  <app-pager
+    [length]="filteredTasks.length"
+    [(pageIndex)]="pageIndex"
+    [(pageSize)]="pageSize"
+    noun="task">
+  </app-pager>
+
+  <ng-template #card let-task>
+    <article class="ems-task-card" [ngClass]="priorityClass(task.priority)">
+      <div class="ems-task-card__head">
+        <div>
+          <p class="task-code-row">
+            <span class="task-code">{{ code(task) }}</span>
+            <span class="ems-badge ems-badge--danger" *ngIf="isBug(task)">Bug</span>
+          </p>
+          <h3 class="ems-task-card__title">{{ task.taskTitle }}</h3>
+          <p class="ems-task-card__sub">
+            <mat-icon style="font-size:13px;width:13px;height:13px">folder_open</mat-icon>
+            {{ task.project || 'No project' }}
+          </p>
+        </div>
+        <span class="ems-badge" [ngClass]="priorityBadge(task.priority)">{{ priorityLabel(task.priority) }}</span>
+      </div>
+
+      <p class="ems-task-card__desc">{{ task.description || 'No description provided.' }}</p>
+
+      <!-- The reason a reopened item is open again, straight from the Done exit. -->
+      <p class="ems-rework" *ngIf="task.reopenCount && task.status !== 'DONE'">
+        <mat-icon>restart_alt</mat-icon>
+        <span>
+          Came back from Done<ng-container *ngIf="task.reopenCount > 1"> ({{ task.reopenCount }}×)</ng-container
+          ><ng-container *ngIf="task.lastReopenNote"> — “{{ task.lastReopenNote }}”</ng-container>
+        </span>
+      </p>
+
+      <div class="ems-task-meta">
+        <span *ngIf="task.module"><mat-icon>widgets</mat-icon>{{ task.module }}</span>
+        <span *ngIf="task.subModule"><mat-icon>account_tree</mat-icon>{{ task.subModule }}</span>
+        <span *ngIf="task.screen"><mat-icon>desktop_windows</mat-icon>{{ task.screen }}</span>
+      </div>
+
+      <div class="ems-task-meta">
+        <span><mat-icon>play_circle</mat-icon>{{ task.startDate | date:'dd MMM' }}</span>
+        <span><mat-icon>flag</mat-icon>{{ task.endDate | date:'dd MMM yyyy' }}</span>
+      </div>
+
+      <div class="ems-task-card__foot">
+        <div class="ems-task-card__owner">
+          <span class="ems-avatar-sm">{{ initials(task.assignedToName || '') }}</span>
+          <span>{{ task.assignedToName || 'Unassigned' }}</span>
+        </div>
+
+        <div class="ems-actions">
+          <app-task-status
+            entity="assignment"
+            [id]="task.id"
+            [title]="task.taskTitle"
+            [status]="task.status"
+            (changed)="onStatusChanged(task, $event)"
+            (reopened)="onReopened(task, $event)">
+          </app-task-status>
+          <a
+            *ngIf="task.attachmentPath"
+            mat-icon-button
+            matTooltip="Open attachment"
+            (click)="openFilePopup(task.attachmentPath)">
+            <mat-icon>attach_file</mat-icon>
+          </a>
+        </div>
+      </div>
+    </article>
+  </ng-template>
+</div>

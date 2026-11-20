@@ -1,0 +1,169 @@
+<section class="ems-page">
+  <header class="ems-page-head">
+    <div>
+      <h1 class="ems-page-title">Create project</h1>
+      <p class="ems-page-subtitle">
+        Add a delivery project once and it becomes available everywhere: portfolio, task assignment and counters.
+      </p>
+    </div>
+
+    <div class="ems-actions">
+      <a mat-stroked-button routerLink="/projects">
+        <mat-icon>insights</mat-icon>
+        Project portfolio
+      </a>
+      <button mat-stroked-button type="button" (click)="reload()">
+        <mat-icon>refresh</mat-icon>
+        Refresh
+      </button>
+    </div>
+  </header>
+
+  <div class="ems-stat-grid">
+    <article class="ems-stat">
+      <span class="ems-stat__label">Projects</span>
+      <span class="ems-stat__value">{{ rows.length }}</span>
+      <span class="ems-stat__hint">Live in the workspace</span>
+    </article>
+
+    <article class="ems-stat">
+      <span class="ems-stat__label">Mapped tasks</span>
+      <span class="ems-stat__value">{{ totalTasks }}</span>
+      <span class="ems-stat__hint">Across every project</span>
+    </article>
+
+    <article class="ems-stat">
+      <span class="ems-stat__label">Still open</span>
+      <span class="ems-stat__value">{{ openTasks }}</span>
+      <span class="ems-stat__hint">Not completed yet</span>
+    </article>
+  </div>
+
+  <div class="ems-auth__note ems-auth__note--error" *ngIf="errorMessage">
+    <mat-icon>error_outline</mat-icon>
+    <span>{{ errorMessage }}</span>
+  </div>
+
+  <div class="cp-grid">
+    <section class="ems-card">
+      <h2 class="ems-section-title">
+        <mat-icon>create_new_folder</mat-icon>
+        New project
+      </h2>
+
+      <form [formGroup]="form" (ngSubmit)="onSubmit()">
+        <mat-form-field appearance="outline" class="ems-field">
+          <mat-label>Project name</mat-label>
+          <input matInput formControlName="name" required maxlength="80" placeholder="e.g. Vendor Onboarding" />
+          <mat-hint>Must be unique — duplicates are rejected</mat-hint>
+          <mat-error *ngIf="form.get('name')?.hasError('required')">A project name is required.</mat-error>
+          <mat-error *ngIf="form.get('name')?.hasError('maxlength')">Keep it under 80 characters.</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="ems-field">
+          <mat-label>Description</mat-label>
+          <textarea
+            matInput
+            formControlName="description"
+            rows="4"
+            maxlength="500"
+            placeholder="Scope, client, what the team is delivering…"
+          ></textarea>
+          <mat-hint>Optional, shown on the project overview.</mat-hint>
+        </mat-form-field>
+
+        <div class="ems-form-actions">
+          <button mat-stroked-button type="button" (click)="onReset()">
+            <mat-icon>restart_alt</mat-icon>
+            Clear
+          </button>
+          <button mat-flat-button color="primary" type="submit" [disabled]="!canSubmit">
+            <mat-icon>add</mat-icon>
+            {{ saving ? 'Saving…' : 'Create project' }}
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <section class="ems-card">
+      <h2 class="ems-section-title">
+        <mat-icon>checklist</mat-icon>
+        What happens on save
+      </h2>
+
+      <ul class="cp-points">
+        <li>
+          <mat-icon>check_circle</mat-icon>
+          <div>
+            <strong>Portfolio</strong>
+            <small>The project appears on Project Overview with its own progress card.</small>
+          </div>
+        </li>
+        <li>
+          <mat-icon>check_circle</mat-icon>
+          <div>
+            <strong>Assignment picker</strong>
+            <small>Admins can pick it immediately on the Create Task screen.</small>
+          </div>
+        </li>
+        <li>
+          <mat-icon>check_circle</mat-icon>
+          <div>
+            <strong>Counters</strong>
+            <small>Dashboard and project totals include it straight away.</small>
+          </div>
+        </li>
+        <li>
+          <mat-icon>block</mat-icon>
+          <div>
+            <strong>No duplicates</strong>
+            <small>Names are compared case-insensitively; an existing name returns an error.</small>
+          </div>
+        </li>
+      </ul>
+
+      <p class="ems-dim" *ngIf="lastCreated">
+        Last created: <strong>{{ lastCreated }}</strong>
+      </p>
+    </section>
+  </div>
+
+  <section class="ems-card">
+    <h2 class="ems-section-title">
+      <mat-icon>folder_open</mat-icon>
+      Existing projects
+      <span class="ems-badge ems-badge--neutral">{{ rows.length }}</span>
+    </h2>
+
+    <p class="ems-dim" *ngIf="loading">Loading projects…</p>
+
+    <div class="ems-table-wrap" *ngIf="!loading && rows.length">
+      <table>
+        <thead>
+          <tr>
+            <th>Project</th>
+            <th>Description</th>
+            <th>Tasks</th>
+            <th>Done</th>
+            <th>Owner</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of rows">
+            <td><strong>{{ row.name }}</strong></td>
+            <td class="ems-muted">{{ row.description }}</td>
+            <td>{{ row.tasks }}</td>
+            <td>{{ row.done }}</td>
+            <td class="ems-muted">{{ row.owner }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="ems-empty" *ngIf="!loading && !rows.length">
+      <mat-icon>folder_off</mat-icon>
+      <h3>No projects yet</h3>
+      <p>Create the first one with the form above.</p>
+    </div>
+  </section>
+</section>

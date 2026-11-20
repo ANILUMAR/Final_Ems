@@ -1,0 +1,9 @@
+:host {
+  display: block;
+}
+
+/* Standing on its own under the stat cards, so it needs the gap the grids get
+   from .ems-dash-grid's margin-top. */
+.quick-card--wide {
+  margin-top: 16px;
+}

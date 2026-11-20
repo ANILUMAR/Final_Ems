@@ -1,0 +1,213 @@
+<div class="ems-page">
+  <div class="ems-page-head">
+    <div>
+      <h1 class="ems-page-title">Raise a task or a bug</h1>
+      <p class="ems-page-subtitle" *ngIf="!skipsReview">
+        Your report is numbered at once, then reviewed by the testing team leader before it reaches development.
+      </p>
+      <p class="ems-page-subtitle" *ngIf="skipsReview">
+        Your report is numbered at once and goes straight to the assignment list — nothing waits for review.
+      </p>
+    </div>
+    <div class="ems-actions">
+      <button mat-stroked-button type="button" (click)="goToMySubmissions()">
+        <mat-icon>fact_check</mat-icon>
+        My submissions
+      </button>
+    </div>
+  </div>
+
+  <div class="ems-auth__note ems-auth__note--error" *ngIf="errorMessage">
+    <mat-icon>error_outline</mat-icon>
+    <span>{{ errorMessage }}</span>
+  </div>
+  <div class="ems-auth__note ems-auth__note--success" *ngIf="successMessage">
+    <mat-icon>check_circle</mat-icon>
+    <span>{{ successMessage }}</span>
+  </div>
+
+  <div class="raise-grid">
+    <section class="ems-card">
+      <h2 class="ems-section-title">
+        <mat-icon>report</mat-icon>
+        What did you find?
+      </h2>
+
+      <div class="kind-switch">
+        <button
+          type="button"
+          class="kind-switch__option"
+          [class.is-active]="kind === 'TASK'"
+          (click)="kind = 'TASK'"
+        >
+          <mat-icon>task_alt</mat-icon>
+          <span>
+            <strong>Task</strong>
+            <small>Work the product does not do yet</small>
+          </span>
+        </button>
+        <button
+          type="button"
+          class="kind-switch__option"
+          [class.is-active]="kind === 'BUG'"
+          [class.is-bug]="kind === 'BUG'"
+          (click)="kind = 'BUG'"
+        >
+          <mat-icon>bug_report</mat-icon>
+          <span>
+            <strong>Bug</strong>
+            <small>Something that works incorrectly</small>
+          </span>
+        </button>
+      </div>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Project</mat-label>
+        <mat-select [(ngModel)]="project">
+          <mat-option *ngFor="let item of projects" [value]="item.name">{{ item.name }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Title</mat-label>
+        <input matInput [(ngModel)]="title" maxlength="100" placeholder="One line: what is wrong, or what is missing" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" *ngIf="priorities.length">
+        <mat-label>Severity</mat-label>
+        <mat-select [(ngModel)]="priority">
+          <mat-option *ngFor="let item of priorities" [value]="item.code">{{ item.label }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <p class="raise-hint">
+        <mat-icon>info</mat-icon>
+        The severity tells the leaders how urgent this is. The developer team leader confirms it when the work is
+        planned.
+      </p>
+    </section>
+
+    <section class="ems-card">
+      <h2 class="ems-section-title">
+        <mat-icon>my_location</mat-icon>
+        Where in the product?
+      </h2>
+
+      <div class="raise-row">
+        <mat-form-field appearance="outline">
+          <mat-label>Module</mat-label>
+          <mat-select [(ngModel)]="module" (selectionChange)="onModuleChange()">
+            <mat-option value="">Not set</mat-option>
+            <mat-option *ngFor="let name of moduleOptions" [value]="name">{{ name }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Sub module</mat-label>
+          <mat-select [(ngModel)]="subModule" (selectionChange)="onSubModuleChange()" [disabled]="!module">
+            <mat-option value="">Not set</mat-option>
+            <mat-option *ngFor="let name of subModuleOptions" [value]="name">{{ name }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Screen</mat-label>
+        <mat-select [(ngModel)]="screen" [disabled]="!subModule">
+          <mat-option value="">Not set</mat-option>
+          <mat-option *ngFor="let name of screenOptions" [value]="name">{{ name }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>{{ kind === 'BUG' ? 'What happened, and what did you expect' : 'What should it do' }}</mat-label>
+        <textarea matInput rows="6" [(ngModel)]="description" maxlength="500"></textarea>
+        <mat-hint align="end">{{ description.length }}/500</mat-hint>
+      </mat-form-field>
+
+      <!-- Bug Reproduction Steps & Drag-and-Drop Flow Designer (Requirements 2, 3 & 4) -->
+      <div *ngIf="kind === 'BUG'" class="bug-repro-section">
+        <div class="bug-repro-header">
+          <div>
+            <h3 class="bug-repro-title">
+              <mat-icon>format_list_numbered</mat-icon>
+              Reproduction Steps & Flow Diagram
+            </h3>
+            <p class="bug-repro-sub">Provide step-by-step instructions or create a visual drag-and-drop flow diagram</p>
+          </div>
+          <button
+            mat-flat-button
+            color="accent"
+            type="button"
+            class="btn-flow-designer"
+            (click)="openFlowDesigner()"
+          >
+            <mat-icon>account_tree</mat-icon>
+            {{ flowImageDataUrl ? 'Edit Flow Diagram' : 'Design Flow Diagram' }}
+          </button>
+        </div>
+
+        <mat-form-field appearance="outline" class="repro-steps-field">
+          <mat-label>Reproduction Steps (Ordered List)</mat-label>
+          <textarea
+            matInput
+            rows="4"
+            [(ngModel)]="reproductionSteps"
+            placeholder="1. Go to Login screen&#10;2. Input invalid format email&#10;3. Click Login&#10;4. Crash or unexpected behaviour occurs"
+          ></textarea>
+        </mat-form-field>
+
+        <!-- Diagram Preview Thumbnail Card when Diagram is created -->
+        <div class="flow-preview-card" *ngIf="flowImageDataUrl">
+          <div class="flow-preview-card__head">
+            <div class="flow-preview-card__title">
+              <span class="diagram-badge">
+                <mat-icon>check_circle</mat-icon>
+                Flow Diagram Attached
+              </span>
+              <span class="diagram-count">{{ flowStepCount }} step(s)</span>
+            </div>
+            <div class="flow-preview-card__actions">
+              <button mat-button type="button" (click)="openFlowDesigner()">
+                <mat-icon>edit</mat-icon> Edit Diagram
+              </button>
+              <button mat-button color="warn" type="button" (click)="clearFlowDiagram()">
+                <mat-icon>close</mat-icon> Remove
+              </button>
+            </div>
+          </div>
+          <div class="flow-preview-card__img-wrap" (click)="openFlowDesigner()" title="Click to view/edit in Flow Designer">
+            <img [src]="flowImageDataUrl" alt="Flow Diagram Preview" />
+            <div class="flow-preview-card__overlay">
+              <mat-icon>touch_app</mat-icon> Click to open Flow Designer
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="raise-file">
+        <label for="issueFile" class="raise-file__label">
+          <mat-icon>attach_file</mat-icon>
+          {{ selectedFile ? selectedFile.name : 'Attach a screenshot or a document (optional)' }}
+        </label>
+        <input id="issueFile" type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" (change)="onFileSelected($event)" />
+        <button mat-button type="button" *ngIf="selectedFile" (click)="clearFile()">Remove</button>
+      </div>
+
+      <div class="raise-footer">
+        <p class="raise-hint" *ngIf="!skipsReview">
+          <mat-icon>arrow_forward</mat-icon>
+          It goes to the testing team leader. Approving it puts it on the developer team leader's assignment queue.
+        </p>
+        <p class="raise-hint" *ngIf="skipsReview">
+          <mat-icon>arrow_forward</mat-icon>
+          You approve your own side, so it goes straight to the assignment queue for a developer to pick up.
+        </p>
+        <button mat-flat-button color="primary" type="button" [disabled]="!canSubmit" (click)="submit()">
+          <mat-icon>{{ saving ? 'hourglass_top' : 'send' }}</mat-icon>
+          {{ saving ? 'Sending…' : (skipsReview ? 'Send' : 'Send for review') }}
+        </button>
+      </div>
+    </section>
+  </div>
+</div>

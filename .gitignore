@@ -1,0 +1,42 @@
+# Dependencies and build output
+node_modules/
+dist/
+.angular/
+target/
+build/
+*.class
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+
+# Local run artefacts
+*.log
+# Runtime data: uploaded photos, attachments and the seeded demo images are not
+# source. The exception is the self-hosted type in uploads/images: ems-fonts.css
+# plus its .woff2 files are app assets (index.html loads them instead of the
+# Google Fonts CDN), so a fresh clone still renders the icons offline.
+uploads/*
+!uploads/images/
+uploads/images/*
+!uploads/images/ems-fonts.css
+!uploads/images/fonts/
+uploads/images/fonts/*
+!uploads/images/fonts/*.woff2
+
+# Tooling and OS noise
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+*.suo
+*.user
+
+# Local environment overrides
+.env
+.env.local
+*.local
+
+# Local MongoDB runtime (extracted binaries + data)
+.mongo/
+.mongo-data/
+.mongo-data.bak-*
+

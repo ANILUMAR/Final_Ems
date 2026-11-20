@@ -1,0 +1,172 @@
+<div class="ems-page">
+  <div class="ems-page-head">
+    <div>
+      <h1 class="ems-page-title">Testing review &amp; approvals</h1>
+      <p class="ems-page-subtitle">
+        Approve what forwards to the Java Team Leader, or send it back with the comment the tester will work from.
+      </p>
+    </div>
+    <div class="ems-actions">
+      <button mat-stroked-button type="button" (click)="load()">
+        <mat-icon>refresh</mat-icon>
+        Refresh
+      </button>
+    </div>
+  </div>
+
+  <div class="ems-auth__note ems-auth__note--error" *ngIf="errorMessage">
+    <mat-icon>error_outline</mat-icon>
+    <span>{{ errorMessage }}</span>
+  </div>
+  <div class="ems-auth__note ems-auth__note--success" *ngIf="successMessage">
+    <mat-icon>check_circle</mat-icon>
+    <span>{{ successMessage }}</span>
+  </div>
+
+  <div class="ems-stat-grid approval-stats">
+    <div class="ems-stat">
+      <span class="ems-stat__label">Waiting</span>
+      <span class="ems-stat__value">{{ counts.pending }}</span>
+      <span class="ems-stat__hint">needs your decision</span>
+    </div>
+    <div class="ems-stat">
+      <span class="ems-stat__label">Approved</span>
+      <span class="ems-stat__value">{{ counts.approved }}</span>
+      <span class="ems-stat__hint">forwarded to Java Team Leader</span>
+    </div>
+    <div class="ems-stat">
+      <span class="ems-stat__label">Sent back</span>
+      <span class="ems-stat__value">{{ counts.rejected }}</span>
+      <span class="ems-stat__hint">with the tester</span>
+    </div>
+    <div class="ems-stat">
+      <span class="ems-stat__label">Raised in total</span>
+      <span class="ems-stat__value">{{ counts.all }}</span>
+      <span class="ems-stat__hint">tasks and bugs from the team</span>
+    </div>
+  </div>
+
+  <div class="ems-toolbar approval-toolbar">
+    <div class="filter-chips">
+      <button type="button" class="filter-chip" [class.is-active]="filter === 'PENDING'" (click)="setFilter('PENDING')">
+        Waiting <span>{{ counts.pending }}</span>
+      </button>
+      <button type="button" class="filter-chip" [class.is-active]="filter === 'APPROVED'" (click)="setFilter('APPROVED')">
+        Approved <span>{{ counts.approved }}</span>
+      </button>
+      <button type="button" class="filter-chip" [class.is-active]="filter === 'REJECTED'" (click)="setFilter('REJECTED')">
+        Sent back <span>{{ counts.rejected }}</span>
+      </button>
+      <button type="button" class="filter-chip" [class.is-active]="filter === 'ALL'" (click)="setFilter('ALL')">
+        All <span>{{ counts.all }}</span>
+      </button>
+    </div>
+  </div>
+
+  <p class="ems-muted approval-loading" *ngIf="loading">Loading the queue…</p>
+
+  <div class="ems-empty" *ngIf="!loading && !filtered.length">
+    <mat-icon>done_all</mat-icon>
+    <h3>Nothing waiting</h3>
+    <p>{{ filter === 'PENDING' ? 'Every submission has been decided.' : 'No item is in this state.' }}</p>
+  </div>
+
+  <div class="approval-list">
+    <article class="ems-card approval-card" *ngFor="let item of pagedItems" [class.is-busy]="busyId === item.id">
+      <div class="approval-card__main">
+        <header class="approval-card__head">
+          <span class="task-code">{{ code(item) }}</span>
+          <span class="ems-badge" [ngClass]="kindClass(item)">{{ kind(item) }}</span>
+          <span class="ems-badge ems-badge--neutral">{{ priorityLabel(item.priority) }}</span>
+          <span class="ems-badge" [ngClass]="stateClass(item)">{{ stateLabel(item) }}</span>
+        </header>
+
+        <h3 class="approval-card__title">{{ item.taskTitle }}</h3>
+
+        <p class="approval-card__meta">
+          <span>Raised by <strong>{{ reporter(item) }}</strong></span>
+          <span *ngIf="item.createdAt">· {{ item.createdAt | date:'d MMM yyyy' }}</span>
+          <span *ngIf="item.project">· {{ item.project }}</span>
+          <span *ngIf="item.module">· {{ item.module }}</span>
+          <span *ngIf="item.screen">· {{ item.screen }}</span>
+        </p>
+
+        <p class="approval-card__body" *ngIf="item.description">{{ item.description }}</p>
+
+        <p class="approval-card__attachment" *ngIf="item.attachmentPath">
+          <mat-icon>attachment</mat-icon>
+          <a [href]="attachmentUrl(item.attachmentPath)" target="_blank" rel="noopener">{{ item.attachmentPath }}</a>
+        </p>
+
+        <!-- what happened last time, so a corrected item is reviewed with its history -->
+        <div class="ems-quote" *ngIf="item.reviewNote && stateOf(item) !== 'PENDING'">
+          <mat-icon>{{ stateOf(item) === 'REJECTED' ? 'undo' : 'verified' }}</mat-icon>
+          <div>
+            <strong>Your comment · {{ item.reviewedBy }}</strong>
+            <p>{{ item.reviewNote }}</p>
+          </div>
+        </div>
+
+        <div class="approval-card__actions" *ngIf="stateOf(item) === 'PENDING'">
+          <button
+            mat-flat-button
+            color="primary"
+            type="button"
+            [disabled]="busyId !== null"
+            (click)="approve(item)"
+          >
+            <mat-icon>check</mat-icon>
+            Approve
+          </button>
+          <button
+            mat-stroked-button
+            type="button"
+            [disabled]="busyId !== null"
+            *ngIf="rejectingId !== item.id"
+            (click)="openReject(item)"
+          >
+            <mat-icon>undo</mat-icon>
+            Send back
+          </button>
+        </div>
+      </div>
+
+      <!-- rejection needs a reason: it is the tester's brief for the correction -->
+      <div class="approval-reject" *ngIf="rejectingId === item.id">
+        <h4>Why is {{ code(item) }} going back?</h4>
+        <mat-form-field appearance="outline">
+          <mat-label>Comment for {{ reporter(item) }}</mat-label>
+          <textarea
+            matInput
+            rows="4"
+            maxlength="400"
+            [(ngModel)]="rejectNote"
+            placeholder="What is missing or unclear? What should the corrected report contain?"
+          ></textarea>
+          <mat-hint align="end">{{ rejectNote.length }}/400</mat-hint>
+        </mat-form-field>
+        <div class="ems-actions">
+          <button mat-button type="button" (click)="cancelReject()">Cancel</button>
+          <button
+            mat-flat-button
+            color="warn"
+            type="button"
+            [disabled]="!canReject"
+            (click)="reject(item)"
+          >
+            <mat-icon>send</mat-icon>
+            Send back with comment
+          </button>
+        </div>
+      </div>
+    </article>
+  </div>
+
+  <!-- Five submissions a page by default, with the dropdown to change it. -->
+  <app-pager
+    [length]="filtered.length"
+    [(pageIndex)]="pageIndex"
+    [(pageSize)]="pageSize"
+    noun="submission">
+  </app-pager>
+</div>

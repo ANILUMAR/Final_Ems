@@ -1,0 +1,119 @@
+:host { display: block; }
+
+.reg-toolbar {
+  margin: 18px 0 14px;
+}
+
+.reg-person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.reg-person__avatar {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 1px solid var(--ems-border);
+  background: var(--ems-surface-3);
+}
+
+.reg-person__avatar--initials {
+  display: grid;
+  place-items: center;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ems-primary);
+  background: var(--ems-primary-soft);
+  border-color: var(--ems-primary-line-soft);
+}
+
+.reg-actions-col {
+  width: 72px;
+  text-align: right;
+}
+
+/* A switched-off account stays listed, just visibly muted. */
+.reg-row--inactive td {
+  opacity: 0.62;
+}
+
+/* Status pill: a button that carries its own state. On and off are the same
+   size, shape and weight - only the colour and the word change - so the row can
+   never look like it is in a state it is not. */
+.reg-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 26px;
+  padding: 0 11px;
+  border-radius: var(--ems-radius-pill);
+  border: 1px solid transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.reg-status__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.reg-status--on {
+  color: var(--ems-success);
+  background: var(--ems-success-soft);
+  border-color: var(--ems-success-line);
+}
+
+.reg-status--on:hover { border-color: var(--ems-success); }
+
+.reg-status--off {
+  color: var(--ems-danger);
+  background: var(--ems-danger-soft);
+  border-color: var(--ems-danger-line);
+}
+
+.reg-status--off:hover { border-color: var(--ems-danger); }
+
+/* Task access reuses the status pill so the two switches in a row read the
+   same; only the meaning of the colour changes. Granted is the primary accent
+   because it is a privilege, not a state of health. */
+.reg-status--granted {
+  color: var(--ems-primary-text);
+  background: var(--ems-primary-soft);
+  border-color: var(--ems-primary-line);
+}
+
+.reg-status--granted:hover { border-color: var(--ems-primary); }
+
+.reg-status--none {
+  color: var(--ems-text-3);
+  background: transparent;
+  border-color: var(--ems-border);
+}
+
+.reg-status--none:hover {
+  color: var(--ems-text-2);
+  border-color: var(--ems-border-strong);
+}
+
+/* Admins and developers get a plain word here: there is nothing to toggle. */
+.reg-access-static {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ems-text-3);
+}
+
+.reg-status:disabled {
+  opacity: 0.55;
+  cursor: default;
+}

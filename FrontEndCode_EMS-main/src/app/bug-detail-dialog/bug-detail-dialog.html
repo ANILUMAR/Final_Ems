@@ -1,0 +1,139 @@
+<div class="bug-detail-modal">
+  <!-- Modal Header -->
+  <header class="modal-head">
+    <div class="modal-head__left">
+      <span class="bug-pill">
+        <mat-icon>bug_report</mat-icon>
+        {{ bugCode }}
+      </span>
+      <div>
+        <h2 class="modal-title">{{ item.taskTitle }}</h2>
+        <p class="modal-sub">
+          <mat-icon>folder_open</mat-icon> {{ item.project }}
+          <span class="dot-sep">·</span>
+          <span class="ems-badge" [ngClass]="priorityBadge">{{ priorityLabel }}</span>
+          <span class="dot-sep">·</span>
+          <span>Status: <strong>{{ item.status }}</strong></span>
+        </p>
+      </div>
+    </div>
+
+    <button mat-icon-button (click)="close()" matTooltip="Close dialog">
+      <mat-icon>close</mat-icon>
+    </button>
+  </header>
+
+  <!-- Modal Content Body -->
+  <div class="modal-body">
+    <!-- Meta Summary Bar -->
+    <div class="meta-strip">
+      <div class="meta-item" *ngIf="item.module">
+        <span class="meta-lbl">Module</span>
+        <span class="meta-val"><mat-icon>widgets</mat-icon>{{ item.module }}</span>
+      </div>
+      <div class="meta-item" *ngIf="item.subModule">
+        <span class="meta-lbl">Sub Module</span>
+        <span class="meta-val"><mat-icon>account_tree</mat-icon>{{ item.subModule }}</span>
+      </div>
+      <div class="meta-item" *ngIf="item.screen">
+        <span class="meta-lbl">Screen</span>
+        <span class="meta-val"><mat-icon>desktop_windows</mat-icon>{{ item.screen }}</span>
+      </div>
+      <div class="meta-item" *ngIf="item.createdByName || item.createdBy">
+        <span class="meta-lbl">Reported By</span>
+        <span class="meta-val"><mat-icon>person</mat-icon>{{ item.createdByName || item.createdBy }}</span>
+      </div>
+      <div class="meta-item" *ngIf="item.assignedToName">
+        <span class="meta-lbl">Developer</span>
+        <span class="meta-val"><mat-icon>engineering</mat-icon>{{ item.assignedToName }}</span>
+      </div>
+    </div>
+
+    <!-- Bug Description -->
+    <section class="section-card">
+      <h3 class="section-title">
+        <mat-icon>subject</mat-icon>
+        Bug Description
+      </h3>
+      <p class="section-text">{{ item.description || 'No description provided.' }}</p>
+    </section>
+
+    <!-- Bug Reproduction Steps (Requirement 2 & 5) -->
+    <section class="section-card is-steps">
+      <div class="section-card__head">
+        <h3 class="section-title">
+          <mat-icon>format_list_numbered</mat-icon>
+          Reproduction Steps
+        </h3>
+        <span class="step-badge" *ngIf="reproductionStepsList.length > 0">
+          {{ reproductionStepsList.length }} Step(s)
+        </span>
+      </div>
+
+      <div class="steps-container" *ngIf="reproductionStepsList.length > 0">
+        <div class="step-row" *ngFor="let step of reproductionStepsList; let i = index">
+          <span class="step-num">{{ i + 1 }}</span>
+          <span class="step-content">{{ step }}</span>
+        </div>
+      </div>
+
+      <div class="empty-hint" *ngIf="reproductionStepsList.length === 0">
+        <p>{{ item.reproductionSteps || 'No reproduction steps documented yet.' }}</p>
+      </div>
+    </section>
+
+    <!-- Reproduction Flow Diagram Image (Requirement 3, 4 & 5) -->
+    <section class="section-card is-diagram">
+      <div class="section-card__head">
+        <div>
+          <h3 class="section-title">
+            <mat-icon>account_tree</mat-icon>
+            Reproduction Flow Diagram
+          </h3>
+          <p class="section-sub">Visual step-by-step reproduction sequence created by QA</p>
+        </div>
+
+        <div class="diagram-actions" *ngIf="imageUrl">
+          <button mat-stroked-button type="button" (click)="zoom = !zoom">
+            <mat-icon>{{ zoom ? 'zoom_out' : 'zoom_in' }}</mat-icon>
+            {{ zoom ? 'Fit to View' : 'Zoom 100%' }}
+          </button>
+          <button mat-stroked-button type="button" (click)="openExternalImage()">
+            <mat-icon>open_in_new</mat-icon>
+            Open in New Tab
+          </button>
+          <button mat-flat-button color="primary" type="button" (click)="downloadDiagram()">
+            <mat-icon>download</mat-icon>
+            Download
+          </button>
+        </div>
+      </div>
+
+      <!-- Diagram Image Container -->
+      <div class="diagram-viewport" *ngIf="imageUrl" [class.is-zoomed]="zoom">
+        <img [src]="imageUrl" alt="Bug Reproduction Flow Diagram" class="diagram-img" />
+      </div>
+
+      <!-- Empty state if no diagram attached -->
+      <div class="diagram-empty" *ngIf="!imageUrl">
+        <mat-icon>image_not_supported</mat-icon>
+        <h4>No Flow Diagram Attached</h4>
+        <p>This bug does not have an attached visual flow diagram. Refer to the reproduction steps above.</p>
+      </div>
+    </section>
+
+    <!-- Additional Attachment if any -->
+    <div class="attachment-bar" *ngIf="item.attachmentPath && item.attachmentPath !== item.reproductionStepsImage">
+      <mat-icon>attach_file</mat-icon>
+      <span>Additional Attachment: <strong>{{ item.attachmentPath }}</strong></span>
+      <a mat-button color="primary" [href]="'http://localhost:9001/attachments/' + item.attachmentPath" target="_blank">
+        <mat-icon>download</mat-icon> Download Attachment
+      </a>
+    </div>
+  </div>
+
+  <!-- Modal Footer -->
+  <footer class="modal-foot">
+    <button mat-stroked-button (click)="close()">Close</button>
+  </footer>
+</div>

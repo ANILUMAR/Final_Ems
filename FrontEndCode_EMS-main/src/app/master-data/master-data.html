@@ -1,0 +1,268 @@
+<section class="ems-page">
+  <header class="ems-page-head">
+    <div>
+      <h1 class="ems-page-title">Master data</h1>
+      <p class="ems-page-subtitle">
+        The module, sub module and screen values offered on the task forms. Add a value once here
+        and every new task can pick it.
+      </p>
+    </div>
+    <div class="ems-actions">
+      <button mat-stroked-button type="button" matTooltip="Reload all three lists" (click)="reload()">
+        <mat-icon>refresh</mat-icon>
+        Refresh
+      </button>
+    </div>
+  </header>
+
+  <!-- Who may write is said once, at the top, instead of on every column. -->
+  <div class="ems-auth__note">
+    <mat-icon>{{ canEdit ? 'verified_user' : 'visibility' }}</mat-icon>
+    <span *ngIf="canEdit; else readOnly">
+      You can add and retire values. Retiring keeps the name on work that already uses it — it
+      only stops offering it on new tasks.
+    </span>
+    <ng-template #readOnly>
+      <span>
+        You can read these lists. Adding and retiring belongs to an administrator, who can also
+        hand the right to a tester on Registered employees.
+      </span>
+    </ng-template>
+  </div>
+
+  <div class="ems-auth__note ems-auth__note--error" *ngIf="errorMessage">
+    <mat-icon>error_outline</mat-icon>
+    <span>{{ errorMessage }}</span>
+  </div>
+
+  <div class="md-grid">
+    <!-- 1. Modules -->
+    <article class="ems-card md-col">
+      <header class="md-col__head">
+        <span class="md-col__step">Step 1</span>
+        <h2 class="ems-section-title">Modules</h2>
+      </header>
+      <p class="md-col__hint ems-dim">
+        A part of the product, such as Timesheet or Authentication.
+        <ng-container *ngIf="modules.length"> {{ modules.length }} so far.</ng-container>
+      </p>
+
+      <ul class="md-list" *ngIf="modules.length; else noModules">
+        <li *ngFor="let module of pagedModules">
+          <button
+            type="button"
+            class="md-row"
+            [class.is-active]="moduleId === module.id"
+            [attr.aria-pressed]="moduleId === module.id"
+            (click)="selectModule(module)">
+            <mat-icon>folder_open</mat-icon>
+            <span class="md-row__name">{{ module.name }}</span>
+            <span class="md-row__count" matTooltip="Sub modules under this module">
+              {{ subModuleCount(module) }}
+            </span>
+          </button>
+          <button
+            *ngIf="canEdit"
+            mat-icon-button
+            type="button"
+            class="md-row__act"
+            [disabled]="saving"
+            [matTooltip]="retireHint(module)"
+            [attr.aria-label]="'Retire ' + module.name"
+            (click)="retire(module)">
+            <mat-icon>remove_circle_outline</mat-icon>
+          </button>
+        </li>
+      </ul>
+
+      <ng-template #noModules>
+        <p class="md-empty">{{ loading ? 'Loading the lists…' : 'No modules yet.' }}</p>
+      </ng-template>
+
+      <!-- Five rows a column by default. The strip appears once a column runs
+           past one small page, so a short vocabulary keeps its plain look. -->
+      <app-pager
+        *ngIf="modules.length > smallestPage"
+        [compact]="true"
+        [length]="modules.length"
+        [(pageIndex)]="modulePage"
+        [pageSize]="pageSize"
+        (pageSizeChange)="setPageSize($event)"
+        noun="module">
+      </app-pager>
+
+      <div class="md-add" *ngIf="canEdit">
+        <mat-form-field appearance="outline">
+          <mat-label>Add a module</mat-label>
+          <input
+            matInput
+            maxlength="120"
+            [(ngModel)]="newModule"
+            [disabled]="saving"
+            (keyup.enter)="addModule()" />
+        </mat-form-field>
+        <button
+          mat-flat-button
+          color="primary"
+          type="button"
+          [disabled]="!newModule.trim() || saving"
+          (click)="addModule()">
+          <mat-icon>add</mat-icon>
+          Save
+        </button>
+      </div>
+    </article>
+
+    <!-- 2. Sub modules -->
+    <article class="ems-card md-col">
+      <header class="md-col__head">
+        <span class="md-col__step">Step 2</span>
+        <h2 class="ems-section-title">Sub modules</h2>
+      </header>
+      <p class="md-col__hint ems-dim" *ngIf="moduleId === null">
+        Pick a module on the left first — a sub module belongs to one.
+      </p>
+      <p class="md-col__hint ems-dim" *ngIf="moduleId !== null">
+        {{ selectedModuleName }} · {{ subModules.length }} sub module{{ subModules.length === 1 ? '' : 's' }}
+      </p>
+
+      <ul class="md-list" *ngIf="subModules.length; else noSubModules">
+        <li *ngFor="let subModule of pagedSubModules">
+          <button
+            type="button"
+            class="md-row"
+            [class.is-active]="subModuleId === subModule.id"
+            [attr.aria-pressed]="subModuleId === subModule.id"
+            (click)="selectSubModule(subModule)">
+            <mat-icon>account_tree</mat-icon>
+            <span class="md-row__name">{{ subModule.name }}</span>
+            <span class="md-row__count" matTooltip="Screens under this sub module">
+              {{ screenCount(subModule) }}
+            </span>
+          </button>
+          <button
+            *ngIf="canEdit"
+            mat-icon-button
+            type="button"
+            class="md-row__act"
+            [disabled]="saving"
+            [matTooltip]="retireHint(subModule)"
+            [attr.aria-label]="'Retire ' + subModule.name"
+            (click)="retire(subModule)">
+            <mat-icon>remove_circle_outline</mat-icon>
+          </button>
+        </li>
+      </ul>
+
+      <ng-template #noSubModules>
+        <p class="md-empty">
+          {{ loading ? 'Loading the lists…'
+             : (moduleId === null ? 'No module chosen yet.' : 'This module has no sub modules yet.') }}
+        </p>
+      </ng-template>
+
+      <app-pager
+        *ngIf="subModules.length > smallestPage"
+        [compact]="true"
+        [length]="subModules.length"
+        [(pageIndex)]="subModulePage"
+        [pageSize]="pageSize"
+        (pageSizeChange)="setPageSize($event)"
+        noun="sub module">
+      </app-pager>
+
+      <div class="md-add" *ngIf="canEdit">
+        <mat-form-field appearance="outline">
+          <mat-label>Add a sub module</mat-label>
+          <input
+            matInput
+            maxlength="120"
+            [(ngModel)]="newSubModule"
+            [disabled]="saving || moduleId === null"
+            (keyup.enter)="addSubModule()" />
+        </mat-form-field>
+        <button
+          mat-flat-button
+          color="primary"
+          type="button"
+          [disabled]="!newSubModule.trim() || moduleId === null || saving"
+          (click)="addSubModule()">
+          <mat-icon>add</mat-icon>
+          Save
+        </button>
+      </div>
+    </article>
+
+    <!-- 3. Screens -->
+    <article class="ems-card md-col">
+      <header class="md-col__head">
+        <span class="md-col__step">Step 3</span>
+        <h2 class="ems-section-title">Screens</h2>
+      </header>
+      <p class="md-col__hint ems-dim" *ngIf="subModuleId === null">
+        Pick a sub module first — a screen belongs to one.
+      </p>
+      <p class="md-col__hint ems-dim" *ngIf="subModuleId !== null">
+        {{ selectedSubModuleName }} · {{ screens.length }} screen{{ screens.length === 1 ? '' : 's' }}
+      </p>
+
+      <ul class="md-list" *ngIf="screens.length; else noScreens">
+        <li *ngFor="let screen of pagedScreens">
+          <span class="md-row md-row--static">
+            <mat-icon>web_asset</mat-icon>
+            <span class="md-row__name">{{ screen.name }}</span>
+          </span>
+          <button
+            *ngIf="canEdit"
+            mat-icon-button
+            type="button"
+            class="md-row__act"
+            [disabled]="saving"
+            [matTooltip]="retireHint(screen)"
+            [attr.aria-label]="'Retire ' + screen.name"
+            (click)="retire(screen)">
+            <mat-icon>remove_circle_outline</mat-icon>
+          </button>
+        </li>
+      </ul>
+
+      <ng-template #noScreens>
+        <p class="md-empty">
+          {{ loading ? 'Loading the lists…'
+             : (subModuleId === null ? 'No sub module chosen yet.' : 'This sub module has no screens yet.') }}
+        </p>
+      </ng-template>
+
+      <app-pager
+        *ngIf="screens.length > smallestPage"
+        [compact]="true"
+        [length]="screens.length"
+        [(pageIndex)]="screenPage"
+        [pageSize]="pageSize"
+        (pageSizeChange)="setPageSize($event)"
+        noun="screen">
+      </app-pager>
+
+      <div class="md-add" *ngIf="canEdit">
+        <mat-form-field appearance="outline">
+          <mat-label>Add a screen</mat-label>
+          <input
+            matInput
+            maxlength="120"
+            [(ngModel)]="newScreen"
+            [disabled]="saving || subModuleId === null"
+            (keyup.enter)="addScreen()" />
+        </mat-form-field>
+        <button
+          mat-flat-button
+          color="primary"
+          type="button"
+          [disabled]="!newScreen.trim() || subModuleId === null || saving"
+          (click)="addScreen()">
+          <mat-icon>add</mat-icon>
+          Save
+        </button>
+      </div>
+    </article>
+  </div>
+</section>

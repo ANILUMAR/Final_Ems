@@ -1,0 +1,48 @@
+.bo-sub {
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ems-text-3);
+}
+
+.bo-field {
+  width: 100%;
+}
+
+.bo-field textarea {
+  font-family: var(--ems-font-mono, monospace);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.bo-count {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--ems-text-2);
+}
+
+.bo-count mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+}
+
+.bo-count--success {
+  color: var(--ems-success);
+}
+
+.bo-issues {
+  margin: 12px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--ems-danger, #b42318);
+}
+
+.bo-result {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}

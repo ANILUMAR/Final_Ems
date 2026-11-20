@@ -1,0 +1,203 @@
+<div class="flow-designer-dialog">
+  <!-- Dialog Header & Toolbar -->
+  <header class="designer-header">
+    <div class="designer-header__title">
+      <mat-icon class="title-icon">account_tree</mat-icon>
+      <div>
+        <h2>Bug Reproduction Flow Designer</h2>
+        <p class="subtitle">Drag and connect reproduction steps to build a visual diagram for developers</p>
+      </div>
+    </div>
+
+    <div class="designer-header__actions">
+      <button mat-stroked-button type="button" (click)="close()">
+        <mat-icon>close</mat-icon>
+        Cancel
+      </button>
+      <button mat-flat-button color="primary" type="button" class="btn-save" (click)="saveAndAttach()">
+        <mat-icon>save_alt</mat-icon>
+        Save & Attach Diagram
+      </button>
+    </div>
+  </header>
+
+  <!-- Control Palette Toolbar -->
+  <div class="designer-toolbar">
+    <div class="toolbar-group">
+      <span class="group-label">Add Steps:</span>
+      <button type="button" class="tool-btn is-start" (click)="addNode('start')">
+        <mat-icon>play_circle</mat-icon>
+        + Start / Trigger
+      </button>
+      <button type="button" class="tool-btn is-action" (click)="addNode('action')">
+        <mat-icon>touch_app</mat-icon>
+        + User Action
+      </button>
+      <button type="button" class="tool-btn is-decision" (click)="addNode('decision')">
+        <mat-icon>call_split</mat-icon>
+        + Condition
+      </button>
+      <button type="button" class="tool-btn is-error" (click)="addNode('error')">
+        <mat-icon>error_outline</mat-icon>
+        + Bug / Failure
+      </button>
+      <button type="button" class="tool-btn is-expected" (click)="addNode('expected')">
+        <mat-icon>verified</mat-icon>
+        + Expected Result
+      </button>
+    </div>
+
+    <div class="toolbar-divider"></div>
+
+    <div class="toolbar-group">
+      <button type="button" class="action-btn" matTooltip="Auto-arrange steps in a clean layout" (click)="autoLayout()">
+        <mat-icon>grid_view</mat-icon>
+        Auto Layout
+      </button>
+      <button type="button" class="action-btn" matTooltip="Link all steps in sequence 1 -> 2 -> 3" (click)="autoConnectSequential()">
+        <mat-icon>timeline</mat-icon>
+        Auto Connect
+      </button>
+      <button type="button" class="action-btn" matTooltip="Reset to standard 5-step reproduction template" (click)="loadBugTemplate()">
+        <mat-icon>restart_alt</mat-icon>
+        Bug Template
+      </button>
+      <button type="button" class="action-btn is-danger" matTooltip="Clear canvas" (click)="clearAll()">
+        <mat-icon>delete_outline</mat-icon>
+        Clear
+      </button>
+    </div>
+  </div>
+
+  <!-- Instruction banner when connecting -->
+  <div class="connection-banner" *ngIf="connectingFromId">
+    <mat-icon>ads_click</mat-icon>
+    <span>Click on any target step card to connect an arrow to it, or click here to cancel.</span>
+    <button mat-button (click)="connectingFromId = null">Cancel Connection</button>
+  </div>
+
+  <!-- Flow Canvas Area -->
+  <div class="designer-canvas-wrap">
+    <div
+      class="designer-canvas"
+      [style.width.px]="canvasWidth"
+      [style.height.px]="canvasHeight"
+    >
+      <!-- SVG Connector Overlay -->
+      <svg class="svg-connector-layer" [attr.width]="canvasWidth" [attr.height]="canvasHeight">
+        <defs>
+          <marker
+            id="arrowhead"
+            viewBox="0 0 10 10"
+            refX="9"
+            refY="5"
+            markerWidth="6"
+            markerHeight="6"
+            orient="auto-start-reverse"
+          >
+            <path d="M 0 1 L 10 5 L 0 9 z" fill="#38bdf8" />
+          </marker>
+        </defs>
+
+        <!-- Connecting Lines -->
+        <g *ngFor="let conn of getConnections()">
+          <path
+            [attr.d]="conn.path"
+            class="flow-connector"
+            marker-end="url(#arrowhead)"
+          />
+          <!-- Delete link indicator button -->
+          <circle
+            [attr.cx]="conn.midX"
+            [attr.cy]="conn.midY"
+            r="11"
+            class="flow-connector__del-bg"
+            (click)="removeConnection(conn.fromNode.id, conn.toNode.id, $event)"
+          />
+          <text
+            [attr.x]="conn.midX"
+            [attr.y]="conn.midY + 4"
+            class="flow-connector__del-text"
+            (click)="removeConnection(conn.fromNode.id, conn.toNode.id, $event)"
+          >×</text>
+        </g>
+      </svg>
+
+      <!-- Draggable Node Cards -->
+      <div
+        *ngFor="let node of nodes"
+        class="flow-node-card"
+        [class.is-selected]="selectedNodeId === node.id"
+        [class.is-connecting-source]="connectingFromId === node.id"
+        [class.is-connecting-target]="connectingFromId && connectingFromId !== node.id"
+        [ngClass]="'node-' + node.type"
+        [style.left.px]="node.x"
+        [style.top.px]="node.y"
+        [style.width.px]="node.width"
+        (mousedown)="onMouseDown($event, node)"
+        (click)="selectNode(node.id)"
+      >
+        <!-- Card Header (Draggable handle) -->
+        <div class="node-header">
+          <div class="node-header__left">
+            <mat-icon class="node-icon">{{ typeIcon(node.type) }}</mat-icon>
+            <span class="node-type-label">{{ typeLabel(node.type) }}</span>
+          </div>
+          <button
+            type="button"
+            class="node-del-btn"
+            matTooltip="Delete this step"
+            (click)="deleteNode(node.id, $event)"
+          >
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
+        <!-- Card Body with In-Place Text Editing -->
+        <div class="node-body">
+          <input
+            type="text"
+            class="node-title-input"
+            [(ngModel)]="node.title"
+            placeholder="Step title…"
+            (mousedown)="$event.stopPropagation()"
+          />
+          <textarea
+            class="node-desc-input"
+            [(ngModel)]="node.description"
+            rows="2"
+            placeholder="Describe what happens in this step…"
+            (mousedown)="$event.stopPropagation()"
+          ></textarea>
+        </div>
+
+        <!-- Card Footer with Connector Handle -->
+        <div class="node-footer">
+          <button
+            type="button"
+            class="node-connect-btn"
+            [class.is-active]="connectingFromId === node.id"
+            matTooltip="Connect an arrow to another step"
+            (click)="startConnecting(node.id, $event)"
+          >
+            <mat-icon>{{ connectingFromId === node.id ? 'check' : 'arrow_right_alt' }}</mat-icon>
+            {{ connectingFromId === node.id ? 'Connecting…' : 'Connect' }}
+          </button>
+          <span class="connections-count" *ngIf="node.nextIds.length > 0">
+            {{ node.nextIds.length }} link(s)
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Usage Tips in Footer -->
+  <footer class="designer-footer">
+    <div class="tip-row">
+      <mat-icon>lightbulb</mat-icon>
+      <span>
+        <strong>Tip:</strong> Drag step cards anywhere to arrange. Click <em>Connect</em> on a card then click any other card to draw a directed arrow. Click <strong>Save & Attach Diagram</strong> to embed the reproduction image into your bug report.
+      </span>
+    </div>
+  </footer>
+</div>

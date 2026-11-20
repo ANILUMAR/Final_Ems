@@ -1,0 +1,57 @@
+/* The dialog mirrors the Create task page: the same two sections, the same
+   two-column rhythm, so a field is always in the place the admin expects. */
+.etd-body {
+  padding-top: 4px;
+}
+
+/* Section headings inside the dialog. The shared .ems-section-title is sized
+   for a card on a page; at dialog scale a smaller heading with the icon in the
+   primary colour reads better. */
+.etd-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 12px;
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ems-text-2);
+}
+
+.etd-section:not(:first-child) {
+  margin-top: 20px;
+}
+
+.etd-section mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: var(--ems-primary);
+}
+
+.etd-grid {
+  margin-bottom: 4px;
+}
+
+.etd-foot {
+  margin-bottom: 0;
+  font-size: 12px;
+}
+
+/* The same "* required" note and right-aligned buttons as the page forms. */
+.etd-required {
+  font-size: 12px;
+  color: var(--ems-text-3);
+}
+
+.etd-spacer {
+  flex: 1 1 auto;
+}
+
+/* One column once the dialog is narrower than the two-column rhythm allows. */
+@media (max-width: 620px) {
+  .etd-grid {
+    grid-template-columns: 1fr;
+  }
+}

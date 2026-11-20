@@ -1,0 +1,133 @@
+<h2 mat-dialog-title>Edit task</h2>
+
+<mat-progress-bar *ngIf="saving" mode="indeterminate"></mat-progress-bar>
+
+<form [formGroup]="form" (ngSubmit)="save()">
+  <mat-dialog-content class="etd-body">
+    <!-- Task details -->
+    <h3 class="etd-section">
+      <mat-icon>assignment</mat-icon>
+      Task details
+    </h3>
+
+    <div class="ems-form-grid ems-form-grid--2 etd-grid">
+      <!-- The title owns the row: it is the one thing every task must say. -->
+      <mat-form-field appearance="outline" class="ems-field ems-span-2">
+        <mat-label>Task title</mat-label>
+        <input matInput formControlName="taskTitle" required placeholder="e.g. Fix login redirect" />
+        <mat-hint>One line describing what has to be done.</mat-hint>
+        <mat-error *ngIf="form.get('taskTitle')?.hasError('required')">A title is required.</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="ems-field">
+        <mat-label>Project</mat-label>
+        <mat-select formControlName="project" required>
+          <mat-option *ngFor="let project of projectOptions" [value]="project">{{ project }}</mat-option>
+        </mat-select>
+        <mat-error *ngIf="form.get('project')?.hasError('required')">
+          Pick the project this work belongs to.
+        </mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="ems-field">
+        <mat-label>Assign to</mat-label>
+        <mat-select formControlName="assignedTo" required>
+          <mat-option *ngFor="let owner of owners" [value]="owner.id">{{ owner.name }}</mat-option>
+        </mat-select>
+        <mat-hint *ngIf="!owners.length">Loading accounts…</mat-hint>
+        <mat-error *ngIf="form.get('assignedTo')?.hasError('required')">
+          Choose the person who owns this task.
+        </mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="ems-field">
+        <mat-label>Priority</mat-label>
+        <mat-select formControlName="priority" required>
+          <mat-option *ngFor="let item of priorities" [value]="item.code">{{ item.label }}</mat-option>
+        </mat-select>
+        <mat-error *ngIf="form.get('priority')?.hasError('required')">Pick a priority.</mat-error>
+      </mat-form-field>
+
+      <!-- Empty dates are allowed here: an unplanned task is a real state, so
+           these two only carry a hint rather than a blocking error. -->
+      <mat-form-field appearance="outline" class="ems-field">
+        <mat-label>Start date</mat-label>
+        <input matInput type="date" formControlName="startDate" />
+        <mat-hint>Leave empty if this is not planned yet.</mat-hint>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="ems-field">
+        <mat-label>Due date</mat-label>
+        <input matInput type="date" formControlName="endDate" />
+        <mat-hint>Leave empty if this is not planned yet.</mat-hint>
+      </mat-form-field>
+    </div>
+
+    <!-- Where in the app -->
+    <h3 class="etd-section">
+      <mat-icon>layers</mat-icon>
+      Where in the app
+    </h3>
+    <p class="ems-section-hint">Optional — it helps the team find this work again on the board and in reports.</p>
+
+    <div class="ems-form-grid etd-grid">
+      <mat-form-field appearance="outline" class="ems-field">
+        <mat-label>Module</mat-label>
+        <mat-select formControlName="module" (selectionChange)="onModuleChange()">
+          <mat-option *ngFor="let name of moduleOptions" [value]="name">{{ name }}</mat-option>
+        </mat-select>
+        <mat-hint *ngIf="!moduleOptions.length">
+          No modules yet — an administrator maintains this list on Master data
+        </mat-hint>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="ems-field">
+        <mat-label>Sub module</mat-label>
+        <mat-select formControlName="subModule" (selectionChange)="onSubModuleChange()">
+          <mat-option *ngFor="let name of subModuleOptions" [value]="name">{{ name }}</mat-option>
+        </mat-select>
+        <mat-hint *ngIf="!selectedModule">Pick a module first</mat-hint>
+        <mat-hint *ngIf="selectedModule && !subModuleOptions.length">
+          {{ selectedModule.name }} has no sub modules yet
+        </mat-hint>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="ems-field">
+        <mat-label>Screen</mat-label>
+        <mat-select formControlName="screen">
+          <mat-option *ngFor="let name of screenOptions" [value]="name">{{ name }}</mat-option>
+        </mat-select>
+        <mat-hint *ngIf="!selectedSubModule">Pick a sub module first</mat-hint>
+        <mat-hint *ngIf="selectedSubModule && !screenOptions.length">
+          {{ selectedSubModule.name }} has no screens yet
+        </mat-hint>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="ems-field ems-span-2">
+        <mat-label>Description</mat-label>
+        <textarea matInput formControlName="description" rows="4"
+                  placeholder="Context, acceptance criteria, links…"></textarea>
+        <mat-hint align="end">{{ (form.get('description')?.value || '').length }}/500</mat-hint>
+      </mat-form-field>
+    </div>
+
+    <div class="ems-auth__note ems-auth__note--error" *ngIf="errorMessage">
+      <mat-icon>error_outline</mat-icon>
+      <span>{{ errorMessage }}</span>
+    </div>
+
+    <p class="ems-dim etd-foot">
+      Progress is not edited here — move the task on the board so every step lands in its history.
+    </p>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <span class="etd-required">* Required</span>
+    <span class="etd-spacer"></span>
+    <button mat-stroked-button type="button" (click)="cancel()" [disabled]="saving">Cancel</button>
+    <button mat-flat-button color="primary" type="submit" [disabled]="saving">
+      <mat-icon>save</mat-icon>
+      Save changes
+    </button>
+  </mat-dialog-actions>
+</form>

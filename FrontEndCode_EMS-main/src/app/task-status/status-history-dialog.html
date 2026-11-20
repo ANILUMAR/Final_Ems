@@ -1,0 +1,39 @@
+<h2 mat-dialog-title>Status history</h2>
+
+<mat-dialog-content>
+  <p class="sh-sub">{{ data.title || ('#' + data.id) }}</p>
+
+  <p class="sh-loading" *ngIf="loading">
+    <mat-icon>hourglass_top</mat-icon>
+    Loading transitions…
+  </p>
+
+  <div class="ems-auth__note ems-auth__note--error" *ngIf="errorMessage">
+    <mat-icon>error_outline</mat-icon>
+    <span>{{ errorMessage }}</span>
+  </div>
+
+  <div class="ems-empty" *ngIf="!loading && !items.length && !errorMessage">
+    <mat-icon>history_toggle_off</mat-icon>
+    <h3>No transitions yet</h3>
+    <p>The first status change will be recorded here.</p>
+  </div>
+
+  <ol class="sh-list" *ngIf="items.length">
+    <li *ngFor="let item of items">
+      <span class="ems-badge" [ngClass]="badge(item.toStatus)">{{ label(item.toStatus) }}</span>
+      <div class="sh-main">
+        <strong>{{ item.actorName || item.actorEmail || 'Someone' }}</strong>
+        <small>
+          {{ label(item.fromStatus) }} → {{ label(item.toStatus) }} ·
+          {{ item.changedAt | date:'dd MMM yyyy, HH:mm' }}
+        </small>
+        <small class="sh-note" *ngIf="item.note">“{{ item.note }}”</small>
+      </div>
+    </li>
+  </ol>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-stroked-button mat-dialog-close>Close</button>
+</mat-dialog-actions>

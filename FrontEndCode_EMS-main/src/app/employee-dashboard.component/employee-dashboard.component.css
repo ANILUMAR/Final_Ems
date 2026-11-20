@@ -1,0 +1,81 @@
+:host {
+  display: block;
+}
+
+/* Pull the stats away from the admin picker card. */
+.ems-stat-grid--spaced {
+  margin-top: 16px;
+}
+
+/* Admin picker: one clickable row per developer. */
+.ems-member {
+  padding: 11px 10px;
+  margin: 0 -10px;
+  border-radius: var(--ems-radius);
+  cursor: pointer;
+  outline: none;
+  transition: background-color 0.15s ease;
+}
+
+.ems-member:hover,
+.ems-member:focus-visible {
+  background: var(--ems-hover-wash);
+}
+
+.ems-member--active {
+  background: var(--ems-info-soft);
+}
+
+.ems-member--active strong {
+  color: var(--ems-info);
+}
+
+.ems-member__tick {
+  color: var(--ems-info);
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+/* Collapsed picker: the chosen developer only, with a way back to the list. */
+.ems-selected {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.ems-selected__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--ems-info-soft);
+  color: var(--ems-info);
+  flex: 0 0 auto;
+}
+
+.ems-selected__main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-right: auto;
+  min-width: 0;
+}
+
+.ems-selected__main strong {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ems-text);
+}
+
+.ems-selected__main small {
+  font-size: 12.5px;
+  color: var(--ems-text-2);
+}
+
+/* .proj-row and .proj-row__chevron live in styles.css: the tester board's
+   Projects card uses the same clickable rows. */

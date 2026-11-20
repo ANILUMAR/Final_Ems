@@ -1,0 +1,16 @@
+<section class="ems-card quick-card" [class.quick-card--wide]="wide" *ngIf="actions.length">
+  <h2 class="ems-section-title">
+    <mat-icon>bolt</mat-icon>
+    Quick actions
+  </h2>
+
+  <div class="ems-quick" [class.ems-quick--tiles]="wide">
+    <a class="ems-quick__item" *ngFor="let action of actions" [routerLink]="action.link">
+      <mat-icon>{{ action.icon }}</mat-icon>
+      <span>
+        <strong>{{ action.label }}</strong>
+        <small>{{ action.hint }}</small>
+      </span>
+    </a>
+  </div>
+</section>

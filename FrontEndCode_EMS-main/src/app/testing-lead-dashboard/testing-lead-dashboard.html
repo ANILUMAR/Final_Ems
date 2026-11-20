@@ -1,0 +1,639 @@
+<div class="ems-page">
+  <!-- Header with Eyebrow, Title, Actions -->
+  <header class="ems-header">
+    <div class="ems-header__titles">
+      <div class="ems-header__eyebrow">
+        <span>Delivery QA</span>
+        <span class="ems-header__sep">/</span>
+        <span>Testing Team Leader</span>
+      </div>
+      <h1 class="ems-header__title">Testing Team Leader Dashboard</h1>
+      <p class="ems-header__subtitle">
+        Review completed work released by development and assign to testers for verification.
+      </p>
+    </div>
+    <div class="ems-header__actions">
+      <!-- Shortcut to Tested Completed Tasks Review for Team Leader -->
+      <a mat-stroked-button routerLink="/tested-completed" style="border-color:#10b981;color:#10b981;">
+        <mat-icon>verified</mat-icon> Tested Completed Review
+      </a>
+
+      <!-- Toggle Team Workload drawer/bar -->
+      <button mat-stroked-button type="button" class="ems-btn-roster-toggle" (click)="toggleTeamRoster()">
+        <mat-icon>{{ showTeamRoster ? 'visibility_off' : 'groups' }}</mat-icon>
+        {{ showTeamRoster ? 'Hide Team Workload' : 'Team Workload (' + activeTestersCount + ' Active)' }}
+      </button>
+
+      <!-- Refresh -->
+      <button mat-stroked-button color="primary" (click)="loadQueue()" [disabled]="loading">
+        <mat-icon>refresh</mat-icon> Refresh
+      </button>
+    </div>
+  </header>
+
+  <!-- Banner Alerts -->
+  <div *ngIf="successMessage" class="ems-alert ems-alert--success">
+    <mat-icon>check_circle</mat-icon>
+    <span>{{ successMessage }}</span>
+    <button class="ems-alert__close" (click)="successMessage = ''">&times;</button>
+  </div>
+
+  <div *ngIf="errorMessage" class="ems-alert ems-alert--danger">
+    <mat-icon>error_outline</mat-icon>
+    <span>{{ errorMessage }}</span>
+    <button class="ems-alert__close" (click)="errorMessage = ''">&times;</button>
+  </div>
+
+  <!-- Collapsible Team Workload Quick Bar -->
+  <div *ngIf="showTeamRoster" class="ems-roster-shelf">
+    <div class="ems-roster-shelf__head">
+      <div class="ems-roster-shelf__title">
+        <mat-icon>groups</mat-icon>
+        <span>Testing Team Workload & Availability</span>
+      </div>
+      <span class="ems-roster-shelf__tip">Click any tester to assign selected task to them</span>
+    </div>
+    <div class="ems-roster-grid">
+      <div
+        *ngFor="let tester of queue.testers"
+        class="ems-roster-card"
+        [class.is-selected]="selectedTesterId === tester.id"
+        [class.is-inactive]="!tester.active"
+        (click)="assignDirectlyTo(tester)"
+      >
+        <div class="ems-roster-card__avatar">
+          {{ tester.name.slice(0, 2).toUpperCase() }}
+        </div>
+        <div class="ems-roster-card__body">
+          <div class="ems-roster-card__name">
+            <strong>{{ tester.name }}</strong>
+            <span *ngIf="getOriginalTester(selectedItem)?.id === tester.id" class="ems-orig-pill">Original Reporter</span>
+          </div>
+          <div class="ems-roster-card__email">{{ tester.email }}</div>
+        </div>
+        <div class="ems-roster-card__status">
+          <span class="ems-badge" [ngClass]="{
+            'ems-badge--success': testerWorkloadClass(tester) === 'is-free',
+            'ems-badge--info': testerWorkloadClass(tester) === 'is-normal',
+            'ems-badge--warning': testerWorkloadClass(tester) === 'is-loaded',
+            'ems-badge--neutral': testerWorkloadClass(tester) === 'is-inactive'
+          }">
+            {{ testerWorkloadLabel(tester) }}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Interactive Metric Cards / Primary Filters -->
+  <div class="ems-stats-grid">
+    <div class="ems-stat-card" [class.ems-stat-card--active]="filter === 'ALL'" (click)="setFilter('ALL')">
+      <div class="ems-stat-card__icon ems-stat-card__icon--blue">
+        <mat-icon>inventory_2</mat-icon>
+      </div>
+      <div class="ems-stat-card__content">
+        <span class="ems-stat-card__value">{{ queue.totalReleased }}</span>
+        <span class="ems-stat-card__label">Total Released</span>
+      </div>
+    </div>
+
+    <div class="ems-stat-card" [class.ems-stat-card--active]="filter === 'AWAITING'" (click)="setFilter('AWAITING')">
+      <div class="ems-stat-card__icon ems-stat-card__icon--amber">
+        <mat-icon>hourglass_empty</mat-icon>
+      </div>
+      <div class="ems-stat-card__content">
+        <span class="ems-stat-card__value">{{ queue.awaiting }}</span>
+        <span class="ems-stat-card__label">Awaiting Tester</span>
+      </div>
+    </div>
+
+    <div class="ems-stat-card" [class.ems-stat-card--active]="filter === 'ASSIGNED'" (click)="setFilter('ASSIGNED')">
+      <div class="ems-stat-card__icon ems-stat-card__icon--purple">
+        <mat-icon>science</mat-icon>
+      </div>
+      <div class="ems-stat-card__content">
+        <span class="ems-stat-card__value">{{ queue.assigned }}</span>
+        <span class="ems-stat-card__label">In Testing</span>
+      </div>
+    </div>
+
+    <div class="ems-stat-card" [class.ems-stat-card--active]="filter === 'VERIFIED'" (click)="setFilter('VERIFIED')">
+      <div class="ems-stat-card__icon ems-stat-card__icon--green">
+        <mat-icon>verified</mat-icon>
+      </div>
+      <div class="ems-stat-card__content">
+        <span class="ems-stat-card__value">{{ queue.verified }}</span>
+        <span class="ems-stat-card__label">Verified & Passed</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main 2-Column Triage Layout -->
+  <div class="ems-triage-layout">
+    <!-- Left Column: The Work Queue -->
+    <div class="ems-triage-column ems-triage-column--queue">
+      <!-- Search & Kind Filter Toolbar -->
+      <div class="ems-queue-toolbar">
+        <div class="ems-search-box">
+          <mat-icon class="ems-search-icon">search</mat-icon>
+          <input
+            type="text"
+            [(ngModel)]="search"
+            (ngModelChange)="onSearchChange()"
+            placeholder="Search by code, title, dev, tester..."
+            class="ems-search-input"
+          />
+          <button *ngIf="search" class="ems-search-clear" (click)="clearSearch()">&times;</button>
+        </div>
+
+        <div class="ems-kind-chips">
+          <button class="ems-kind-chip" [class.is-active]="kindFilter === 'ALL'" (click)="setKindFilter('ALL')">
+            All ({{ queue.totalReleased }})
+          </button>
+          <button class="ems-kind-chip ems-kind-chip--bug" [class.is-active]="kindFilter === 'BUG'" (click)="setKindFilter('BUG')">
+            <mat-icon>bug_report</mat-icon> Bugs ({{ bugCount }})
+          </button>
+          <button class="ems-kind-chip ems-kind-chip--task" [class.is-active]="kindFilter === 'TASK'" (click)="setKindFilter('TASK')">
+            <mat-icon>assignment</mat-icon> Tasks ({{ taskCount }})
+          </button>
+        </div>
+      </div>
+
+      <!-- Loading State -->
+      <div *ngIf="loading" class="ems-state ems-state--loading">
+        <div class="ems-spinner"></div>
+        <p>Loading released tasks...</p>
+      </div>
+
+      <!-- Empty State -->
+      <div *ngIf="!loading && filteredItems.length === 0" class="ems-state ems-state--empty">
+        <mat-icon class="ems-state__icon">inbox</mat-icon>
+        <h3>No tasks found</h3>
+        <p>{{ search ? 'No items match your search.' : 'Tasks released by development team will appear here.' }}</p>
+      </div>
+
+      <!-- Queue Cards List -->
+      <div *ngIf="!loading && filteredItems.length > 0" class="ems-queue-list">
+        <div
+          *ngFor="let item of pagedItems"
+          class="ems-queue-card"
+          [class.ems-queue-card--selected]="selectedItem?.id === item.id"
+          [class.is-bug]="item.kind === 'BUG'"
+          (click)="selectItem(item)"
+        >
+          <div class="ems-queue-card__header">
+            <div class="ems-queue-card__tags">
+              <span class="ems-badge" [ngClass]="badgeOf(item.kind)">
+                <mat-icon class="ems-tiny-icon">{{ item.kind === 'BUG' ? 'bug_report' : 'assignment' }}</mat-icon>
+                {{ labelOf(item.kind) }}
+              </span>
+              <span class="ems-task-code">{{ codeOf(item) }}</span>
+              <span *ngIf="item.priority" class="ems-priority-pill" [ngClass]="'ems-priority--' + (item.priority | lowercase)">
+                <span class="ems-priority-dot"></span> {{ item.priority }}
+              </span>
+            </div>
+            <span class="ems-queue-card__date">{{ formatDate(item.releasedAt) }}</span>
+          </div>
+
+          <h4 class="ems-queue-card__title">{{ item.taskTitle }}</h4>
+
+          <div class="ems-queue-card__meta">
+            <span *ngIf="item.project" class="ems-meta-tag">
+              <mat-icon>folder_open</mat-icon> {{ item.project }}
+            </span>
+            <span *ngIf="item.assignedToName" class="ems-meta-tag">
+              <mat-icon>code</mat-icon> Dev: {{ item.assignedToName }}
+            </span>
+            <span class="ems-meta-tag ems-meta-tag--origin">
+              <mat-icon>person_outline</mat-icon> Raised by: <strong>{{ item.createdByName || item.createdBy || 'Tester' }}</strong>
+            </span>
+          </div>
+
+          <!-- Card Status Footer -->
+          <div class="ems-queue-card__footer">
+            <span *ngIf="!item.assignedTesterName" class="ems-badge ems-badge--warning ems-pulse">
+              <mat-icon>person_add</mat-icon> Needs Tester
+            </span>
+            <span *ngIf="item.assignedTesterName && item.testingStatus !== 'VERIFIED' && isAssignedToOriginal(item)" class="ems-badge ems-badge--success">
+              <mat-icon>assignment_ind</mat-icon> Original Tester: {{ item.assignedTesterName }}
+            </span>
+            <span *ngIf="item.assignedTesterName && item.testingStatus !== 'VERIFIED' && !isAssignedToOriginal(item)" class="ems-badge ems-badge--info">
+              <mat-icon>swap_horiz</mat-icon> Alt Tester: {{ item.assignedTesterName }}
+            </span>
+            <span *ngIf="item.testingStatus === 'VERIFIED'" class="ems-badge ems-badge--success">
+              <mat-icon>verified</mat-icon> Verified by {{ item.assignedTesterName }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pager -->
+      <app-pager
+        *ngIf="!loading && filteredItems.length > 0"
+        [length]="filteredItems.length"
+        [(pageIndex)]="pageIndex"
+        [(pageSize)]="pageSize"
+        noun="item"
+      ></app-pager>
+    </div>
+
+    <!-- Right Column: Detail & Action Panel -->
+    <div class="ems-triage-column ems-triage-column--detail">
+      <div *ngIf="!selectedItem" class="ems-detail-placeholder">
+        <mat-icon>touch_app</mat-icon>
+        <h3>Select a task or bug to review</h3>
+        <p>Click on any item in the left queue to assign it to a tester or review developer completion notes.</p>
+      </div>
+
+      <div *ngIf="selectedItem" class="ems-detail-panel">
+        <!-- Panel Top Header -->
+        <div class="ems-panel-header">
+          <div class="ems-panel-header__main">
+            <div class="ems-panel-header__pills">
+              <span class="ems-badge" [ngClass]="badgeOf(selectedItem.kind)">
+                <mat-icon class="ems-tiny-icon">{{ selectedItem.kind === 'BUG' ? 'bug_report' : 'assignment' }}</mat-icon>
+                {{ labelOf(selectedItem.kind) }}
+              </span>
+              <span class="ems-task-code ems-task-code--lg">{{ codeOf(selectedItem) }}</span>
+              <span *ngIf="selectedItem.priority" class="ems-priority-pill" [ngClass]="'ems-priority--' + (selectedItem.priority | lowercase)">
+                <span class="ems-priority-dot"></span> {{ selectedItem.priority }}
+              </span>
+              <span *ngIf="selectedItem.project" class="ems-badge ems-badge--neutral">
+                {{ selectedItem.project }}
+              </span>
+            </div>
+            <div class="ems-panel-header__status">
+              <span *ngIf="!selectedItem.assignedTesterName" class="ems-badge ems-badge--warning">
+                <mat-icon>hourglass_top</mat-icon> Awaiting Tester
+              </span>
+              <span *ngIf="selectedItem.assignedTesterName && selectedItem.testingStatus !== 'VERIFIED'" class="ems-badge ems-badge--info">
+                <mat-icon>assignment_ind</mat-icon> Assigned ({{ selectedItem.assignedTesterName }})
+              </span>
+              <span *ngIf="selectedItem.testingStatus === 'VERIFIED'" class="ems-badge ems-badge--success">
+                <mat-icon>verified</mat-icon> Verified & Passed
+              </span>
+            </div>
+          </div>
+
+          <h2 class="ems-panel-title">{{ selectedItem.taskTitle }}</h2>
+
+          <!-- Meta Bar -->
+          <div class="ems-panel-meta-bar">
+            <div class="ems-panel-meta-item">
+              <span class="ems-meta-label">Completed by Developer</span>
+              <span class="ems-meta-value ems-meta-value--dev">
+                <mat-icon>code</mat-icon>
+                {{ selectedItem.assignedToName || 'Developer' }}
+              </span>
+            </div>
+            <div class="ems-panel-meta-item">
+              <span class="ems-meta-label">Original Reporter</span>
+              <span class="ems-meta-value ems-meta-value--orig">
+                <mat-icon>person</mat-icon>
+                {{ selectedItem.createdByName || selectedItem.createdBy || 'Tester' }}
+              </span>
+            </div>
+            <div class="ems-panel-meta-item" *ngIf="selectedItem.module">
+              <span class="ems-meta-label">Module / Screen</span>
+              <span class="ems-meta-value">
+                {{ selectedItem.module }} <span *ngIf="selectedItem.subModule">/ {{ selectedItem.subModule }}</span>
+              </span>
+            </div>
+            <div class="ems-panel-meta-item" *ngIf="selectedItem.releasedAt">
+              <span class="ems-meta-label">Released Date</span>
+              <span class="ems-meta-value">{{ formatDate(selectedItem.releasedAt) }}</span>
+            </div>
+          </div>
+
+          <!-- Tab Navigation for Detail Panel -->
+          <div class="ems-panel-tabs">
+            <button
+              type="button"
+              class="ems-panel-tab"
+              [class.is-active]="detailTab === 'ASSIGN'"
+              (click)="detailTab = 'ASSIGN'"
+            >
+              <mat-icon>assignment_ind</mat-icon>
+              <span>Assign Tester</span>
+            </button>
+            <button
+              type="button"
+              class="ems-panel-tab"
+              [class.is-active]="detailTab === 'DETAILS'"
+              (click)="detailTab = 'DETAILS'"
+            >
+              <mat-icon>article</mat-icon>
+              <span>Task & Fix Details</span>
+            </button>
+            <button
+              type="button"
+              class="ems-panel-tab"
+              [class.is-active]="detailTab === 'VERIFY'"
+              (click)="detailTab = 'VERIFY'"
+            >
+              <mat-icon>fact_check</mat-icon>
+              <span>QA Verification</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- TAB 1: ASSIGN TESTER -->
+        <div *ngIf="detailTab === 'ASSIGN'" class="ems-tab-body">
+          <!-- Current Assignment Notice (if already assigned) -->
+          <div *ngIf="selectedItem.assignedTesterName" class="ems-notice-banner ems-notice-banner--info">
+            <mat-icon>{{ isAssignedToOriginal(selectedItem) ? 'verified_user' : 'swap_horiz' }}</mat-icon>
+            <div class="ems-notice-content">
+              <strong>Currently in testing with {{ selectedItem.assignedTesterName }}</strong>
+              <span>
+                Assigned on {{ formatDate(selectedItem.assignedTesterAt) }} as
+                {{ isAssignedToOriginal(selectedItem) ? 'Original Reporter' : 'Alternative Tester' }}.
+                You can reassign below if needed.
+              </span>
+            </div>
+          </div>
+
+          <!-- Hero: Original Reporter Assignment Recommendation (Step 5 & 6) -->
+          <div class="ems-smart-assign-card" [class.is-orig-available]="isOriginalTesterAvailable(selectedItem)">
+            <div class="ems-smart-card-top">
+              <div class="ems-smart-user-info">
+                <div class="ems-smart-avatar">
+                  <mat-icon>person</mat-icon>
+                </div>
+                <div>
+                  <div class="ems-smart-tag">Workflow Step 5: Original Issue Reporter</div>
+                  <h3 class="ems-smart-name">
+                    {{ selectedItem.createdByName || selectedItem.createdBy || 'Original Reporter' }}
+                  </h3>
+                  <div class="ems-smart-sub">
+                    <span *ngIf="getOriginalTester(selectedItem)?.email">{{ getOriginalTester(selectedItem)?.email }}</span>
+                    <span *ngIf="isOriginalTesterAvailable(selectedItem)" class="ems-dot-sep">•</span>
+                    <span *ngIf="isOriginalTesterAvailable(selectedItem)" class="ems-load-text">
+                      {{ getOriginalTester(selectedItem)?.openTestingTasks }} active tasks in progress
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="ems-smart-status">
+                <span *ngIf="isOriginalTesterAvailable(selectedItem)" class="ems-badge ems-badge--success">
+                  <mat-icon>check_circle</mat-icon> Available & Active
+                </span>
+                <span *ngIf="!isOriginalTesterAvailable(selectedItem) && getOriginalTester(selectedItem)" class="ems-badge ems-badge--danger">
+                  <mat-icon>block</mat-icon> Unavailable (Inactive)
+                </span>
+                <span *ngIf="!getOriginalTester(selectedItem)" class="ems-badge ems-badge--neutral">
+                  <mat-icon>help_outline</mat-icon> Unregistered Account
+                </span>
+              </div>
+            </div>
+
+            <!-- Recommendation Callout -->
+            <div class="ems-smart-guidance">
+              <div *ngIf="isOriginalTesterAvailable(selectedItem)" class="ems-guidance-text">
+                <mat-icon class="ems-guide-icon">recommend</mat-icon>
+                <span>
+                  <strong>Recommended:</strong> Best practice is to assign this defect back to the original tester who raised it, ensuring accurate reproduction check.
+                </span>
+              </div>
+              <div *ngIf="!isOriginalTesterAvailable(selectedItem)" class="ems-guidance-text ems-guidance-text--warn">
+                <mat-icon class="ems-guide-icon">warning_amber</mat-icon>
+                <span>
+                  <strong>Workflow Step 6:</strong> Original tester is unavailable. Please pick an alternative available tester below.
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Assignment Form -->
+          <div class="ems-card-section">
+            <h3 class="ems-section-heading">
+              <mat-icon>how_to_reg</mat-icon> Assign Verification Owner
+            </h3>
+
+            <!-- Mode Selector: Original vs Alternative -->
+            <div class="ems-segmented-control">
+              <button
+                type="button"
+                class="ems-segment-btn"
+                [class.is-active]="assignmentMode === 'ORIGINAL'"
+                [disabled]="!isOriginalTesterAvailable(selectedItem)"
+                (click)="chooseOriginalTester()"
+              >
+                <mat-icon>person</mat-icon>
+                <span>Original Reporter ({{ getOriginalTester(selectedItem)?.name || 'Tester' }})</span>
+              </button>
+
+              <button
+                type="button"
+                class="ems-segment-btn"
+                [class.is-active]="assignmentMode === 'ALTERNATIVE'"
+                (click)="chooseAlternativeMode()"
+              >
+                <mat-icon>people_outline</mat-icon>
+                <span>Alternative Tester ({{ alternativeTesters.length }} Available)</span>
+              </button>
+            </div>
+
+            <!-- Mode 1: Original Reporter Display -->
+            <div *ngIf="assignmentMode === 'ORIGINAL' && getOriginalTester(selectedItem)" class="ems-picked-tester-box">
+              <mat-icon class="ems-picked-icon">verified_user</mat-icon>
+              <div class="ems-picked-content">
+                <strong>{{ getOriginalTester(selectedItem)?.name }}</strong>
+                <span>{{ getOriginalTester(selectedItem)?.email }} · {{ getOriginalTester(selectedItem)?.openTestingTasks }} tasks currently in progress</span>
+              </div>
+              <span class="ems-badge ems-badge--success">Selected</span>
+            </div>
+
+            <!-- Mode 2: Alternative Tester Dropdown -->
+            <div *ngIf="assignmentMode === 'ALTERNATIVE' || !getOriginalTester(selectedItem)" class="ems-form-group">
+              <label class="ems-form-label" for="altTester">Select Alternative Tester *</label>
+              <select id="altTester" [(ngModel)]="selectedTesterId" class="ems-form-select">
+                <option [ngValue]="null">-- Choose from Available Testers --</option>
+                <option *ngFor="let t of alternativeTesters" [ngValue]="t.id">
+                  {{ t.name }} ({{ t.email }}) — {{ t.openTestingTasks }} tasks in progress
+                </option>
+                <option *ngIf="alternativeTesters.length === 0" [ngValue]="null" disabled>
+                  No active alternative testers available
+                </option>
+              </select>
+            </div>
+
+            <!-- Form Row: Priority & Instructions -->
+            <div class="ems-form-row">
+              <div class="ems-form-group ems-form-group--half">
+                <label class="ems-form-label" for="priority">Testing Priority</label>
+                <select id="priority" [(ngModel)]="assignedPriority" class="ems-form-select">
+                  <option *ngFor="let p of priorities" [value]="p">{{ p }}</option>
+                </select>
+              </div>
+
+              <div class="ems-form-group ems-form-group--full">
+                <label class="ems-form-label" for="instructions">QA Instructions & Focus Areas (Optional)</label>
+                <textarea
+                  id="instructions"
+                  [(ngModel)]="qaInstructions"
+                  rows="3"
+                  placeholder="e.g. Please verify edge cases, cross-browser compatibility, and validation error messages..."
+                  class="ems-form-textarea"
+                ></textarea>
+              </div>
+            </div>
+
+            <!-- Submit Assignment Button -->
+            <div class="ems-action-footer">
+              <button
+                mat-flat-button
+                color="primary"
+                class="ems-btn-submit-assignment"
+                (click)="submitAssignment()"
+                [disabled]="submitting || !selectedTesterId"
+              >
+                <mat-icon>{{ submitting ? 'hourglass_top' : 'assignment_turned_in' }}</mat-icon>
+                <span>
+                  {{ submitting ? 'Assigning...' : (isOriginalTesterSelected ? ('Confirm & Assign to ' + (getOriginalTester(selectedItem)?.name || 'Original Tester')) : 'Confirm & Assign to Alternative Tester') }}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 2: DETAILS & RELEASE NOTES -->
+        <div *ngIf="detailTab === 'DETAILS'" class="ems-tab-body">
+          <!-- Developer Lead Release Notes -->
+          <div class="ems-card-section">
+            <h3 class="ems-section-heading">
+              <mat-icon>send</mat-icon> Developer Lead Release Notes
+            </h3>
+            <div class="ems-release-card">
+              <div class="ems-release-card__quote">
+                {{ selectedItem.releaseNote || 'Released for verification without additional notes.' }}
+              </div>
+              <div class="ems-release-card__author">
+                <mat-icon>verified</mat-icon>
+                <span>Released by <strong>{{ selectedItem.releasedByName || selectedItem.releasedBy || 'Team Leader' }}</strong> on {{ formatDate(selectedItem.releasedAt) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Description -->
+          <div class="ems-card-section" *ngIf="selectedItem.description">
+            <h3 class="ems-section-heading">
+              <mat-icon>description</mat-icon> Description
+            </h3>
+            <div class="ems-text-block">{{ selectedItem.description }}</div>
+          </div>
+
+          <!-- Bug Reproduction Details (if Bug) -->
+          <div class="ems-card-section" *ngIf="selectedItem.kind === 'BUG' && (selectedItem.reproductionSteps || selectedItem.reproductionFlow || selectedItem.reproductionStepsImage)">
+            <h3 class="ems-section-heading">
+              <mat-icon>bug_report</mat-icon> Bug Reproduction Details
+            </h3>
+
+            <div *ngIf="selectedItem.reproductionSteps" class="ems-sub-block">
+              <div class="ems-sub-block__title">Reproduction Steps:</div>
+              <pre class="ems-pre-code">{{ selectedItem.reproductionSteps }}</pre>
+            </div>
+
+            <div *ngIf="selectedItem.reproductionFlow" class="ems-sub-block">
+              <div class="ems-sub-block__title">Reproduction Flow:</div>
+              <p class="ems-sub-block__text">{{ selectedItem.reproductionFlow }}</p>
+            </div>
+
+            <div *ngIf="selectedItem.reproductionStepsImage" class="ems-sub-block">
+              <div class="ems-sub-block__title">Screenshot Evidence:</div>
+              <a [href]="attachmentUrl(selectedItem.reproductionStepsImage)" target="_blank" class="ems-attach-btn">
+                <mat-icon>image</mat-icon> View Full Reproduction Screenshot
+              </a>
+            </div>
+          </div>
+
+          <!-- General Attachment -->
+          <div class="ems-card-section" *ngIf="selectedItem.attachmentPath">
+            <h3 class="ems-section-heading">
+              <mat-icon>attach_file</mat-icon> Attachments
+            </h3>
+            <a [href]="attachmentUrl(selectedItem.attachmentPath)" target="_blank" class="ems-attach-btn">
+              <mat-icon>download</mat-icon> Download {{ selectedItem.attachmentPath }}
+            </a>
+          </div>
+        </div>
+
+        <!-- TAB 3: VERIFICATION SIGN-OFF -->
+        <div *ngIf="detailTab === 'VERIFY'" class="ems-tab-body">
+          <div class="ems-card-section">
+            <h3 class="ems-section-heading">
+              <mat-icon>fact_check</mat-icon> QA Outcome & Sign-off
+            </h3>
+            <p class="ems-section-sub">
+              Once testing is completed, record the QA verification result here.
+            </p>
+
+            <div *ngIf="!verifying" class="ems-verify-choice-grid">
+              <button
+                type="button"
+                class="ems-verify-choice-card ems-verify-choice-card--pass"
+                (click)="verifying = true; verifyResult = 'PASSED'"
+              >
+                <div class="ems-verify-choice-icon">
+                  <mat-icon>check_circle</mat-icon>
+                </div>
+                <div class="ems-verify-choice-text">
+                  <h4>Verification Passed</h4>
+                  <p>Fix is verified and meets all requirements. Closes the issue.</p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                class="ems-verify-choice-card ems-verify-choice-card--fail"
+                (click)="verifying = true; verifyResult = 'FAILED'"
+              >
+                <div class="ems-verify-choice-icon">
+                  <mat-icon>replay</mat-icon>
+                </div>
+                <div class="ems-verify-choice-text">
+                  <h4>Verification Failed (Reopen)</h4>
+                  <p>Defect persists or new issue found. Returns item to dev queue.</p>
+                </div>
+              </button>
+            </div>
+
+            <!-- Verification Confirm Form -->
+            <div *ngIf="verifying" class="ems-verify-active-form">
+              <div class="ems-verify-active-status" [class.is-pass]="verifyResult === 'PASSED'" [class.is-fail]="verifyResult === 'FAILED'">
+                <mat-icon>{{ verifyResult === 'PASSED' ? 'check_circle' : 'warning' }}</mat-icon>
+                <span>Outcome: <strong>{{ verifyResult === 'PASSED' ? 'Verification Passed' : 'Verification Failed (Return for Rework)' }}</strong></span>
+              </div>
+
+              <div class="ems-form-group">
+                <label class="ems-form-label" for="verifyNote">
+                  Verification Notes / Evidence {{ verifyResult === 'FAILED' ? '*' : '(Optional)' }}
+                </label>
+                <textarea
+                  id="verifyNote"
+                  [(ngModel)]="verifyNote"
+                  rows="3"
+                  [placeholder]="verifyResult === 'PASSED' ? 'Verified working as expected in staging environment...' : 'Explain defect observed during testing...'"
+                  class="ems-form-textarea"
+                ></textarea>
+              </div>
+
+              <div class="ems-verify-action-bar">
+                <button mat-button type="button" (click)="verifying = false" [disabled]="submitting">Cancel</button>
+                <button
+                  mat-flat-button
+                  [color]="verifyResult === 'PASSED' ? 'primary' : 'warn'"
+                  (click)="submitVerification()"
+                  [disabled]="submitting"
+                >
+                  <mat-icon>{{ submitting ? 'hourglass_top' : (verifyResult === 'PASSED' ? 'verified' : 'replay') }}</mat-icon>
+                  <span>{{ submitting ? 'Submitting...' : 'Confirm ' + (verifyResult === 'PASSED' ? 'Pass & Close' : 'Fail & Reopen') }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

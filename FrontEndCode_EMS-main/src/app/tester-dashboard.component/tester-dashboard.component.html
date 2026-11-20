@@ -1,0 +1,308 @@
+<div class="ems-page">
+  <div class="ems-page-head">
+    <div>
+      <h1 class="ems-page-title">Verification board</h1>
+      <p class="ems-page-subtitle">
+        {{ today | date:'EEEE, d MMMM' }} ·
+        <ng-container *ngIf="isAdmin">
+          {{ selectedRow
+              ? selectedName + ' · ' + pending + ' pending · ' + completed + ' verified'
+              : 'pick a tester to open their board' }}
+        </ng-container>
+        <ng-container *ngIf="!isAdmin">{{ pending }} item(s) awaiting verification</ng-container>
+      </p>
+    </div>
+
+    <div class="ems-actions">
+      <button mat-stroked-button *ngIf="!isAdmin" (click)="goToTimesheet()">
+        <mat-icon>edit_calendar</mat-icon>
+        Log hours
+      </button>
+      <button mat-stroked-button *ngIf="!isAdmin" (click)="goToTasks()">
+        <mat-icon>list_alt</mat-icon>
+        My queue
+      </button>
+      <button mat-stroked-button *ngIf="isAdmin" routerLink="/testing-lead-dashboard">
+        <mat-icon>rule</mat-icon>
+        Testing Lead Dashboard
+      </button>
+      <button mat-stroked-button *ngIf="isAdmin" (click)="goToApprovals()">
+        <mat-icon>approval</mat-icon>
+        Testing review
+      </button>
+      <button mat-stroked-button *ngIf="isAdmin" (click)="goToAllTasks()">
+        <mat-icon>list_alt</mat-icon>
+        All tasks
+      </button>
+      <button mat-flat-button color="primary" *ngIf="!isAdmin" (click)="goToRaise()">
+        <mat-icon>add</mat-icon>
+        Raise task / bug
+      </button>
+      <button mat-flat-button color="primary" *ngIf="isAdmin" (click)="goToTasks()">
+        <mat-icon>view_kanban</mat-icon>
+        Open task board
+      </button>
+    </div>
+  </div>
+
+  <div class="ems-auth__note ems-auth__note--error" *ngIf="errorMessage">
+    <mat-icon>error_outline</mat-icon>
+    <span>{{ errorMessage }}</span>
+  </div>
+
+  <!-- admin only: pick whose queue to read -->
+  <section class="ems-card" *ngIf="isAdmin">
+    <!-- once picked, the list collapses to just that tester -->
+    <div class="ems-selected" *ngIf="!pickerOpen">
+      <span class="ems-selected__avatar"><mat-icon>person</mat-icon></span>
+      <div class="ems-selected__main">
+        <strong>{{ selectedName || 'No tester selected' }}</strong>
+        <small>{{ selectedRow?.email || 'Use Change to pick a tester' }}</small>
+      </div>
+      <div class="ems-actions">
+        <ng-container *ngIf="selectedRow">
+          <span class="ems-badge ems-badge--neutral">{{ selectedRow.total }} item(s)</span>
+          <span class="ems-badge ems-badge--neutral">{{ selectedRow.progress }}%</span>
+          <span class="ems-badge" [ngClass]="selectedRow.active ? 'ems-badge--success' : 'ems-badge--danger'">
+            {{ selectedRow.active ? 'Active' : 'Inactive' }}
+          </span>
+        </ng-container>
+        <button mat-stroked-button type="button" (click)="openPicker()">
+          <mat-icon>switch_account</mat-icon>
+          Change
+        </button>
+      </div>
+    </div>
+
+    <ng-container *ngIf="pickerOpen">
+      <h2 class="ems-section-title">
+        <mat-icon>groups</mat-icon>
+        Select a tester
+      </h2>
+
+      <mat-form-field appearance="outline" class="ems-search">
+        <mat-label>Search testers</mat-label>
+        <input matInput [(ngModel)]="search" (ngModelChange)="onSearchChange()" placeholder="Name or email…" />
+        <mat-icon matPrefix>search</mat-icon>
+      </mat-form-field>
+
+      <div class="ems-empty" *ngIf="!loading && teamRows.length === 0">
+        <mat-icon>group_off</mat-icon>
+        <h3>No testers yet</h3>
+        <p>Accounts created with the Tester role appear here.</p>
+      </div>
+
+      <div class="ems-empty" *ngIf="!loading && teamRows.length > 0 && filteredRows.length === 0">
+        <mat-icon>search_off</mat-icon>
+        <h3>No tester matches “{{ search }}”</h3>
+        <p>Try part of a name or an email address.</p>
+      </div>
+
+      <ul class="ems-rows" *ngIf="filteredRows.length > 0">
+        <li class="ems-rows__item ems-member"
+            *ngFor="let member of filteredRows"
+            role="button"
+            tabindex="0"
+            [class.ems-member--active]="member.email === selectedEmail"
+            [attr.aria-pressed]="member.email === selectedEmail"
+            (click)="selectMember(member)"
+            (keydown.enter)="selectMember(member)"
+            (keydown.space)="selectMember(member)">
+          <div class="ems-rows__main">
+            <strong>{{ member.name }}</strong>
+            <small>{{ member.email }}</small>
+          </div>
+          <div class="ems-rows__side">
+            <span class="ems-badge ems-badge--neutral">{{ member.total }} item(s)</span>
+            <span class="ems-badge ems-badge--neutral">{{ member.progress }}%</span>
+            <span class="ems-badge" [ngClass]="member.active ? 'ems-badge--success' : 'ems-badge--danger'">
+              {{ member.active ? 'Active' : 'Inactive' }}
+            </span>
+            <mat-icon class="ems-member__tick" *ngIf="member.email === selectedEmail">check_circle</mat-icon>
+          </div>
+        </li>
+      </ul>
+    </ng-container>
+  </section>
+
+  <div class="ems-stat-grid" [class.ems-stat-grid--spaced]="isAdmin">
+    <ng-container *ngIf="isAdmin">
+      <article class="ems-stat">
+        <span class="ems-stat__label">Pending verification</span>
+        <strong class="ems-stat__value">{{ pending }}</strong>
+        <span class="ems-stat__hint">{{ inProgress.length }} already in progress</span>
+      </article>
+
+      <article class="ems-stat">
+        <span class="ems-stat__label">Verified</span>
+        <strong class="ems-stat__value">{{ completed }}</strong>
+        <span class="ems-stat__hint">{{ progress }}% of the queue</span>
+      </article>
+
+      <article class="ems-stat">
+        <span class="ems-stat__label">Total assigned</span>
+        <strong class="ems-stat__value">{{ boardTasks.length }}</strong>
+        <span class="ems-stat__hint">Across all test cycles</span>
+      </article>
+
+      <article class="ems-stat">
+        <span class="ems-stat__label">Projects</span>
+        <strong class="ems-stat__value">{{ projectCount }}</strong>
+        <span class="ems-stat__hint">
+          {{ selectedRow ? (selectedRow.active ? 'Active account' : 'Inactive account') : 'No tester selected' }}
+        </span>
+      </article>
+    </ng-container>
+
+    <ng-container *ngIf="!isAdmin">
+      <article class="ems-stat">
+        <span class="ems-stat__label">Pending verification</span>
+        <strong class="ems-stat__value">{{ pending }}</strong>
+        <span class="ems-stat__hint">{{ inProgress.length }} already in progress</span>
+      </article>
+
+      <article class="ems-stat">
+        <span class="ems-stat__label">Verified</span>
+        <strong class="ems-stat__value">{{ completed }}</strong>
+        <span class="ems-stat__hint">{{ progress }}% of your queue</span>
+      </article>
+
+      <article class="ems-stat">
+        <span class="ems-stat__label">Total assigned</span>
+        <strong class="ems-stat__value">{{ boardTasks.length }}</strong>
+        <span class="ems-stat__hint">Across all test cycles</span>
+      </article>
+
+      <article class="ems-stat">
+        <span class="ems-stat__label">Signed in as</span>
+        <strong class="ems-stat__value ems-stat__value--text">{{ firstName }}</strong>
+        <span class="ems-stat__hint">TESTER access</span>
+      </article>
+    </ng-container>
+  </div>
+
+  <!-- one card per role: a lead gets the shortcuts their role owns -->
+  <app-quick-actions [wide]="true"></app-quick-actions>
+
+  <div class="ems-dash-grid">
+    <section class="ems-card">
+      <h2 class="ems-section-title">
+        <mat-icon>checklist</mat-icon>
+        {{ isAdmin ? 'Queue' : 'Test queue' }}
+      </h2>
+
+      <div class="ems-empty" *ngIf="!loading && boardTasks.length === 0">
+        <mat-icon>inbox</mat-icon>
+        <h3>Nothing to verify</h3>
+        <p>
+          {{ isAdmin
+              ? (selectedRow ? selectedName + ' has no items right now.' : 'Pick a tester above to see their queue.')
+              : 'Items assigned for testing will appear here.' }}
+        </p>
+      </div>
+
+      <ul class="ems-rows" *ngIf="boardTasks.length > 0">
+        <li class="ems-rows__item" *ngFor="let task of boardTasks">
+          <div class="ems-rows__main">
+            <strong>{{ task.title }}</strong>
+            <small>{{ task.project?.name || 'No project' }} · {{ task.description || 'No description' }}</small>
+          </div>
+          <div class="ems-rows__side">
+            <app-task-status
+              entity="assignment"
+              [id]="task.id"
+              [title]="task.title"
+              [status]="task.status"
+              [editable]="!isAdmin"
+              (changed)="onStatusChanged(task, $event)">
+            </app-task-status>
+          </div>
+        </li>
+      </ul>
+    </section>
+
+    <section class="ems-card">
+      <h2 class="ems-section-title">
+        <mat-icon>rule</mat-icon>
+        Execution progress
+      </h2>
+
+      <div class="ems-pipeline">
+        <div class="ems-pipeline__row">
+          <div class="ems-pipeline__meta">
+            <span class="ems-badge ems-badge--success">Verified</span>
+            <strong>{{ completed }}</strong>
+          </div>
+          <div class="ems-pipeline__track">
+            <span class="ems-pipeline__fill is-success" [style.width.%]="progress"></span>
+          </div>
+        </div>
+
+        <div class="ems-pipeline__row">
+          <div class="ems-pipeline__meta">
+            <span class="ems-badge ems-badge--info">In progress</span>
+            <strong>{{ inProgress.length }}</strong>
+          </div>
+          <div class="ems-pipeline__track">
+            <span class="ems-pipeline__fill is-info"
+                  [style.width.%]="boardTasks.length ? (inProgress.length / boardTasks.length) * 100 : 0"></span>
+          </div>
+        </div>
+
+        <div class="ems-pipeline__summary">
+          <div>
+            <span class="ems-pipeline__summary-value">{{ progress }}%</span>
+            <span class="ems-pipeline__summary-label">of {{ isAdmin ? 'the queue' : 'your queue' }} verified</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="ems-actions ems-actions--stack">
+        <a mat-stroked-button [routerLink]="taskListLink">
+          <mat-icon>task_alt</mat-icon>
+          {{ isAdmin ? 'Task board' : 'My tasks' }}
+        </a>
+        <a mat-stroked-button routerLink="/my-projects">
+          <mat-icon>folder_open</mat-icon>
+          My projects
+        </a>
+      </div>
+    </section>
+  </div>
+
+  <div class="ems-dash-grid ems-dash-grid--single">
+    <section class="ems-card">
+      <h2 class="ems-section-title">
+        <mat-icon>folder_open</mat-icon>
+        {{ isAdmin ? 'Projects' : 'My projects' }}
+      </h2>
+
+      <div class="ems-empty" *ngIf="!loading && projectRows.length === 0">
+        <mat-icon>folder_off</mat-icon>
+        <h3>No projects yet</h3>
+        <p>{{ isAdmin ? 'No projects linked to these items.' : 'Projects appear once your items are linked to one.' }}</p>
+      </div>
+
+      <ul class="ems-rows" *ngIf="projectRows.length > 0">
+        <!-- A project is a door, not a label: the row opens the item detail. -->
+        <li class="ems-rows__item proj-row"
+            *ngFor="let project of projectRows"
+            role="button"
+            tabindex="0"
+            [attr.aria-label]="'Open the items in ' + project.name"
+            (click)="openProject(project)"
+            (keydown.enter)="openProject(project)"
+            (keydown.space)="openProject(project)">
+          <div class="ems-rows__main">
+            <strong>{{ project.name }}</strong>
+            <small>{{ project.taskCount }} item(s) {{ isAdmin ? 'in this board' : 'assigned to me' }} · click to read the detail</small>
+          </div>
+          <div class="ems-rows__side">
+            <span class="ems-badge ems-badge--neutral">{{ project.doneCount }}/{{ project.taskCount }} verified</span>
+            <mat-icon class="proj-row__chevron">chevron_right</mat-icon>
+          </div>
+        </li>
+      </ul>
+    </section>
+  </div>
+</div>

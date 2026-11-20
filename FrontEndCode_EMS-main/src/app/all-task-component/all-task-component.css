@@ -1,0 +1,19 @@
+:host {
+  display: block;
+}
+
+/* The register's last column holds two icon buttons. The header above it is
+   empty, so an auto-laid-out table handed the column one button's width and
+   the trash wrapped onto a second line under the pencil. Reserving the width
+   and refusing the wrap keeps the pair on one line, right-aligned, the way the
+   Registered Employees actions column already reads. */
+.all-actions-col {
+  /* 16px padding either side plus the two 40px touch targets. */
+  width: 112px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.all-actions-col .mat-mdc-icon-button {
+  vertical-align: middle;
+}

@@ -1,0 +1,120 @@
+<section class="ems-page">
+  <header class="ems-page-head">
+    <div>
+      <h1 class="ems-page-title">Deleted tasks</h1>
+      <p class="ems-page-subtitle">
+        Every task removed from the register, with the reason and who removed it.
+      </p>
+    </div>
+
+    <div class="ems-actions">
+      <a mat-stroked-button routerLink="/tasks/all">
+        <mat-icon>list_alt</mat-icon>
+        Back to the register
+      </a>
+      <button mat-stroked-button (click)="load()">
+        <mat-icon>refresh</mat-icon>
+        Refresh
+      </button>
+    </div>
+  </header>
+
+  <div class="ems-auth__note ems-auth__note--error" *ngIf="errorMessage">
+    <mat-icon>error_outline</mat-icon>
+    <span>{{ errorMessage }}</span>
+  </div>
+
+  <div class="ems-stat-grid">
+    <article class="ems-stat">
+      <span class="ems-stat__label">Removed tasks</span>
+      <strong class="ems-stat__value">{{ records.length }}</strong>
+      <span class="ems-stat__hint">Kept for audit, newest first</span>
+    </article>
+
+    <article class="ems-stat">
+      <span class="ems-stat__label">Last 7 days</span>
+      <strong class="ems-stat__value">{{ removedThisWeek }}</strong>
+      <span class="ems-stat__hint">Removals in the past week</span>
+    </article>
+
+    <article class="ems-stat">
+      <span class="ems-stat__label">People involved</span>
+      <strong class="ems-stat__value">{{ peopleCount }}</strong>
+      <span class="ems-stat__hint">Accounts that removed work</span>
+    </article>
+
+    <article class="ems-stat">
+      <span class="ems-stat__label">Shown</span>
+      <strong class="ems-stat__value">{{ filteredRecords.length }}</strong>
+      <span class="ems-stat__hint">Matching the current search</span>
+    </article>
+  </div>
+
+  <section class="ems-card" style="margin-top: 16px">
+    <div class="ems-toolbar">
+      <h2 class="ems-section-title" style="margin: 0">
+        <mat-icon>delete_sweep</mat-icon>
+        Removal log
+      </h2>
+      <mat-form-field appearance="outline" class="ems-search">
+        <mat-label>Search</mat-label>
+        <input matInput [(ngModel)]="search" (ngModelChange)="onSearchChange()" placeholder="Task, reason, removed by…" />
+        <mat-icon matPrefix>search</mat-icon>
+      </mat-form-field>
+    </div>
+
+    <div class="ems-empty" *ngIf="!loading && filteredRecords.length === 0">
+      <mat-icon>inventory_2</mat-icon>
+      <h3>No deleted tasks</h3>
+      <p *ngIf="!records.length">Nothing has been removed from the register yet.</p>
+      <p *ngIf="records.length">Clear the search to see every removed task again.</p>
+    </div>
+
+    <div class="ems-table-wrap" *ngIf="filteredRecords.length > 0">
+      <table>
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th>Removed by</th>
+            <th>Reason</th>
+            <th>Removed</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let record of pagedRecords">
+            <td>
+              <div class="ems-rows__main">
+                <strong>{{ record.taskName || 'Untitled task' }}</strong>
+                <p class="task-code-row"><span class="task-code">{{ code(record) }}</span></p>
+              </div>
+            </td>
+            <td>
+              <div class="ems-task-card__owner">
+                <span class="ems-avatar-sm">{{ initials(record.deletedBy || '') }}</span>
+                <span>{{ record.deletedBy || 'Unknown' }}</span>
+              </div>
+            </td>
+            <td class="dt-reason" [matTooltip]="record.reason || 'No reason recorded'">
+              {{ record.reason || '—' }}
+            </td>
+            <td>
+              <div class="ems-rows__main">
+                <span>{{ removedOn(record) }}</span>
+                <small>{{ removedAgo(record) }}</small>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Outside the table wrapper so it never scrolls sideways with the table.
+         Five removals a page by default, with the dropdown to change it. -->
+    <app-pager
+      [length]="filteredRecords.length"
+      [(pageIndex)]="pageIndex"
+      [(pageSize)]="pageSize"
+      noun="removed task">
+    </app-pager>
+  </section>
+</section>

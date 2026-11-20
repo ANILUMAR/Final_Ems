@@ -1,0 +1,117 @@
+/* Testing review: one card per submission, the decision buttons where the
+   reader's eye ends, and the reject box opening under the card it belongs to. */
+
+.approval-stats {
+  margin-bottom: 18px;
+}
+
+.approval-toolbar {
+  margin-bottom: 14px;
+}
+
+.approval-loading {
+  font-size: 13px;
+}
+
+.approval-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.approval-card {
+  padding: 16px 18px;
+  transition: opacity 0.15s ease;
+}
+
+.approval-card.is-busy {
+  opacity: 0.6;
+}
+
+.approval-card__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.approval-card__title {
+  margin: 0 0 4px;
+  font-size: 15.5px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--ems-text);
+}
+
+.approval-card__meta {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  color: var(--ems-text-2);
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.approval-card__meta strong {
+  color: var(--ems-text);
+}
+
+.approval-card__body {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ems-text-2);
+  white-space: pre-wrap;
+}
+
+.approval-card__attachment {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 10px;
+  font-size: 12.5px;
+}
+
+.approval-card__attachment mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  color: var(--ems-text-3);
+}
+
+.approval-card__attachment a {
+  color: var(--ems-primary);
+  text-decoration: none;
+}
+
+.approval-card .ems-quote {
+  margin-top: 10px;
+}
+
+.approval-card__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+/* the reject box */
+.approval-reject {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: var(--ems-radius-sm);
+  border: 1px solid var(--ems-warning-line);
+  background: var(--ems-warning-soft);
+}
+
+.approval-reject h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--ems-text);
+}
+
+.approval-reject mat-form-field {
+  width: 100%;
+}

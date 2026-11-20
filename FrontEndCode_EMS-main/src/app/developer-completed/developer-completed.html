@@ -1,0 +1,485 @@
+<div class="ems-page">
+  <!-- Header -->
+  <header class="ems-header">
+    <div class="ems-header__titles">
+      <div class="ems-header__eyebrow">
+        <a routerLink="/developer-board" class="ems-breadcrumb-link">
+          <mat-icon>arrow_back</mat-icon> Developer Board
+        </a>
+        <span class="ems-header__sep">/</span>
+        <span>Delivery Handover</span>
+      </div>
+      <h1 class="ems-header__title">{{ isLeader ? 'Developer Completed Tasks (Lead Review)' : 'My Completed Tasks' }}</h1>
+      <p class="ems-header__subtitle">
+        {{ isLeader ? 'Review completed tasks and bugs, approve or hold, and release to Testing Team.' : 'Tasks and bugs you have personally completed.' }}
+      </p>
+    </div>
+    <div class="ems-header__actions">
+      <!-- Tested Completed Review shortcut for Team Leader -->
+      <a *ngIf="isLeader" mat-stroked-button routerLink="/tested-completed" style="border-color:#10b981;color:#10b981;">
+        <mat-icon>verified</mat-icon>
+        Tested Completed Review
+      </a>
+
+      <!-- On Hold Tasks Screen shortcut button -->
+      <a mat-stroked-button color="warn" routerLink="/on-hold-tasks" class="ems-btn-on-hold-top">
+        <mat-icon>pause_circle_outline</mat-icon>
+        On Hold Tasks ({{ onHoldCount }})
+      </a>
+
+      <!-- Primary Top Button: Batch Release for Testing (Requirement) -->
+      <button
+        *ngIf="isLeader"
+        mat-flat-button
+        color="primary"
+        class="ems-btn-batch-release-top"
+        [class.is-ready]="approvedForRelease > 0"
+        (click)="openBatchReleaseModal()"
+        [matTooltip]="approvedForRelease > 0 ? 'Release all reviewed & approved tasks to Testing Team at once' : 'Review and approve completed tasks below to release in batch'"
+      >
+        <mat-icon>send</mat-icon>
+        Release for Testing ({{ approvedForRelease }} Ready)
+      </button>
+
+      <button mat-stroked-button color="primary" (click)="loadData()" [disabled]="loading">
+        <mat-icon>refresh</mat-icon> Refresh
+      </button>
+    </div>
+  </header>
+
+  <!-- Banner Alerts -->
+  <div *ngIf="successMessage" class="ems-alert ems-alert--success">
+    <mat-icon>check_circle</mat-icon>
+    <span>{{ successMessage }}</span>
+    <button class="ems-alert__close" (click)="successMessage = ''">&times;</button>
+  </div>
+
+  <div *ngIf="errorMessage" class="ems-alert ems-alert--danger">
+    <mat-icon>error_outline</mat-icon>
+    <span>{{ errorMessage }}</span>
+    <button class="ems-alert__close" (click)="errorMessage = ''">&times;</button>
+  </div>
+
+  <!-- Metric Stat Cards -->
+  <div class="ems-stats-grid">
+    <div class="ems-stat-card" [class.ems-stat-card--active]="filter === 'ALL'" (click)="setFilter('ALL')">
+      <div class="ems-stat-card__icon ems-stat-card__icon--blue">
+        <mat-icon>task_alt</mat-icon>
+      </div>
+      <div class="ems-stat-card__content">
+        <span class="ems-stat-card__value">{{ totalCompleted }}</span>
+        <span class="ems-stat-card__label">Total Completed</span>
+      </div>
+    </div>
+
+    <div class="ems-stat-card" [class.ems-stat-card--active]="filter === 'AWAITING'" (click)="setFilter('AWAITING')">
+      <div class="ems-stat-card__icon ems-stat-card__icon--amber">
+        <mat-icon>rate_review</mat-icon>
+      </div>
+      <div class="ems-stat-card__content">
+        <span class="ems-stat-card__value">{{ awaitingReview }}</span>
+        <span class="ems-stat-card__label">Awaiting Review</span>
+      </div>
+    </div>
+
+    <div class="ems-stat-card" [class.ems-stat-card--active]="filter === 'APPROVED'" (click)="setFilter('APPROVED')">
+      <div class="ems-stat-card__icon ems-stat-card__icon--green">
+        <mat-icon>check_circle</mat-icon>
+      </div>
+      <div class="ems-stat-card__content">
+        <span class="ems-stat-card__value">{{ approvedForRelease }}</span>
+        <span class="ems-stat-card__label">Ready to Release</span>
+      </div>
+    </div>
+
+    <!-- On Hold Tasks Card (Navigates to On Hold Tasks Screen) -->
+    <a routerLink="/on-hold-tasks" class="ems-stat-card ems-stat-card--link">
+      <div class="ems-stat-card__icon ems-stat-card__icon--rose">
+        <mat-icon>pause_circle_filled</mat-icon>
+      </div>
+      <div class="ems-stat-card__content">
+        <span class="ems-stat-card__value">{{ onHoldCount }}</span>
+        <span class="ems-stat-card__label">On Hold Tasks &rarr;</span>
+      </div>
+    </a>
+
+    <div class="ems-stat-card" [class.ems-stat-card--active]="filter === 'RELEASED'" (click)="setFilter('RELEASED')">
+      <div class="ems-stat-card__icon ems-stat-card__icon--teal">
+        <mat-icon>send</mat-icon>
+      </div>
+      <div class="ems-stat-card__content">
+        <span class="ems-stat-card__value">{{ releasedForTesting }}</span>
+        <span class="ems-stat-card__label">Released for Testing</span>
+      </div>
+    </div>
+
+    <div class="ems-stat-card" [class.ems-stat-card--active]="filter === 'IN_TESTING'" (click)="setFilter('IN_TESTING')">
+      <div class="ems-stat-card__icon ems-stat-card__icon--purple">
+        <mat-icon>bug_report</mat-icon>
+      </div>
+      <div class="ems-stat-card__content">
+        <span class="ems-stat-card__value">{{ inTesting }}</span>
+        <span class="ems-stat-card__label">Under Verification</span>
+      </div>
+    </div>
+
+    <div class="ems-stat-card" [class.ems-stat-card--active]="filter === 'VERIFIED'" (click)="setFilter('VERIFIED')">
+      <div class="ems-stat-card__icon ems-stat-card__icon--green">
+        <mat-icon>verified</mat-icon>
+      </div>
+      <div class="ems-stat-card__content">
+        <span class="ems-stat-card__value">{{ verified }}</span>
+        <span class="ems-stat-card__label">Verified & Passed</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Search & Filter Bar -->
+  <div class="ems-toolbar">
+    <div class="ems-chip-group">
+      <button class="ems-chip" [class.ems-chip--active]="filter === 'ALL'" (click)="setFilter('ALL')">
+        All ({{ totalCompleted }})
+      </button>
+      <button class="ems-chip ems-chip--warning" [class.ems-chip--active]="filter === 'AWAITING'" (click)="setFilter('AWAITING')">
+        Awaiting Review ({{ awaitingReview }})
+      </button>
+      <button class="ems-chip ems-chip--success" [class.ems-chip--active]="filter === 'APPROVED'" (click)="setFilter('APPROVED')">
+        Approved ({{ approvedForRelease }})
+      </button>
+      <button class="ems-chip ems-chip--info" [class.ems-chip--active]="filter === 'RELEASED'" (click)="setFilter('RELEASED')">
+        Released ({{ releasedForTesting }})
+      </button>
+      <button class="ems-chip ems-chip--primary" [class.ems-chip--active]="filter === 'IN_TESTING'" (click)="setFilter('IN_TESTING')">
+        Under QA ({{ inTesting }})
+      </button>
+      <button class="ems-chip ems-chip--success" [class.ems-chip--active]="filter === 'VERIFIED'" (click)="setFilter('VERIFIED')">
+        Verified ({{ verified }})
+      </button>
+    </div>
+
+    <div class="ems-search-box">
+      <mat-icon class="ems-search-icon">search</mat-icon>
+      <input
+        type="text"
+        [(ngModel)]="search"
+        (ngModelChange)="onSearchChange()"
+        placeholder="Filter by ID, title, project or developer..."
+        class="ems-search-input"
+      />
+      <button *ngIf="search" class="ems-search-clear" (click)="search = ''; onSearchChange()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="ems-state ems-state--loading">
+    <div class="ems-spinner"></div>
+    <p>Loading completed tasks...</p>
+  </div>
+
+  <!-- Empty State -->
+  <div *ngIf="!loading && filteredItems.length === 0" class="ems-state ems-state--empty">
+    <mat-icon class="ems-state__icon">done_all</mat-icon>
+    <h3>No completed tasks found</h3>
+    <p>{{ search ? 'Try clearing your search query.' : 'No tasks in this category currently.' }}</p>
+  </div>
+
+  <!-- Completed Items Grid / Cards -->
+  <div *ngIf="!loading && filteredItems.length > 0" class="ems-cards-grid">
+    <div *ngFor="let item of pagedItems" class="ems-task-card">
+      <div class="ems-task-card__header">
+        <div class="ems-task-card__identifiers">
+          <span class="ems-badge" [ngClass]="badgeOf(item.kind)">{{ labelOf(item.kind) }}</span>
+          <span class="ems-task-code">{{ codeOf(item) }}</span>
+          <span *ngIf="item.priority" class="ems-badge ems-badge--outline">{{ item.priority }}</span>
+        </div>
+        <div class="ems-task-card__status-wrap">
+          <span class="ems-status-pill ems-status-pill--done">Done</span>
+        </div>
+      </div>
+
+      <h3 class="ems-task-card__title">{{ item.taskTitle }}</h3>
+
+      <div class="ems-task-card__meta">
+        <span *ngIf="item.project" class="ems-meta-item">
+          <mat-icon>folder</mat-icon> {{ item.project }}
+        </span>
+        <span *ngIf="item.module" class="ems-meta-item">
+          <mat-icon>layers</mat-icon> {{ item.module }} <span *ngIf="item.subModule">/ {{ item.subModule }}</span>
+        </span>
+        <span *ngIf="item.assignedToName" class="ems-meta-item ems-meta-item--user">
+          <mat-icon>person</mat-icon> {{ item.assignedToName }}
+        </span>
+      </div>
+
+      <p *ngIf="item.description" class="ems-task-card__desc">
+        {{ item.description }}
+      </p>
+
+      <!-- Bug Reproduction Steps & Flow Diagram action (Requirement 5) -->
+      <div *ngIf="item.kind === 'BUG'" class="ems-bug-view-row" style="margin: 8px 0 12px;">
+        <button mat-stroked-button color="warn" type="button" (click)="openBugDetails(item)">
+          <mat-icon>account_tree</mat-icon> View Bug Reproduction Flow & Steps
+        </button>
+      </div>
+
+      <!-- Testing Handover / Release Status Section -->
+      <div class="ems-release-status-box">
+        <!-- Case 1: Released for testing -->
+        <div *ngIf="item.releasedForTesting" class="ems-release-info">
+          <div class="ems-release-badge-row">
+            <span class="ems-badge ems-badge--success">
+              <mat-icon>check_circle</mat-icon> Released for Testing
+            </span>
+            <span *ngIf="item.releasedByName" class="ems-release-lead">
+              by {{ item.releasedByName }} on {{ formatDate(item.releasedAt) }}
+            </span>
+          </div>
+          <div *ngIf="item.releaseNote" class="ems-release-note">
+            <mat-icon>format_quote</mat-icon>
+            <span>{{ item.releaseNote }}</span>
+          </div>
+
+          <!-- Tester assignment tag if assigned -->
+          <div *ngIf="item.assignedTesterName" class="ems-tester-tag">
+            <mat-icon>assignment_ind</mat-icon>
+            <span>Assigned to Tester: <strong>{{ item.assignedTesterName }}</strong></span>
+            <span *ngIf="item.testingStatus === 'VERIFIED'" class="ems-badge ems-badge--success" style="margin-left: 8px;">
+              Verified
+            </span>
+          </div>
+        </div>
+
+        <!-- Case 2: Not yet released -->
+        <div *ngIf="!item.releasedForTesting" class="ems-unreleased-row">
+          <!-- Subcase A: Approved by Team Leader (Ready for batch release via top button) -->
+          <div *ngIf="item.leadReviewStatus === 'APPROVED'" class="ems-approved-box">
+            <div class="ems-review-status-label">
+              <span class="ems-badge ems-badge--success">
+                <mat-icon>check_circle</mat-icon> Reviewed & Approved
+              </span>
+              <span class="ems-review-hint">Ready for batch release to Testing Team via the top "Release for Testing" button.</span>
+            </div>
+            <div *ngIf="isLeader" class="ems-review-actions">
+              <button mat-stroked-button color="warn" class="ems-btn-hold" (click)="openHoldModal(item)" matTooltip="Put on hold instead of releasing">
+                <mat-icon>pause_circle_outline</mat-icon> Put on Hold
+              </button>
+              <button mat-button class="ems-btn-reset" (click)="resetReview(item)" matTooltip="Revoke approval">
+                <mat-icon>undo</mat-icon> Revoke
+              </button>
+            </div>
+          </div>
+
+          <!-- Subcase B: Awaiting Team Leader Review -->
+          <div *ngIf="item.leadReviewStatus !== 'APPROVED'" class="ems-pending-review-box">
+            <div class="ems-review-status-label">
+              <span class="ems-badge ems-badge--warning">
+                <mat-icon>rate_review</mat-icon> Awaiting Lead Review
+              </span>
+              <span class="ems-review-hint">Developer completed. Review and approve before releasing, or hold if further work is required.</span>
+            </div>
+
+            <!-- Review Actions for Team Leader: Approve or Put on Hold -->
+            <div *ngIf="isLeader" class="ems-review-actions">
+              <button mat-flat-button class="ems-btn-approve" (click)="approveItem(item)">
+                <mat-icon>check</mat-icon> Approve for Testing
+              </button>
+              <button mat-stroked-button color="warn" class="ems-btn-hold" (click)="openHoldModal(item)">
+                <mat-icon>pause_circle_outline</mat-icon> Put on Hold
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pager -->
+  <app-pager
+    *ngIf="!loading && filteredItems.length > 0"
+    [length]="filteredItems.length"
+    [(pageIndex)]="pageIndex"
+    [(pageSize)]="pageSize"
+    noun="task"
+  ></app-pager>
+</div>
+
+<!-- TOP BUTTON: Batch Release Modal Dialog (Release All Approved Tasks At Once) -->
+<div *ngIf="showBatchReleaseModal" class="ems-modal-backdrop" (click)="closeBatchReleaseModal()">
+  <div class="ems-modal ems-modal--wide" (click)="$event.stopPropagation()">
+    <div class="ems-modal__header">
+      <div class="ems-modal__title-wrap">
+        <mat-icon class="ems-modal__icon">send</mat-icon>
+        <div>
+          <h2>Release Approved Tasks for Testing</h2>
+          <p>Move all reviewed and approved completed tasks to the Testing Team at once</p>
+        </div>
+      </div>
+      <button class="ems-modal__close" (click)="closeBatchReleaseModal()">&times;</button>
+    </div>
+
+    <div class="ems-modal__body">
+      <!-- Batch Summary Banner -->
+      <div class="ems-batch-banner">
+        <mat-icon>done_all</mat-icon>
+        <div>
+          <strong>{{ approvedItems.length }} task(s) ready to move to Testing Team</strong>
+          <p>These tasks will immediately appear on the Testing Team Leader Dashboard for assignment to QA engineers.</p>
+        </div>
+      </div>
+
+      <!-- Approved Tasks List Table -->
+      <div class="ems-batch-list-wrap">
+        <table class="ems-batch-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Kind</th>
+              <th>Task Title</th>
+              <th>Project</th>
+              <th>Developer</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let task of approvedItems">
+              <td><strong>{{ codeOf(task) }}</strong></td>
+              <td><span class="ems-badge" [ngClass]="badgeOf(task.kind)">{{ labelOf(task.kind) }}</span></td>
+              <td>{{ task.taskTitle }}</td>
+              <td>{{ task.project }}</td>
+              <td>{{ task.assignedToName || 'Unassigned' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="ems-form-field" style="margin-top: 16px;">
+        <label for="batchReleaseNoteInput">Batch Release Notes / QA Instructions:</label>
+        <textarea
+          id="batchReleaseNoteInput"
+          [(ngModel)]="batchReleaseNote"
+          rows="3"
+          placeholder="e.g. Sprint batch release approved by Team Leader. Ready for testing verification."
+          class="ems-textarea"
+        ></textarea>
+        <span class="ems-field-hint">This handover note will be visible to the Testing Team Leader and QA testers.</span>
+      </div>
+    </div>
+
+    <div class="ems-modal__footer">
+      <button mat-button (click)="closeBatchReleaseModal()" [disabled]="batchReleasing">Cancel</button>
+      <button mat-flat-button color="primary" class="ems-btn-batch-confirm" (click)="confirmBatchRelease()" [disabled]="batchReleasing || approvedItems.length === 0">
+        <mat-icon *ngIf="!batchReleasing">send</mat-icon>
+        <span *ngIf="batchReleasing">Moving to Testing Team...</span>
+        <span *ngIf="!batchReleasing">Release All {{ approvedItems.length }} Tasks to Testing Team</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Put on Hold Modal Dialog -->
+<div *ngIf="holdingItem" class="ems-modal-backdrop" (click)="closeHoldModal()">
+  <div class="ems-modal" (click)="$event.stopPropagation()">
+    <div class="ems-modal__header">
+      <div class="ems-modal__title-wrap">
+        <mat-icon class="ems-modal__icon" style="color: #f59e0b;">pause_circle_outline</mat-icon>
+        <div>
+          <h2>Put Task on Hold</h2>
+          <p>{{ codeOf(holdingItem) }} — {{ holdingItem.taskTitle }}</p>
+        </div>
+      </div>
+      <button class="ems-modal__close" (click)="closeHoldModal()">&times;</button>
+    </div>
+
+    <div class="ems-modal__body">
+      <div class="ems-hold-info-box">
+        <mat-icon>info</mat-icon>
+        <span>
+          Putting this task on hold will move it to the <strong>On Hold Tasks</strong> screen. It will NOT be released to the testing team until cleared.
+        </span>
+      </div>
+
+      <div class="ems-summary-row" style="margin-bottom: 12px;">
+        <span class="ems-summary-label">Developer:</span>
+        <strong>{{ holdingItem.assignedToName || 'Unassigned' }}</strong>
+      </div>
+
+      <div class="ems-form-field">
+        <label for="holdReasonInput">Reason for Holding (Required):</label>
+        <textarea
+          id="holdReasonInput"
+          [(ngModel)]="holdReason"
+          rows="4"
+          placeholder="e.g. Code review comments pending, backend API dependency missing in staging, or needs performance optimization..."
+          class="ems-textarea"
+          required
+        ></textarea>
+        <span class="ems-field-hint">Provide detailed reasons why this task cannot be released for testing yet.</span>
+      </div>
+    </div>
+
+    <div class="ems-modal__footer">
+      <button mat-button (click)="closeHoldModal()" [disabled]="holding">Cancel</button>
+      <button mat-flat-button color="warn" (click)="submitHold()" [disabled]="holding || !holdReason.trim()">
+        <mat-icon *ngIf="!holding">pause</mat-icon>
+        <span *ngIf="holding">Moving to On Hold...</span>
+        <span *ngIf="!holding">Confirm & Put on Hold</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Single Release Fallback Modal -->
+<div *ngIf="releasingItem" class="ems-modal-backdrop" (click)="closeReleaseModal()">
+  <div class="ems-modal" (click)="$event.stopPropagation()">
+    <div class="ems-modal__header">
+      <div class="ems-modal__title-wrap">
+        <mat-icon class="ems-modal__icon">send</mat-icon>
+        <div>
+          <h2>Release for Testing</h2>
+          <p>{{ codeOf(releasingItem) }} — {{ releasingItem.taskTitle }}</p>
+        </div>
+      </div>
+      <button class="ems-modal__close" (click)="closeReleaseModal()">&times;</button>
+    </div>
+
+    <div class="ems-modal__body">
+      <div class="ems-modal-summary">
+        <div class="ems-summary-row">
+          <span class="ems-summary-label">Project:</span>
+          <strong>{{ releasingItem.project }}</strong>
+        </div>
+        <div class="ems-summary-row">
+          <span class="ems-summary-label">Developer:</span>
+          <strong>{{ releasingItem.assignedToName || 'Unspecified' }}</strong>
+        </div>
+        <div class="ems-summary-row">
+          <span class="ems-summary-label">Kind:</span>
+          <span class="ems-badge" [ngClass]="badgeOf(releasingItem.kind)">{{ labelOf(releasingItem.kind) }}</span>
+        </div>
+      </div>
+
+      <div class="ems-form-field">
+        <label for="releaseNoteInput">Release Notes / QA Instructions:</label>
+        <textarea
+          id="releaseNoteInput"
+          [(ngModel)]="releaseNote"
+          rows="4"
+          placeholder="e.g. Completed fix for auth bug. Ready for tester verification."
+          class="ems-textarea"
+        ></textarea>
+        <span class="ems-field-hint">These notes will be displayed on the Testing Team Leader Dashboard.</span>
+      </div>
+    </div>
+
+    <div class="ems-modal__footer">
+      <button mat-button (click)="closeReleaseModal()" [disabled]="submitting">Cancel</button>
+      <button mat-flat-button color="primary" (click)="submitRelease()" [disabled]="submitting">
+        <mat-icon *ngIf="!submitting">check</mat-icon>
+        <span *ngIf="submitting">Releasing...</span>
+        <span *ngIf="!submitting">Confirm & Release to QA</span>
+      </button>
+    </div>
+  </div>
+</div>
+

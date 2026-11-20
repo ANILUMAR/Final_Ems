@@ -1,0 +1,312 @@
+<div class="ems-page">
+  <!-- Header -->
+  <header class="ems-header">
+    <div class="ems-header__titles">
+      <div class="ems-header__eyebrow">
+        <a routerLink="/developer-completed" class="ems-breadcrumb-link">
+          <mat-icon>arrow_back</mat-icon> Developer Completed Work
+        </a>
+        <span class="ems-header__sep">/</span>
+        <span>Review Queue</span>
+      </div>
+      <h1 class="ems-header__title">
+        <mat-icon class="ems-title-icon">pause_circle_filled</mat-icon>
+        On Hold Tasks
+      </h1>
+      <p class="ems-header__subtitle">
+        Tasks and bugs placed on hold by the Team Leader during review. Held tasks are isolated here until approved for QA testing or returned to developers for rework.
+      </p>
+    </div>
+    <div class="ems-header__actions">
+      <a mat-flat-button color="primary" routerLink="/developer-completed" class="ems-btn-completed-top">
+        <mat-icon>check_circle</mat-icon>
+        Completed Tasks & Batch Release
+      </a>
+      <button mat-stroked-button color="primary" (click)="loadData()" [disabled]="loading">
+        <mat-icon>refresh</mat-icon> Refresh
+      </button>
+    </div>
+  </header>
+
+  <!-- Banner Alerts -->
+  <div *ngIf="successMessage" class="ems-alert ems-alert--success">
+    <mat-icon>check_circle</mat-icon>
+    <div class="ems-alert__content">
+      <span>{{ successMessage }}</span>
+      <a routerLink="/developer-completed" class="ems-alert__action-link">Go to Developer Completed Tasks &rarr;</a>
+    </div>
+    <button class="ems-alert__close" (click)="successMessage = ''">&times;</button>
+  </div>
+
+  <div *ngIf="errorMessage" class="ems-alert ems-alert--danger">
+    <mat-icon>error_outline</mat-icon>
+    <span>{{ errorMessage }}</span>
+    <button class="ems-alert__close" (click)="errorMessage = ''">&times;</button>
+  </div>
+
+  <!-- Metric Stat Cards -->
+  <div class="ems-stats-grid">
+    <div class="ems-stat-card" [class.ems-stat-card--active]="filter === 'ALL'" (click)="setFilter('ALL')">
+      <div class="ems-stat-card__icon ems-stat-card__icon--amber">
+        <mat-icon>pause_circle</mat-icon>
+      </div>
+      <div class="ems-stat-card__content">
+        <span class="ems-stat-card__value">{{ totalOnHold }}</span>
+        <span class="ems-stat-card__label">Total On Hold</span>
+      </div>
+    </div>
+
+    <div class="ems-stat-card" [class.ems-stat-card--active]="filter === 'TASK'" (click)="setFilter('TASK')">
+      <div class="ems-stat-card__icon ems-stat-card__icon--blue">
+        <mat-icon>assignment</mat-icon>
+      </div>
+      <div class="ems-stat-card__content">
+        <span class="ems-stat-card__value">{{ totalHeldTasks }}</span>
+        <span class="ems-stat-card__label">Held Tasks</span>
+      </div>
+    </div>
+
+    <div class="ems-stat-card" [class.ems-stat-card--active]="filter === 'BUG'" (click)="setFilter('BUG')">
+      <div class="ems-stat-card__icon ems-stat-card__icon--red">
+        <mat-icon>pest_control</mat-icon>
+      </div>
+      <div class="ems-stat-card__content">
+        <span class="ems-stat-card__value">{{ totalHeldBugs }}</span>
+        <span class="ems-stat-card__label">Held Bugs</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter & Search Toolbar -->
+  <div class="ems-toolbar">
+    <div class="ems-filters">
+      <button
+        class="ems-filter-btn"
+        [class.is-active]="filter === 'ALL'"
+        (click)="setFilter('ALL')"
+      >
+        All ({{ totalOnHold }})
+      </button>
+      <button
+        class="ems-filter-btn"
+        [class.is-active]="filter === 'TASK'"
+        (click)="setFilter('TASK')"
+      >
+        Tasks ({{ totalHeldTasks }})
+      </button>
+      <button
+        class="ems-filter-btn"
+        [class.is-active]="filter === 'BUG'"
+        (click)="setFilter('BUG')"
+      >
+        Bugs ({{ totalHeldBugs }})
+      </button>
+    </div>
+
+    <div class="ems-search-wrap">
+      <mat-icon class="ems-search-icon">search</mat-icon>
+      <input
+        type="text"
+        class="ems-search-input"
+        placeholder="Search code, title, developer, or reason..."
+        [(ngModel)]="search"
+        (input)="onSearchChange()"
+      />
+      <button *ngIf="search" class="ems-search-clear" (click)="search = ''; onSearchChange()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="ems-loading-state">
+    <div class="ems-spinner"></div>
+    <span>Loading on-hold tasks...</span>
+  </div>
+
+  <!-- Empty State -->
+  <div *ngIf="!loading && filteredItems.length === 0" class="ems-empty-state">
+    <div class="ems-empty-state__icon">
+      <mat-icon>check_circle_outline</mat-icon>
+    </div>
+    <h3 class="ems-empty-state__title">
+      {{ search || filter !== 'ALL' ? 'No matching tasks on hold' : 'No tasks currently on hold' }}
+    </h3>
+    <p class="ems-empty-state__desc">
+      {{
+        search || filter !== 'ALL'
+          ? 'Try adjusting your search query or filter selection.'
+          : 'All developer completed tasks are either approved for testing or have already been released.'
+      }}
+    </p>
+    <a *ngIf="!search && filter === 'ALL'" mat-flat-button color="primary" routerLink="/developer-completed">
+      <mat-icon>arrow_forward</mat-icon> View Developer Completed Tasks
+    </a>
+  </div>
+
+  <!-- Task Grid -->
+  <div *ngIf="!loading && filteredItems.length > 0" class="ems-tasks-grid">
+    <div *ngFor="let item of pagedItems" class="ems-task-card">
+      <!-- Card Top: Code, Kind, Priority -->
+      <div class="ems-task-card__top">
+        <div class="ems-task-card__badges">
+          <span class="ems-kind-badge" [ngClass]="kindBadge(item)">
+            {{ kindLabel(item) }}
+          </span>
+          <span class="ems-code-badge">{{ taskCode(item) }}</span>
+          <span class="ems-priority-badge" [attr.data-priority]="item.priority">
+            {{ item.priority || 'MEDIUM' }}
+          </span>
+        </div>
+
+        <div class="ems-task-card__project">
+          <mat-icon>folder</mat-icon>
+          <span>{{ item.project || 'General' }}</span>
+        </div>
+      </div>
+
+      <!-- Title -->
+      <h3 class="ems-task-card__title">{{ item.taskTitle }}</h3>
+
+      <!-- Hold Reason Callout Banner -->
+      <div class="ems-hold-banner">
+        <div class="ems-hold-banner__header">
+          <mat-icon>warning_amber</mat-icon>
+          <strong>Reason for Hold</strong>
+        </div>
+        <p class="ems-hold-banner__reason">
+          {{ item.holdReason || 'Put on hold by Team Leader for further review.' }}
+        </p>
+        <div class="ems-hold-banner__meta">
+          <span>Held by: <strong>{{ item.heldByName || item.heldBy || 'Team Leader' }}</strong></span>
+          <span *ngIf="item.heldAt">• {{ item.heldAt | date:'medium' }}</span>
+        </div>
+      </div>
+
+      <!-- Task Details & Description -->
+      <p class="ems-task-card__desc">
+        {{ item.description || 'No description provided.' }}
+      </p>
+
+      <!-- Metadata / Developer Info -->
+      <div class="ems-task-card__meta-grid">
+        <div class="ems-meta-cell">
+          <span class="ems-meta-label">Developer</span>
+          <span class="ems-meta-val">
+            <mat-icon>person</mat-icon>
+            {{ item.assignedToName || 'Unassigned' }}
+          </span>
+        </div>
+
+        <div class="ems-meta-cell" *ngIf="item.endDate">
+          <span class="ems-meta-label">Due Date</span>
+          <span class="ems-meta-val">
+            <mat-icon>event</mat-icon>
+            {{ item.endDate | date:'mediumDate' }}
+          </span>
+        </div>
+
+        <div class="ems-meta-cell" *ngIf="item.reopenCount">
+          <span class="ems-meta-label">Previous Reopens</span>
+          <span class="ems-meta-val ems-meta-val--reopen">
+            <mat-icon>history</mat-icon>
+            {{ item.reopenCount }} time(s)
+          </span>
+        </div>
+      </div>
+
+      <!-- Bug Details & Flow Diagram Button -->
+      <div *ngIf="item.kind === 'BUG'" class="ems-bug-preview-row">
+        <button mat-stroked-button color="accent" class="ems-btn-bug-details" (click)="openBugDetails(item)">
+          <mat-icon>account_tree</mat-icon> View Bug Reproduction Steps & Flow Diagram
+        </button>
+      </div>
+
+      <!-- Card Actions (Leader & Admin) -->
+      <div *ngIf="isLeader" class="ems-task-card__actions">
+        <button
+          mat-flat-button
+          class="ems-btn-approve-unhold"
+          (click)="approveForTesting(item)"
+          matTooltip="Unhold this task and approve it for batch release to Testing Team"
+        >
+          <mat-icon>check_circle</mat-icon> Approve for Testing
+        </button>
+
+        <button
+          mat-stroked-button
+          color="warn"
+          class="ems-btn-rework"
+          (click)="openReworkModal(item)"
+          matTooltip="Return this task to the developer with rework instructions"
+        >
+          <mat-icon>replay</mat-icon> Send Back to Developer
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pagination -->
+  <div *ngIf="!loading && filteredItems.length > 0" class="ems-pagination-wrap">
+    <app-pager
+      [length]="filteredItems.length"
+      [(pageIndex)]="pageIndex"
+      [(pageSize)]="pageSize"
+      noun="task"
+    ></app-pager>
+  </div>
+
+  <!-- Rework Modal (Send Back to Developer) -->
+  <div *ngIf="reopeningItem" class="ems-modal-backdrop" (click)="closeReworkModal()">
+    <div class="ems-modal ems-modal--rework" (click)="$event.stopPropagation()">
+      <div class="ems-modal__header">
+        <div class="ems-modal__title-group">
+          <mat-icon class="ems-modal__icon ems-modal__icon--warn">replay</mat-icon>
+          <h3>Send Back to Developer for Rework</h3>
+        </div>
+        <button class="ems-modal__close" (click)="closeReworkModal()">&times;</button>
+      </div>
+
+      <div class="ems-modal__body">
+        <div class="ems-rework-summary">
+          <div class="ems-rework-summary__item">
+            <span class="ems-rework-label">Item:</span>
+            <strong>{{ taskCode(reopeningItem) }} - {{ reopeningItem.taskTitle }}</strong>
+          </div>
+          <div class="ems-rework-summary__item">
+            <span class="ems-rework-label">Developer:</span>
+            <span>{{ reopeningItem.assignedToName || 'Assigned Developer' }}</span>
+          </div>
+          <div class="ems-rework-summary__item" *ngIf="reopeningItem.holdReason">
+            <span class="ems-rework-label">Current Hold Reason:</span>
+            <span class="ems-rework-hold-reason">{{ reopeningItem.holdReason }}</span>
+          </div>
+        </div>
+
+        <div class="ems-form-group">
+          <label class="ems-label">Rework Instructions / Feedback <span class="required">*</span></label>
+          <textarea
+            class="ems-textarea"
+            rows="4"
+            placeholder="Explain why this task is being sent back and what the developer needs to fix or change..."
+            [(ngModel)]="reworkInstructions"
+          ></textarea>
+          <span class="ems-hint">The task status will revert to In Progress, and these instructions will appear on the developer's board.</span>
+        </div>
+      </div>
+
+      <div class="ems-modal__footer">
+        <button mat-button (click)="closeReworkModal()" [disabled]="submittingRework">Cancel</button>
+        <button
+          mat-flat-button
+          color="warn"
+          (click)="submitRework()"
+          [disabled]="submittingRework || !reworkInstructions.trim()"
+        >
+          <mat-icon>undo</mat-icon>
+          {{ submittingRework ? 'Sending...' : 'Confirm & Send Back to Developer' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

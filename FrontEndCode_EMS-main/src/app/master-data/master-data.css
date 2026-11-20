@@ -1,0 +1,180 @@
+:host {
+  display: block;
+}
+
+/* Three columns rather than one nested list: each is a list of its own, and
+   picking a row in one narrows the next. They sit side by side so the shape of
+   the tree is visible at a glance. */
+.md-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.md-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.md-col__head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.md-col__step {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--ems-primary);
+}
+
+/* The column title already sits under its own step label. */
+.md-col__head .ems-section-title {
+  margin: 0;
+}
+
+.md-col__hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.md-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.md-list > li {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border-radius: var(--ems-radius-sm);
+}
+
+.md-list > li:hover {
+  background: var(--ems-hover-wash);
+}
+
+.md-row {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--ems-radius-sm);
+  background: transparent;
+  color: var(--ems-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.md-row mat-icon {
+  flex: 0 0 auto;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: var(--ems-text-3);
+}
+
+.md-row__name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 550;
+}
+
+.md-row__count {
+  flex: 0 0 auto;
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: var(--ems-radius-pill);
+  background: var(--ems-sheen);
+  color: var(--ems-text-3);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+
+/* The row the narrower columns are filtered by. */
+.md-row.is-active {
+  background: var(--ems-primary-soft);
+  border-color: var(--ems-primary-line);
+}
+
+.md-row.is-active mat-icon,
+.md-row.is-active .md-row__count {
+  color: var(--ems-primary);
+}
+
+/* Screens are the end of the tree: there is nothing to narrow further, so the
+   row reads as a label rather than a button. */
+.md-row--static {
+  cursor: default;
+}
+
+.md-row__act {
+  flex: 0 0 auto;
+  color: var(--ems-text-3);
+}
+
+.md-row__act:hover {
+  color: var(--ems-danger);
+}
+
+.md-empty {
+  margin: 0;
+  padding: 18px 14px;
+  border: 1px dashed var(--ems-border);
+  border-radius: var(--ems-radius-sm);
+  background: var(--ems-sheen-soft);
+  color: var(--ems-text-3);
+  font-size: 12px;
+  text-align: center;
+}
+
+/* The add box sits at the foot of its column, where the next value is typed. */
+.md-add {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.md-add mat-form-field {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.md-add button {
+  flex: 0 0 auto;
+  height: 44px;
+}
+
+@media (max-width: 1080px) {
+  .md-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .md-list {
+    max-height: 260px;
+  }
+}

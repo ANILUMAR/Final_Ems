@@ -1,0 +1,10 @@
+/* The reason can be a whole sentence; keep it on two lines so the date column
+   stays aligned and the full text is still available as a tooltip. */
+.dt-reason {
+  max-width: 380px;
+  color: var(--ems-text-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

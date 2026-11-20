@@ -1,0 +1,60 @@
+<h2 mat-dialog-title>Bulk onboard employees</h2>
+
+<mat-dialog-content>
+  <p class="bo-sub">
+    One person per line: <strong>name, email, password, role, phone, address</strong>.
+    Role defaults to <strong>Developer</strong>; <strong>Tester</strong>, <strong>Tester Team Leader</strong>,
+    <strong>Developer Team Leader</strong> and <strong>Super Admin</strong> are accepted too, and an unknown
+    value becomes a developer. Only name, email and password are required. Copy a block straight
+    out of a spreadsheet — tabs work as well as commas.
+  </p>
+
+  <mat-form-field appearance="outline" class="bo-field">
+    <mat-label>People to create</mat-label>
+    <textarea matInput rows="9" [(ngModel)]="text" [placeholder]="placeholder" [disabled]="!!result"></textarea>
+  </mat-form-field>
+
+  <p class="bo-count" *ngIf="!result">
+    <mat-icon>groups</mat-icon>
+    <span *ngIf="parsedRows.length; else emptyHint">{{ parsedRows.length }} account{{ parsedRows.length === 1 ? '' : 's' }} ready to create</span>
+    <ng-template #emptyHint><span>Nothing to import yet</span></ng-template>
+  </p>
+
+  <ul class="bo-issues" *ngIf="parseIssues.length && !result">
+    <li *ngFor="let issue of parseIssues">Line {{ issue.line }}: {{ issue.message }}</li>
+  </ul>
+
+  <div class="ems-auth__note ems-auth__note--error" *ngIf="errorMessage">
+    <mat-icon>error_outline</mat-icon>
+    <span>{{ errorMessage }}</span>
+  </div>
+
+  <div class="bo-result" *ngIf="result">
+    <p class="bo-count bo-count--success">
+      <mat-icon>check_circle</mat-icon>
+      <span>{{ result.createdCount }} account{{ result.createdCount === 1 ? '' : 's' }} created.</span>
+    </p>
+
+    <ul class="bo-issues" *ngIf="result.skippedCount">
+      <li *ngFor="let skip of result.skipped">
+        {{ skip.email || 'a blank row' }} — {{ skip.reason }}
+      </li>
+    </ul>
+
+    <p class="bo-sub" *ngIf="result.created.length">
+      Everyone created can sign in straight away with the password you set. Share it with them and ask
+      them to change it from their profile.
+    </p>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-stroked-button (click)="done()" *ngIf="result">Done</button>
+  <ng-container *ngIf="!result">
+    <button mat-stroked-button mat-dialog-close [disabled]="saving">Cancel</button>
+    <button mat-flat-button color="primary" (click)="submit()" [disabled]="!canSubmit">
+      <mat-icon>{{ saving ? 'hourglass_top' : 'person_add' }}</mat-icon>
+      {{ saving ? 'Creating…' : 'Create ' + parsedRows.length + ' account' + (parsedRows.length === 1 ? '' : 's') }}
+    </button>
+  </ng-container>
+</mat-dialog-actions>

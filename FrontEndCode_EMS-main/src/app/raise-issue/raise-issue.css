@@ -1,0 +1,304 @@
+/* Raise task / bug: a two-card form. The left card says what was found, the
+   right one where in the product, so a long report never reads as one column. */
+
+.raise-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 980px) {
+  .raise-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.raise-grid mat-form-field {
+  width: 100%;
+}
+
+.raise-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .raise-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Task / Bug switch: two large targets, because picking the wrong one changes
+   who is asked to look at the report. */
+.kind-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.kind-switch__option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: var(--ems-radius-sm);
+  border: 1px solid var(--ems-border);
+  background: var(--ems-surface-2);
+  color: var(--ems-text-2);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+
+.kind-switch__option:hover {
+  border-color: var(--ems-border-strong);
+  transform: translateY(-1px);
+}
+
+.kind-switch__option span {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.kind-switch__option strong {
+  color: var(--ems-text);
+  font-size: 13.5px;
+}
+
+.kind-switch__option small {
+  font-size: 11.5px;
+  color: var(--ems-text-3);
+}
+
+.kind-switch__option.is-active {
+  border-color: var(--ems-primary-line);
+  background: var(--ems-primary-soft);
+  color: var(--ems-primary);
+}
+
+.kind-switch__option.is-active strong {
+  color: var(--ems-primary-text);
+}
+
+.kind-switch__option.is-active.is-bug {
+  border-color: var(--ems-danger-line);
+  background: var(--ems-danger-soft);
+  color: var(--ems-danger);
+}
+
+.kind-switch__option.is-active.is-bug strong {
+  color: var(--ems-danger-text);
+}
+
+.raise-hint {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ems-text-3);
+}
+
+.raise-hint mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+}
+
+.raise-file {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border: 1px dashed var(--ems-border);
+  border-radius: var(--ems-radius-sm);
+  background: var(--ems-sheen-soft);
+  margin-bottom: 16px;
+}
+
+.raise-file__label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--ems-text-2);
+  cursor: pointer;
+}
+
+.raise-file input[type="file"] {
+  font-size: 12px;
+  color: var(--ems-text-3);
+  max-width: 220px;
+}
+
+.raise-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-top: 14px;
+  border-top: 1px solid var(--ems-border-soft);
+}
+
+.raise-footer .raise-hint {
+  max-width: 380px;
+}
+
+/* Bug Reproduction & Flow Designer Section */
+.bug-repro-section {
+  background: var(--ems-surface-2, #f8fafc);
+  border: 1px solid var(--ems-border, #e2e8f0);
+  border-left: 4px solid #ef4444;
+  border-radius: var(--ems-radius-sm, 8px);
+  padding: 16px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bug-repro-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.bug-repro-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--ems-text, #0f172a);
+}
+
+.bug-repro-title mat-icon {
+  color: #dc2626;
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+
+.bug-repro-sub {
+  margin: 2px 0 0;
+  font-size: 0.75rem;
+  color: var(--ems-text-3, #64748b);
+}
+
+.btn-flow-designer {
+  background: linear-gradient(135deg, #0284c7, #2563eb) !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3) !important;
+}
+
+.repro-steps-field {
+  width: 100%;
+}
+
+/* Flow Preview Card */
+.flow-preview-card {
+  background: #0f172a;
+  color: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  overflow: hidden;
+}
+
+.flow-preview-card__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 14px;
+  background: #1e293b;
+  border-bottom: 1px solid #334155;
+}
+
+.flow-preview-card__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.diagram-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.diagram-badge mat-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+}
+
+.diagram-count {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.flow-preview-card__actions {
+  display: flex;
+  gap: 4px;
+}
+
+.flow-preview-card__actions button {
+  font-size: 0.75rem;
+  color: #cbd5e1;
+}
+
+.flow-preview-card__img-wrap {
+  position: relative;
+  padding: 12px;
+  max-height: 220px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: #090e1a;
+}
+
+.flow-preview-card__img-wrap img {
+  max-width: 100%;
+  max-height: 200px;
+  border-radius: 4px;
+  transition: transform 0.2s;
+}
+
+.flow-preview-card__overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #38bdf8;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.flow-preview-card__img-wrap:hover .flow-preview-card__overlay {
+  opacity: 1;
+}

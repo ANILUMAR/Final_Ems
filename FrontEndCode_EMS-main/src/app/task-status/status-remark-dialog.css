@@ -1,0 +1,24 @@
+.sr-sub {
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ems-text-2);
+}
+
+.sr-sub strong {
+  color: var(--ems-text);
+}
+
+.sr-sub em {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--ems-primary);
+}
+
+.sr-field {
+  width: 100%;
+}
+
+.sr-field textarea {
+  resize: vertical;
+}

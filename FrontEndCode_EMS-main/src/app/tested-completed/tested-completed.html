@@ -1,0 +1,246 @@
+<div class="ems-page">
+  <!-- Header -->
+  <header class="ems-header">
+    <div class="ems-header__titles">
+      <div class="ems-header__eyebrow">
+        <span>Team Leader Review</span>
+        <span class="ems-header__sep">/</span>
+        <span>QA Verification Complete</span>
+      </div>
+      <h1 class="ems-header__title">Tested Completed Tasks</h1>
+      <p class="ems-header__subtitle">
+        Review tasks and bugs verified and marked as Done by the Testing Team. Accessible to both Testing and Developer Team Leaders.
+      </p>
+    </div>
+    <div class="ems-header__actions">
+      <a mat-stroked-button color="primary" routerLink="/developer-completed">
+        <mat-icon>inventory_2</mat-icon> Developer Completed Tasks
+      </a>
+      <a mat-stroked-button color="accent" routerLink="/testing-lead-dashboard">
+        <mat-icon>rule</mat-icon> Testing Lead Dashboard
+      </a>
+      <button mat-stroked-button color="primary" (click)="loadData()" [disabled]="loading">
+        <mat-icon>refresh</mat-icon> Refresh
+      </button>
+    </div>
+  </header>
+
+  <!-- Banner Alerts -->
+  <div *ngIf="successMessage" class="ems-alert ems-alert--success">
+    <mat-icon>check_circle</mat-icon>
+    <span>{{ successMessage }}</span>
+    <button class="ems-alert__close" (click)="successMessage = ''">&times;</button>
+  </div>
+  <div *ngIf="errorMessage" class="ems-alert ems-alert--error">
+    <mat-icon>error_outline</mat-icon>
+    <span>{{ errorMessage }}</span>
+    <button class="ems-alert__close" (click)="errorMessage = ''">&times;</button>
+  </div>
+
+  <!-- KPI Metric Cards -->
+  <section class="ems-kpis">
+    <article class="ems-kpi-card is-active" (click)="setFilter('ALL')">
+      <div class="ems-kpi-card__icon" style="background:#ecfdf5;color:#059669;">
+        <mat-icon>verified</mat-icon>
+      </div>
+      <div class="ems-kpi-card__body">
+        <span class="ems-kpi-card__label">Total Tested & Completed</span>
+        <strong class="ems-kpi-card__value">{{ total }}</strong>
+      </div>
+    </article>
+
+    <article class="ems-kpi-card" [class.is-active]="filter === 'BUG'" (click)="setFilter('BUG')">
+      <div class="ems-kpi-card__icon" style="background:#fff1f2;color:#e11d48;">
+        <mat-icon>bug_report</mat-icon>
+      </div>
+      <div class="ems-kpi-card__body">
+        <span class="ems-kpi-card__label">Verified Bugs</span>
+        <strong class="ems-kpi-card__value">{{ bugsCount }}</strong>
+      </div>
+    </article>
+
+    <article class="ems-kpi-card" [class.is-active]="filter === 'TASK'" (click)="setFilter('TASK')">
+      <div class="ems-kpi-card__icon" style="background:#eff6ff;color:#2563eb;">
+        <mat-icon>task_alt</mat-icon>
+      </div>
+      <div class="ems-kpi-card__body">
+        <span class="ems-kpi-card__label">Verified Tasks</span>
+        <strong class="ems-kpi-card__value">{{ tasksCount }}</strong>
+      </div>
+    </article>
+  </section>
+
+  <!-- Toolbar: Filter Chips & Search -->
+  <div class="ems-toolbar">
+    <div class="ems-filter-chips">
+      <button
+        type="button"
+        class="ems-chip"
+        [class.is-active]="filter === 'ALL'"
+        (click)="setFilter('ALL')"
+      >
+        All Completed ({{ total }})
+      </button>
+      <button
+        type="button"
+        class="ems-chip"
+        [class.is-active]="filter === 'BUG'"
+        (click)="setFilter('BUG')"
+      >
+        <mat-icon style="font-size:15px;width:15px;height:15px;color:#e11d48;">bug_report</mat-icon>
+        Bugs ({{ bugsCount }})
+      </button>
+      <button
+        type="button"
+        class="ems-chip"
+        [class.is-active]="filter === 'TASK'"
+        (click)="setFilter('TASK')"
+      >
+        <mat-icon style="font-size:15px;width:15px;height:15px;color:#2563eb;">task_alt</mat-icon>
+        Tasks ({{ tasksCount }})
+      </button>
+    </div>
+
+    <div class="ems-search-wrap">
+      <mat-icon>search</mat-icon>
+      <input
+        type="text"
+        placeholder="Search code, title, project, developer, tester..."
+        [(ngModel)]="search"
+        (input)="onSearchChange()"
+      />
+      <button *ngIf="search" class="ems-search-clear" (click)="search = ''; onSearchChange()">&times;</button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="ems-state ems-state--loading">
+    <div class="ems-spinner"></div>
+    <p>Loading tested completed tasks...</p>
+  </div>
+
+  <!-- Empty State -->
+  <div *ngIf="!loading && filteredItems.length === 0" class="ems-state ems-state--empty">
+    <mat-icon style="font-size:48px;width:48px;height:48px;color:#94a3b8;">task_alt</mat-icon>
+    <h3>No tested completed tasks found</h3>
+    <p *ngIf="search || filter !== 'ALL'">No work items match your current filter criteria.</p>
+    <p *ngIf="!search && filter === 'ALL'">
+      When a tester marks a task or bug as Done, it will appear here for both Team Leaders to review.
+    </p>
+  </div>
+
+  <!-- Grid of Cards -->
+  <div *ngIf="!loading && filteredItems.length > 0" class="ems-grid">
+    <article
+      *ngFor="let item of pagedItems"
+      class="ems-card"
+      [class.is-bug]="isBug(item)"
+    >
+      <div class="ems-card__head">
+        <div class="ems-card__id-row">
+          <span class="ems-code">{{ code(item) }}</span>
+          <span class="ems-badge" [ngClass]="kindBadge(item.kind)">{{ kindLabel(item.kind) }}</span>
+          <span class="ems-badge ems-badge--success">
+            <mat-icon style="font-size:12px;width:12px;height:12px;">task_alt</mat-icon> Done / Verified
+          </span>
+        </div>
+        <span class="ems-badge" [ngClass]="priorityBadge(item.priority)">{{ item.priority || 'NORMAL' }}</span>
+      </div>
+
+      <h3 class="ems-card__title">{{ item.taskTitle }}</h3>
+      <p class="ems-card__project">
+        <mat-icon>folder_open</mat-icon>
+        {{ item.project || 'General Project' }}
+        <span *ngIf="item.module"> &bull; {{ item.module }}</span>
+        <span *ngIf="item.screen"> &bull; {{ item.screen }}</span>
+      </p>
+
+      <p class="ems-card__desc">{{ item.description || 'No description provided.' }}</p>
+
+      <!-- Bug Diagram & Reproduction Steps Preview -->
+      <div class="ems-callout ems-callout--bug" *ngIf="isBug(item)" (click)="openBugDetails(item)">
+        <div class="ems-callout__top">
+          <mat-icon>{{ item.reproductionStepsImage ? 'account_tree' : 'format_list_numbered' }}</mat-icon>
+          <strong>Bug Details & Steps to Reproduce</strong>
+          <button mat-button type="button" class="ems-callout__btn" (click)="openBugDetails(item); $event.stopPropagation()">
+            <mat-icon>visibility</mat-icon> View Flow Diagram
+          </button>
+        </div>
+        <p class="ems-callout__text" *ngIf="item.reproductionSteps">{{ item.reproductionSteps }}</p>
+      </div>
+
+      <!-- QA Verification Details -->
+      <div class="ems-callout ems-callout--tester">
+        <div class="ems-callout__top">
+          <mat-icon>verified</mat-icon>
+          <strong>Tester Verification ({{ item.assignedTesterName || item.assignedTesterEmail || 'Tester' }})</strong>
+          <span class="ems-callout__time" *ngIf="item.verifiedAt">
+            {{ item.verifiedAt | date:'dd MMM yyyy, hh:mm a' }}
+          </span>
+        </div>
+        <p class="ems-callout__text">
+          {{ item.verificationNote || 'Verified fix working as expected in QA environment.' }}
+        </p>
+      </div>
+
+      <!-- Dev Lead Release Note -->
+      <div class="ems-callout ems-callout--dev" *ngIf="item.releaseNote">
+        <div class="ems-callout__top">
+          <mat-icon>send</mat-icon>
+          <strong>Dev Release Note ({{ item.releasedByName || 'Dev Lead' }})</strong>
+          <span class="ems-callout__time" *ngIf="item.releasedAt">
+            {{ item.releasedAt | date:'dd MMM, hh:mm a' }}
+          </span>
+        </div>
+        <p class="ems-callout__text">{{ item.releaseNote }}</p>
+      </div>
+
+      <!-- Footer Team Roster & Actions -->
+      <div class="ems-card__foot">
+        <div class="ems-roster-box">
+          <div class="ems-roster-person">
+            <span class="ems-roster-role">Developer</span>
+            <span class="ems-roster-name">{{ item.assignedToName || 'Unassigned' }}</span>
+          </div>
+          <div class="ems-roster-person">
+            <span class="ems-roster-role">Tester</span>
+            <span class="ems-roster-name">{{ item.assignedTesterName || item.assignedTesterEmail || 'Unassigned' }}</span>
+          </div>
+        </div>
+
+        <div class="ems-actions">
+          <!-- Button to inspect bug diagram if bug -->
+          <button
+            *ngIf="isBug(item)"
+            mat-icon-button
+            color="warn"
+            matTooltip="View bug flow diagram"
+            (click)="openBugDetails(item)"
+          >
+            <mat-icon>account_tree</mat-icon>
+          </button>
+
+          <!-- Reopen back to developer if leaders spot rework needed -->
+          <button
+            mat-stroked-button
+            color="warn"
+            class="ems-btn-reopen"
+            matTooltip="Reopen and return to developer for rework"
+            (click)="reopenForDev(item)"
+          >
+            <mat-icon>replay</mat-icon> Reopen Rework
+          </button>
+        </div>
+      </div>
+    </article>
+  </div>
+
+  <!-- Pager -->
+  <app-pager
+    *ngIf="!loading && filteredItems.length > 0"
+    [length]="filteredItems.length"
+    [(pageIndex)]="pageIndex"
+    [(pageSize)]="pageSize"
+    noun="tested task"
+  ></app-pager>
+</div>
