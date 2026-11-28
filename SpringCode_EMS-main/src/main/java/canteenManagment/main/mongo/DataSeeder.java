@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -56,11 +57,12 @@ public class DataSeeder implements CommandLineRunner {
             {1L, "admin@ems.com", "Admin", "SUPER_ADMIN", "Admin@123"},
             {2L, "developer@ems.com", "Raju", "EMPLOYEE", "Developer@123"},
             {3L, "tester@ems.com", "Priya", "TESTER", "Tester@1234"},
-            {4L, "arun@ems.com", "Arun", "DEVELOPER_LEAD", "Employee@123"},
+            {4L, "arun@ems.com", "Arun", Roles.TEAM_LEAD, "Employee@123"},
             {5L, "divya@ems.com", "Divya", "TESTER_LEAD", "Employee@123"},
             {6L, "karthik@ems.com", "Karthik", "EMPLOYEE", "Employee@123"},
             {7L, "meena@ems.com", "Meena", "EMPLOYEE", "Employee@123"},
             {8L, "vikram@ems.com", "Vikram", "EMPLOYEE", "Employee@123"},
+            {9L, "lead@ems.com", "Suresh", "TEAM_LEAD", "Employee@123"},
     };
 
     private final UserRepository userRepository;
@@ -164,7 +166,9 @@ public class DataSeeder implements CommandLineRunner {
         backfillStatuses();
         backfillPasswordReview();
         migrateLegacyAdminRole();
+        migrateLegacyDeveloperLeadRole();
         migrateTaskCodes();
+        seedSampleTestingEmployees();
 
         if (seeded.isEmpty()) {
             log.info("Mongo already holds the demo dataset - nothing seeded.");
@@ -204,6 +208,68 @@ public class DataSeeder implements CommandLineRunner {
         for (Object[] row : DEMO_USERS) {
             userRepository.save(employee((Long) row[0], (String) row[1], (String) row[2],
                     (String) row[3], (String) row[4]));
+        }
+    }
+
+    /**
+     * Seeds sample Developers and Testers for testing and evaluation across the application.
+     * Safe to run repeatedly: skips any account that already exists.
+     */
+    private void seedSampleTestingEmployees() {
+        Object[][] sampleUsers = {
+                // Project Manager (PROJECT_MANAGER)
+                {"rajesh.pm@ems.com", "Rajesh Verma", Roles.PROJECT_MANAGER, "Manager@123", "9876543218", "Hyderabad"},
+
+                // Developers (EMPLOYEE)
+                {"suresh.dev@ems.com", "Suresh Kumar", Roles.EMPLOYEE, "Developer@123", "9876543210", "Bangalore"},
+                {"ananya.dev@ems.com", "Ananya Sharma", Roles.EMPLOYEE, "Developer@123", "9876543211", "Hyderabad"},
+                {"rahul.dev@ems.com", "Rahul Verma", Roles.EMPLOYEE, "Developer@123", "9876543212", "Pune"},
+                {"sneha.dev@ems.com", "Sneha Patel", Roles.EMPLOYEE, "Developer@123", "9876543213", "Mumbai"},
+
+                // Testers (TESTER)
+                {"pooja.qa@ems.com", "Pooja Nair", Roles.TESTER, "Tester@123", "9876543214", "Chennai"},
+                {"deepak.qa@ems.com", "Deepak Reddy", Roles.TESTER, "Tester@123", "9876543215", "Bangalore"},
+                {"kavita.qa@ems.com", "Kavita Sen", Roles.TESTER, "Tester@123", "9876543216", "Kolkata"},
+                {"manoj.qa@ems.com", "Manoj Joshi", Roles.TESTER, "Tester@123", "9876543217", "Delhi"}
+        };
+
+        long nextId = userRepository.findAll().stream()
+                .mapToLong(u -> u.getId() != null ? u.getId() : 0L)
+                .max()
+                .orElse(0L) + 1;
+
+        int added = 0;
+        for (Object[] row : sampleUsers) {
+            String email = ((String) row[0]).trim().toLowerCase(Locale.ROOT);
+            String name = (String) row[1];
+            String role = (String) row[2];
+            String password = (String) row[3];
+            String phone = (String) row[4];
+            String address = (String) row[5];
+
+            if (userRepository.findByEmailIgnoreCase(email).isEmpty()) {
+                UserEntity user = new UserEntity();
+                user.setId(nextId++);
+                user.setEmail(email);
+                user.setName(name);
+                user.setLowerName(name.toLowerCase(Locale.ROOT));
+                user.setPassword(passwordEncoder.encode(password));
+                user.setEncryptedPassword(passwordCipher.encrypt(password));
+                user.setRole(role);
+                user.setRoles(Roles.FAMILY_ADMIN.equals(Roles.family(role))
+                        ? UserEntity.Role.ADMIN
+                        : UserEntity.Role.EMPLOYEE);
+                user.setGeneratedDate(new java.util.Date());
+                user.setAddress(address);
+                user.setPhoneNumber(phone);
+                user.setActive(true);
+                user.setTaskManager(Roles.TESTER.equals(role) && "pooja.qa@ems.com".equalsIgnoreCase(email));
+                userRepository.save(user);
+                added++;
+            }
+        }
+        if (added > 0) {
+            log.info("Seeded {} sample test employee(s) (Developers and Testers).", added);
         }
     }
 
@@ -255,6 +321,22 @@ public class DataSeeder implements CommandLineRunner {
         if (!legacy.isEmpty()) {
             userRepository.saveAll(legacy);
             log.info("Renamed {} legacy ADMIN account(s) to SUPER_ADMIN.", legacy.size());
+        }
+    }
+
+    /**
+     * Converts DEVELOPER_LEAD and TEAM_LEADER accounts to TEAM_LEAD ("Team Leader")
+     * as requested for the frontend development team lead.
+     */
+    private void migrateLegacyDeveloperLeadRole() {
+        List<UserEntity> devLeads = userRepository.findAll().stream()
+                .filter(user -> "DEVELOPER_LEAD".equalsIgnoreCase(Roles.raw(user.getRole()))
+                        || Roles.LEGACY_TEAM_LEADER.equalsIgnoreCase(Roles.raw(user.getRole())))
+                .collect(Collectors.toList());
+        devLeads.forEach(user -> user.setRole(Roles.TEAM_LEAD));
+        if (!devLeads.isEmpty()) {
+            userRepository.saveAll(devLeads);
+            log.info("Converted {} legacy DEVELOPER_LEAD account(s) to TEAM_LEAD (Team Leader).", devLeads.size());
         }
     }
 

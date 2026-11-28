@@ -78,6 +78,9 @@ public class AssignTaskController {
   private final UserService userService;
   private final DeletedTaskRepository deletedTaskRepository;
   private final TaskMailService taskMailService;
+
+  @Autowired(required = false)
+  private canteenManagment.main.hierarchy.TeamHierarchyService hierarchyService;
 	  
 
 	    @Autowired
@@ -107,9 +110,27 @@ public class AssignTaskController {
 			// so the testing team leader sees it first. Their task-access
 			// provision covers the register and edits, not handing out work.
 			if (AuthContext.hasRole(authentication, AuthContext.ROLE_TESTER)
-					&& !AuthContext.hasRole(authentication, AuthContext.ROLE_TESTER_LEAD)) {
+					&& !AuthContext.hasRole(authentication, AuthContext.ROLE_TESTER_LEAD)
+					&& !AuthContext.hasRole(authentication, AuthContext.ROLE_TEAM_LEAD)) {
 				return ResponseEntity.status(HttpStatus.FORBIDDEN)
 						.body("Raise a task or a bug from Raise task / bug. Your team leader approves it before it is assigned.");
+			}
+
+			// Verify that project work is authorized by the CEO/Director
+			if (hierarchyService != null && assignTaskDTO.getProject() != null && !assignTaskDTO.getProject().trim().isEmpty()) {
+				if (!hierarchyService.isProjectWorkAuthorized(assignTaskDTO.getProject().trim()) && !AuthContext.isAdmin(authentication)) {
+					return ResponseEntity.status(HttpStatus.FORBIDDEN)
+							.body("Project work for '" + assignTaskDTO.getProject().trim() + "' has not been authorized. Team hierarchy must be approved by the CEO/Director before work can begin.");
+				}
+				if (assignTaskDTO.getAssignedTo() != null && !assignTaskDTO.getAssignedTo().trim().isEmpty()) {
+					try {
+						Long devId = Long.valueOf(assignTaskDTO.getAssignedTo().trim());
+						if (!hierarchyService.isDeveloperAssignedToProject(assignTaskDTO.getProject().trim(), devId, null)) {
+							return ResponseEntity.badRequest().body("Assigned developer is not part of the Team Hierarchy for project '" + assignTaskDTO.getProject().trim() + "'. Only assigned project members can receive work.");
+						}
+					} catch (NumberFormatException ignored) {
+					}
+				}
 			}
 			try {
 				AssignTask savedTask = assingTaskService.saveTask(assignTaskDTO);
@@ -185,17 +206,11 @@ public class AssignTaskController {
 		}
 
 		/**
-		 * The whole register, for the people who manage work: the CEO, either team
-		 * leader, and a tester an admin has granted task access. getAssignTask stays
-		 * "mine only" for everyone else, so this is a separate surface rather than a
-		 * relaxed variant.
+		 * The whole register of approved tasks and bugs for boards and registers.
+		 * Allows team members to view work across projects and team members (read-only for non-assignees).
 		 */
 		@GetMapping("/register")
 		public ResponseEntity<?> register(org.springframework.security.core.Authentication authentication) {
-			if (!userService.canManageTasks(authentication)) {
-				return ResponseEntity.status(HttpStatus.FORBIDDEN)
-						.body("Task access is required to open the register.");
-			}
 			// Work still inside the testing team (pending or sent back) is not
 			// work yet: it belongs to the intake lists, not to the board.
 			List<AssignTask> allItems = new java.util.ArrayList<>();

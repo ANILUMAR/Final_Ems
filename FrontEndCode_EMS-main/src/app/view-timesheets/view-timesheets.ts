@@ -2,14 +2,17 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatNativeDateModule } from '@angular/material/core';
+import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterModule } from '@angular/router';
-import { TimesheetEntry } from '../models/employee';
+import { DailyTimesheet } from '../models/employee';
 import { Timesheet } from '../services/timesheet';
-import { ReferenceService } from '../services/reference.service';
+import { WorkspaceService } from '../services/workspace.service';
 import { Pager } from '../shared/pager';
 import { DEFAULT_PAGE_SIZE, lastPageOf, pageSlice } from '../shared/pagination';
 
@@ -20,9 +23,12 @@ import { DEFAULT_PAGE_SIZE, lastPageOf, pageSlice } from '../shared/pagination';
     CommonModule,
     FormsModule,
     MatButtonModule,
+    MatDatepickerModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
+    MatNativeDateModule,
+    MatSelectModule,
     MatTooltipModule,
     RouterModule,
     Pager
@@ -31,140 +37,233 @@ import { DEFAULT_PAGE_SIZE, lastPageOf, pageSlice } from '../shared/pagination';
   styleUrl: './view-timesheets.css'
 })
 export class ViewTimesheets implements OnInit {
-  entries: TimesheetEntry[] = [];
+  currentTab: 'ALL' | 'REPORTS' = 'ALL';
+
+  timesheets: DailyTimesheet[] = [];
+  projectOptions: string[] = [];
+
   loading = true;
   errorMessage = '';
 
+  // Filters
   search = '';
-  status = 'ALL';
-  mineOnly = false;
+  statusFilter = 'ALL';
+  selectedProject = 'ALL';
+  fromDate: Date | null = null;
+  toDate: Date | null = null;
 
-  /** The table pages in the browser: the stats and the chips span every entry. */
+  // Selected timesheet for task breakdown dialog
+  selectedSheet: DailyTimesheet | null = null;
+
+  // Reporting summaries
+  reportsData: {
+    grandTotalHours: number;
+    totalTimesheets: number;
+    employeeSummary: Array<{
+      employeeName: string;
+      employeeEmail: string;
+      employeeRole: string;
+      totalHours: number;
+      approvedHours: number;
+      submittedHours: number;
+      timesheetCount: number;
+    }>;
+    projectSummary: Array<{
+      project: string;
+      totalHours: number;
+      taskCount: number;
+    }>;
+  } | null = null;
+
+  // Pagination
   pageIndex = 0;
   pageSize = DEFAULT_PAGE_SIZE;
 
-  constructor(private timesheetService: Timesheet, private reference: ReferenceService) {}
+  statusFilters = [
+    { key: 'ALL', label: 'All' },
+    { key: 'SUBMITTED', label: 'Submitted' },
+    { key: 'UNDER_REVIEW', label: 'Under Review' },
+    { key: 'APPROVED', label: 'Approved' },
+    { key: 'REJECTED', label: 'Rejected' },
+    { key: 'DRAFT', label: 'Draft' }
+  ];
+
+  constructor(
+    private timesheetService: Timesheet,
+    private workspace: WorkspaceService
+  ) {}
 
   ngOnInit(): void {
-    this.loadTimesheets();
+    this.loadData();
+    this.loadProjects();
   }
 
-  /* ---------- derived data ---------- */
+  loadProjects(): void {
+    this.workspace.getProjects().subscribe({
+      next: (projects) => {
+        const names = (projects || []).map((p) => p.name).filter(Boolean);
+        this.projectOptions = Array.from(new Set(names)).sort();
+      },
+      error: () => {}
+    });
+  }
 
-  get filtered(): TimesheetEntry[] {
+  loadData(): void {
+    this.loading = true;
+    this.errorMessage = '';
+
+    const filters = {
+      status: this.statusFilter !== 'ALL' ? this.statusFilter : undefined,
+      project: this.selectedProject !== 'ALL' ? this.selectedProject : undefined,
+      fromDate: this.fromDate ? this.toIsoDate(this.fromDate) : undefined,
+      toDate: this.toDate ? this.toIsoDate(this.toDate) : undefined
+    };
+
+    this.timesheetService.getApprovalsQueue(filters).subscribe({
+      next: (data) => {
+        this.timesheets = data || [];
+        this.pageIndex = Math.min(this.pageIndex, lastPageOf(this.filtered.length, this.pageSize));
+        this.loading = false;
+      },
+      error: (err) => {
+        console.error('Failed to load workspace timesheets', err);
+        this.errorMessage = 'Could not load workspace timesheets.';
+        this.loading = false;
+      }
+    });
+
+    this.timesheetService.getReports(filters).subscribe({
+      next: (rep) => {
+        this.reportsData = rep;
+      },
+      error: () => {}
+    });
+  }
+
+  /* ---------- Filtered Data ---------- */
+
+  get filtered(): DailyTimesheet[] {
     const term = this.search.trim().toLowerCase();
-    const email = (localStorage.getItem('email') || '').toLowerCase();
-    const name = (localStorage.getItem('name') || '').toLowerCase();
 
-    return this.entries
-      .filter((entry) => {
-        const owner = (entry.employeeName || '').toLowerCase();
-        const matchesMine = !this.mineOnly || owner === email || (!!name && owner === name);
-        const matchesStatus = this.status === 'ALL' || (entry.status || '').toUpperCase() === this.status;
-        const matchesSearch =
-          !term ||
-          [entry.employeeName, entry.project, entry.date, entry.status]
-            .filter(Boolean)
-            .some((value) => String(value).toLowerCase().includes(term));
-        return matchesMine && matchesStatus && matchesSearch;
-      })
-      .sort((a, b) => (a.date < b.date ? 1 : -1));
+    return this.timesheets.filter((sheet) => {
+      const matchesProject =
+        this.selectedProject === 'ALL' ||
+        (sheet.entries || []).some((e) => (e.project || '').toLowerCase() === this.selectedProject.toLowerCase());
+
+      const matchesSearch =
+        !term ||
+        [sheet.employeeName, sheet.employeeEmail, sheet.workDate, sheet.status]
+          .filter(Boolean)
+          .some((v) => String(v).toLowerCase().includes(term)) ||
+        (sheet.entries || []).some(
+          (e) =>
+            (e.project && e.project.toLowerCase().includes(term)) ||
+            (e.taskCode && e.taskCode.toLowerCase().includes(term)) ||
+            (e.taskTitle && e.taskTitle.toLowerCase().includes(term)) ||
+            (e.workDescription && e.workDescription.toLowerCase().includes(term))
+        );
+
+      return matchesProject && matchesSearch;
+    });
   }
 
-  /** The rows actually rendered for the current page. */
-  get pagedEntries(): TimesheetEntry[] {
+  get pagedTimesheets(): DailyTimesheet[] {
     return pageSlice(this.filtered, this.pageIndex, this.pageSize);
   }
 
   get totalHours(): number {
-    return this.filtered.reduce((sum, entry) => sum + Number(entry.hours || 0), 0);
+    return this.filtered.reduce((sum, s) => sum + (s.totalHours || 0), 0);
   }
 
   get pendingCount(): number {
-    return this.entries.filter((entry) => (entry.status || '').toUpperCase() === 'PENDING').length;
+    return this.timesheets.filter(
+      (s) => (s.status || '').toUpperCase() === 'SUBMITTED' || (s.status || '').toUpperCase() === 'PENDING'
+    ).length;
   }
 
   get approvedCount(): number {
-    return this.entries.filter((entry) => (entry.status || '').toUpperCase() === 'APPROVED').length;
+    return this.timesheets.filter((s) => (s.status || '').toUpperCase() === 'APPROVED').length;
   }
 
-  /** The chips are the TIMESHEET_STATUS rows in app_lookup, with their counts. */
-  get statusChips(): { key: string; label: string; count: number }[] {
-    return [
-      { key: 'ALL', label: 'All', count: this.entries.length },
-      ...this.reference.items('TIMESHEET_STATUS').map((item) => ({
-        key: item.code.toUpperCase(),
-        label: item.label,
-        count: this.entries.filter((entry) => (entry.status || '').toUpperCase() === item.code.toUpperCase()).length
-      }))
-    ];
+  /* ---------- Actions ---------- */
+
+  setTab(tab: 'ALL' | 'REPORTS'): void {
+    this.currentTab = tab;
   }
 
-  /* ---------- filtering ---------- */
-
-  setStatus(key: string): void {
-    this.status = key;
+  setStatus(status: string): void {
+    this.statusFilter = status;
     this.pageIndex = 0;
+    this.loadData();
   }
 
-  toggleMine(): void {
-    this.mineOnly = !this.mineOnly;
+  onFilterChange(): void {
     this.pageIndex = 0;
+    this.loadData();
   }
 
-  /** A new search term always starts again at the first page. */
-  onSearchChange(): void {
+  clearFilters(): void {
+    this.search = '';
+    this.statusFilter = 'ALL';
+    this.selectedProject = 'ALL';
+    this.fromDate = null;
+    this.toDate = null;
     this.pageIndex = 0;
+    this.loadData();
   }
 
-  /* ---------- data ---------- */
-
-  loadTimesheets(): void {
-    this.loading = true;
-    this.errorMessage = '';
-
-    this.timesheetService.getTimesheets().subscribe({
-      next: (data: TimesheetEntry[]) => {
-        this.entries = data || [];
-        // A reload can empty a week, so never leave the pager past the last page.
-        this.pageIndex = Math.min(this.pageIndex, lastPageOf(this.filtered.length, this.pageSize));
-        this.loading = false;
-      },
-      error: (err: any) => {
-        console.error('Failed to load timesheets', err);
-        this.errorMessage = 'Could not load timesheets right now.';
-        this.loading = false;
-      }
-    });
+  openBreakdown(sheet: DailyTimesheet): void {
+    this.selectedSheet = sheet;
   }
 
-  /* ---------- presentation helpers ---------- */
-
-  initials(name: string): string {
-    const parts = (name || '?').split(/[\s.@]+/).filter((part) => !!part);
-    return parts.slice(0, 2).map((part) => part.charAt(0).toUpperCase()).join('');
+  closeBreakdown(): void {
+    this.selectedSheet = null;
   }
 
-  statusBadge(status: string): string {
-    return this.reference.badge('TIMESHEET_STATUS', status);
+  /* ---------- Presentation Helpers ---------- */
+
+  initials(name?: string): string {
+    const parts = (name || '?').split(/[\s.@]+/).filter((p) => !!p);
+    return parts.slice(0, 2).map((p) => p.charAt(0).toUpperCase()).join('');
   }
 
-  statusLabel(status: string): string {
-    return this.reference.label('TIMESHEET_STATUS', status) || 'Unknown';
+  getProjectsList(sheet: DailyTimesheet): string {
+    if (!sheet.entries || sheet.entries.length === 0) return '—';
+    const projs = Array.from(new Set(sheet.entries.map((e) => e.project).filter(Boolean)));
+    return projs.join(', ');
   }
 
-  formatDate(date: string): string {
-    if (!date) {
-      return '—';
+  statusBadge(status?: string): string {
+    const s = (status || 'DRAFT').toUpperCase();
+    switch (s) {
+      case 'APPROVED': return 'ems-badge--success';
+      case 'SUBMITTED':
+      case 'PENDING': return 'ems-badge--info';
+      case 'UNDER_REVIEW': return 'ems-badge--warning';
+      case 'REJECTED': return 'ems-badge--danger';
+      default: return 'ems-badge--neutral';
     }
-    const parsed = new Date(date);
-    return isNaN(parsed.getTime())
-      ? date
-      : parsed.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
   }
 
-  weekDay(date: string): string {
-    const parsed = new Date(date);
-    return isNaN(parsed.getTime()) ? '' : parsed.toLocaleDateString(undefined, { weekday: 'short' });
+  statusLabel(status?: string): string {
+    const s = (status || 'DRAFT').toUpperCase();
+    switch (s) {
+      case 'APPROVED': return 'Approved';
+      case 'SUBMITTED': return 'Submitted';
+      case 'PENDING': return 'Pending';
+      case 'UNDER_REVIEW': return 'Under Review';
+      case 'REJECTED': return 'Rejected';
+      case 'DRAFT': return 'Draft';
+      default: return s;
+    }
+  }
+
+  toIsoDate(value: Date | string): string {
+    if (!value) return '';
+    const date = typeof value === 'string' ? new Date(value) : value;
+    if (isNaN(date.getTime())) return String(value);
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+    return `${date.getFullYear()}-${month}-${day}`;
   }
 }

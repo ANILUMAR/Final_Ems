@@ -8,11 +8,14 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatOptionModule } from '@angular/material/core';
 import { MatSelectModule } from '@angular/material/select';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { ReferenceService } from '../services/reference.service';
 import { WorkflowService } from '../services/workflow.service';
 import { approvalBadge, approvalLabel, kindBadge, kindLabel, taskCodeOf, WorkItem } from '../models/work-item';
 import { Pager } from '../shared/pager';
 import { DEFAULT_PAGE_SIZE, lastPageOf, pageSlice } from '../shared/pagination';
+import { TicketDetailDialog } from '../ticket-detail-dialog/ticket-detail-dialog';
 
 /**
  * The tester's own trail: everything they raised, in whichever state it is in.
@@ -35,6 +38,8 @@ import { DEFAULT_PAGE_SIZE, lastPageOf, pageSlice } from '../shared/pagination';
     MatInputModule,
     MatOptionModule,
     MatSelectModule,
+    MatTooltipModule,
+    MatDialogModule,
     Pager
   ],
   templateUrl: './my-submissions.html',
@@ -48,6 +53,7 @@ export class MySubmissions implements OnInit {
 
   /** ALL, PENDING, APPROVED or REJECTED. */
   filter = 'ALL';
+  search = '';
 
   /** The trail pages in the browser, so the chips still count every item. */
   pageIndex = 0;
@@ -63,7 +69,8 @@ export class MySubmissions implements OnInit {
   constructor(
     private workflow: WorkflowService,
     private reference: ReferenceService,
-    private router: Router
+    private router: Router,
+    private dialog: MatDialog
   ) {}
 
   ngOnInit(): void {
@@ -105,11 +112,25 @@ export class MySubmissions implements OnInit {
     return this.items.filter((item) => this.stateOf(item) === state).length;
   }
 
+  onSearchChange(): void {
+    this.pageIndex = 0;
+  }
+
   get filtered(): WorkItem[] {
-    if (this.filter === 'ALL') {
-      return this.items;
-    }
-    return this.items.filter((item) => this.stateOf(item) === this.filter);
+    const q = this.search.trim().toLowerCase();
+    return this.items.filter((item) => {
+      const matchesFilter = this.filter === 'ALL' || this.stateOf(item) === this.filter;
+      if (!matchesFilter) return false;
+      if (!q) return true;
+
+      const code = taskCodeOf(item).toLowerCase();
+      const title = (item.taskTitle || '').toLowerCase();
+      const proj = (item.project || '').toLowerCase();
+      const mod = (item.module || '').toLowerCase();
+      const desc = (item.description || '').toLowerCase();
+
+      return code.includes(q) || title.includes(q) || proj.includes(q) || mod.includes(q) || desc.includes(q);
+    });
   }
 
   /** The slice actually rendered for the current page. */
@@ -215,5 +236,104 @@ export class MySubmissions implements OnInit {
 
   goToRaise(): void {
     this.router.navigate(['/issues/new']);
+  }
+
+  priorityBadge(priority?: string): string {
+    switch ((priority || '').toUpperCase()) {
+      case 'HIGH': return 'ems-badge--danger';
+      case 'MEDIUM': return 'ems-badge--warning';
+      case 'LOW': return 'ems-badge--neutral';
+      default: return 'ems-badge--neutral';
+    }
+  }
+
+  initials(name?: string | null): string {
+    return (name || '?')
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part.charAt(0).toUpperCase())
+      .join('');
+  }
+
+  isBug(item: WorkItem): boolean {
+    return (item.kind || '').toUpperCase() === 'BUG' || (item.taskCode || '').startsWith('BUG');
+  }
+
+  isProdIssue(item: WorkItem): boolean {
+    const k = (item.kind || '').toUpperCase();
+    return k === 'PRODUCTION_ISSUE' || k === 'PROD_ISSUE' || k === 'PROD' || (item.taskCode || '').startsWith('PROD');
+  }
+
+  kindLabel(item: WorkItem): string {
+    if (this.isProdIssue(item)) return 'Production Issue';
+    return this.isBug(item) ? 'Bug' : 'Ticket';
+  }
+
+  kindBadge(item: WorkItem): string {
+    if (this.isProdIssue(item)) return 'ems-badge--prod';
+    return this.isBug(item) ? 'ems-badge--danger' : 'ems-badge--info';
+  }
+
+  openTicketDetails(item: WorkItem): void {
+    const ref = this.dialog.open(TicketDetailDialog, {
+      data: { item },
+      width: '92vw',
+      maxWidth: '1150px',
+      maxHeight: '92vh'
+    });
+    ref.afterClosed().subscribe(() => {
+      this.load();
+    });
+  }
+
+  openBugDetails(item: WorkItem): void {
+    this.openTicketDetails(item);
+  }
+
+  toIsoDate(date: any): string {
+    if (!date) return '—';
+    try {
+      return new Date(date).toISOString().slice(0, 10);
+    } catch {
+      return '—';
+    }
+  }
+
+  downloadCsv(): void {
+    const headers = ['Ticket ID', 'Kind', 'Title', 'Project', 'Module', 'Screen', 'Priority', 'Raised Date', 'Status', 'Reviewer', 'Developer'];
+    const rows = this.filtered.map(item => [
+      this.code(item),
+      item.kind || 'TASK',
+      item.taskTitle,
+      item.project || '—',
+      item.module || '—',
+      item.screen || '—',
+      this.priorityLabel(item.priority),
+      this.toIsoDate(item.createdAt || item.startDate),
+      this.stateLabel(item),
+      item.reviewedBy || '—',
+      item.assignedToName || 'Unassigned'
+    ]);
+    this.exportCsvFile('My_Submissions', headers, rows);
+  }
+
+  exportCsvFile(filename: string, headers: string[], rows: (string | number | undefined | null)[][]): void {
+    const escapeCell = (val: any): string => {
+      if (val === null || val === undefined) return '""';
+      const s = String(val).replace(/"/g, '""');
+      return `"${s}"`;
+    };
+    const headerLine = headers.map(escapeCell).join(',');
+    const rowLines = rows.map(r => r.map(escapeCell).join(','));
+    const csvContent = '\uFEFF' + [headerLine, ...rowLines].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const dateStr = new Date().toISOString().slice(0, 10);
+    link.download = `${filename}_${dateStr}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   }
 }

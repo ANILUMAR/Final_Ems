@@ -11,8 +11,10 @@ import { RouterModule } from '@angular/router';
 import { BulkOnboardDialog } from '../bulk-onboard/bulk-onboard';
 import { EditEmployeeComponent } from '../edit-employee.ts/edit-employee.ts';
 import { isManagerRole, isPlainTesterRole, isSuperAdminRole, roleBadgeClass, roleFamily, roleLabel as formatRole } from '../models/role';
+import { RolePermissionService } from '../services/role-permission.service';
 import { AuthService } from '../services/auth-service';
 import { WorkspaceService } from '../services/workspace.service';
+import { LocalAvatarService } from '../services/local-avatar.service';
 import { Pager } from '../shared/pager';
 import { DEFAULT_PAGE_SIZE, lastPageOf, pageSlice } from '../shared/pagination';
 
@@ -71,8 +73,25 @@ export class RegistredEmployeeList implements OnInit {
   constructor(
     private workspace: WorkspaceService,
     private auth: AuthService,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private rolePermissionService: RolePermissionService,
+    private avatarService: LocalAvatarService
   ) {}
+
+  get canAddEmployee(): boolean {
+    return isSuperAdminRole(localStorage.getItem('role')) ||
+           this.rolePermissionService.canAdd('REGISTERED_EMPLOYEES');
+  }
+
+  get canEditEmployee(): boolean {
+    return isSuperAdminRole(localStorage.getItem('role')) ||
+           this.rolePermissionService.canEdit('REGISTERED_EMPLOYEES');
+  }
+
+  get canDeleteEmployee(): boolean {
+    return isSuperAdminRole(localStorage.getItem('role')) ||
+           this.rolePermissionService.canDelete('REGISTERED_EMPLOYEES');
+  }
 
   ngOnInit(): void {
     this.reload();
@@ -296,14 +315,25 @@ export class RegistredEmployeeList implements OnInit {
   }
 
   hasPhoto(employee: RegisteredEmployee): boolean {
-    return !!employee.registerImage && !this.failedImages.has(employee.email);
+    return true;
   }
 
   photoUrl(employee: RegisteredEmployee): string {
-    return 'http://localhost:9001/attachments/' + employee.registerImage;
+    if (this.failedImages.has(employee.email)) {
+      return this.avatarService.getDefaultAvatarForRole(employee.role);
+    }
+    return this.avatarService.getAvatarUrl(
+      employee.registerImage,
+      employee.role,
+      employee.name
+    );
   }
 
-  onImageError(employee: RegisteredEmployee): void {
+  onImageError(event: Event, employee: RegisteredEmployee): void {
     this.failedImages.add(employee.email);
+    const img = event.target as HTMLImageElement;
+    if (img) {
+      img.src = this.avatarService.getDefaultAvatarForRole(employee.role);
+    }
   }
 }

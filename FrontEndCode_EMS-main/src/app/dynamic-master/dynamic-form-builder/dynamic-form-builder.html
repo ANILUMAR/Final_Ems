@@ -1,0 +1,666 @@
+<div class="ems-page fb-page">
+  <!-- Header with Eyebrow, Title and Action Buttons -->
+  <header class="fb-header">
+    <div class="fb-header__titles">
+      <div class="fb-header__eyebrow">
+        <span>Administration</span>
+        <span class="fb-header__sep">/</span>
+        <span>Dynamic Form Builder</span>
+      </div>
+      <h1 class="fb-header__title">
+        {{ schema.screenName ? schema.screenName + ' — Form Designer' : 'New Master Screen Designer' }}
+      </h1>
+      <p class="fb-header__subtitle">
+        Design and configure dynamic master forms, validation rules, lookups, and data table columns without writing code.
+      </p>
+    </div>
+
+    <div class="fb-header__actions">
+      <!-- Mode Tabs -->
+      <div class="fb-tabs">
+        <button
+          type="button"
+          class="fb-tab-btn"
+          [class.is-active]="activeTab === 'DESIGNER'"
+          (click)="switchToDesigner()">
+          <mat-icon>design_services</mat-icon>
+          Visual Designer
+        </button>
+        <button
+          type="button"
+          class="fb-tab-btn"
+          [class.is-active]="activeTab === 'PREVIEW'"
+          (click)="switchToPreview()">
+          <mat-icon>play_circle_outline</mat-icon>
+          Live Test & Preview
+        </button>
+      </div>
+
+      <a mat-stroked-button routerLink="/dynamic-masters">
+        <mat-icon>arrow_back</mat-icon>
+        Cancel
+      </a>
+      <button mat-flat-button color="primary" (click)="saveSchema()" [disabled]="saving">
+        <mat-icon>{{ saving ? 'hourglass_top' : 'save' }}</mat-icon>
+        {{ saving ? 'Publishing...' : 'Save & Publish Schema' }}
+      </button>
+    </div>
+  </header>
+
+  <!-- Screen Meta Settings Bar -->
+  <section class="fb-meta-bar ems-card">
+    <div class="fb-meta-grid">
+      <div class="fb-meta-field">
+        <label>Master Screen Name *</label>
+        <input
+          type="text"
+          [(ngModel)]="schema.screenName"
+          (ngModelChange)="onScreenNameChange()"
+          placeholder="e.g. Department Master"
+          class="fb-meta-input"
+        />
+      </div>
+
+      <div class="fb-meta-field">
+        <label>Screen Code (Identifier) *</label>
+        <input
+          type="text"
+          [(ngModel)]="schema.screenCode"
+          placeholder="e.g. DEPT_MASTER"
+          class="fb-meta-input fb-meta-input--code"
+        />
+      </div>
+
+      <div class="fb-meta-field">
+        <label>Module</label>
+        <input
+          type="text"
+          [(ngModel)]="schema.module"
+          placeholder="e.g. Administration"
+          class="fb-meta-input"
+        />
+      </div>
+
+      <div class="fb-meta-field">
+        <label>Sub-Module</label>
+        <input
+          type="text"
+          [(ngModel)]="schema.subModule"
+          placeholder="e.g. Organization Setup"
+          class="fb-meta-input"
+        />
+      </div>
+
+      <div class="fb-meta-field fb-meta-field--full">
+        <label>Screen Description / Purpose</label>
+        <input
+          type="text"
+          [(ngModel)]="schema.description"
+          placeholder="Brief description of the master records stored in this screen..."
+          class="fb-meta-input"
+        />
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================================
+       VISUAL DESIGNER TAB (3-Column Layout: Palette -> Canvas -> Inspector)
+       ========================================================================= -->
+  <div class="fb-designer-layout" *ngIf="activeTab === 'DESIGNER'">
+    <!-- Left Column: Component Palette -->
+    <aside class="fb-palette ems-card">
+      <div class="fb-palette__header">
+        <mat-icon>widgets</mat-icon>
+        <span>Add Components</span>
+      </div>
+      <p class="fb-palette__hint">Click any field to append it to your form canvas.</p>
+
+      <div class="fb-palette__section">
+        <span class="fb-palette__sec-title">Text & Inputs</span>
+        <div class="fb-palette__grid">
+          <button
+            type="button"
+            class="fb-palette-item"
+            *ngFor="let item of paletteItems"
+            [hidden]="item.category !== 'INPUT'"
+            (click)="addFieldFromPalette(item)">
+            <mat-icon>{{ item.icon }}</mat-icon>
+            <span>{{ item.label }}</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="fb-palette__section">
+        <span class="fb-palette__sec-title">Choices & Master Lookups</span>
+        <div class="fb-palette__grid">
+          <button
+            type="button"
+            class="fb-palette-item"
+            *ngFor="let item of paletteItems"
+            [hidden]="item.category !== 'CHOICE'"
+            (click)="addFieldFromPalette(item)">
+            <mat-icon>{{ item.icon }}</mat-icon>
+            <span>{{ item.label }}</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="fb-palette__section">
+        <span class="fb-palette__sec-title">Date & Switches</span>
+        <div class="fb-palette__grid">
+          <button
+            type="button"
+            class="fb-palette-item"
+            *ngFor="let item of paletteItems"
+            [hidden]="item.category !== 'DATE_TOGGLE'"
+            (click)="addFieldFromPalette(item)">
+            <mat-icon>{{ item.icon }}</mat-icon>
+            <span>{{ item.label }}</span>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Center Column: Visual Form Canvas -->
+    <main class="fb-canvas ems-card">
+      <div class="fb-canvas__header">
+        <div class="fb-canvas__title">
+          <mat-icon>view_quilt</mat-icon>
+          <span>Form Layout Preview</span>
+          <span class="fb-field-count">({{ schema.fields.length }} field{{ schema.fields.length === 1 ? '' : 's' }})</span>
+        </div>
+        <span class="fb-canvas__tip">Click any field on the canvas to configure properties on the right.</span>
+      </div>
+
+      <!-- Empty State -->
+      <div class="fb-empty-canvas" *ngIf="schema.fields.length === 0">
+        <mat-icon class="fb-empty-icon">drag_indicator</mat-icon>
+        <h3>Your form canvas is empty</h3>
+        <p>Select components from the left palette to start building your master screen.</p>
+      </div>
+
+      <!-- Live Canvas Field Grid -->
+      <div class="fb-canvas-grid" *ngIf="schema.fields.length > 0">
+        <div
+          class="fb-canvas-slot"
+          *ngFor="let field of schema.fields; let idx = index"
+          [ngClass]="'span-' + (field.colSpan || 6)"
+          [class.is-selected]="idx === selectedFieldIndex"
+          (click)="selectField(idx)">
+          
+          <div class="fb-field-card">
+            <!-- Field Card Top Bar -->
+            <div class="fb-field-card__bar">
+              <span class="fb-field-type-pill">{{ field.fieldType }}</span>
+              <span class="fb-field-span-badge">{{ field.colSpan === 12 ? 'Full Width' : (field.colSpan === 4 ? '1/3 Width' : 'Half Width') }}</span>
+
+              <div class="fb-field-card__tools" (click)="$event.stopPropagation()">
+                <button
+                  type="button"
+                  class="fb-tool-btn"
+                  [disabled]="idx === 0"
+                  (click)="moveField(idx, 'UP', $event)"
+                  matTooltip="Move Up">
+                  <mat-icon>arrow_upward</mat-icon>
+                </button>
+                <button
+                  type="button"
+                  class="fb-tool-btn"
+                  [disabled]="idx === schema.fields.length - 1"
+                  (click)="moveField(idx, 'DOWN', $event)"
+                  matTooltip="Move Down">
+                  <mat-icon>arrow_downward</mat-icon>
+                </button>
+                <button
+                  type="button"
+                  class="fb-tool-btn"
+                  (click)="duplicateField(idx, $event)"
+                  matTooltip="Duplicate Field">
+                  <mat-icon>content_copy</mat-icon>
+                </button>
+                <button
+                  type="button"
+                  class="fb-tool-btn fb-tool-btn--danger"
+                  (click)="removeField(idx, $event)"
+                  matTooltip="Delete Field">
+                  <mat-icon>delete_outline</mat-icon>
+                </button>
+              </div>
+            </div>
+
+            <!-- Field Label & Requirement -->
+            <div class="fb-field-card__label">
+              <span>{{ field.fieldLabel || 'Untitled Field' }}</span>
+              <span class="fb-req-star" *ngIf="field.required">*</span>
+              <span class="fb-unique-badge" *ngIf="field.unique">UNIQUE</span>
+            </div>
+
+            <!-- Simulated Form Control -->
+            <div class="fb-field-sim">
+              <!-- Text / Number / Email / Phone / Currency -->
+              <input
+                *ngIf="field.fieldType === 'TEXT' || field.fieldType === 'NUMBER' || field.fieldType === 'EMAIL' || field.fieldType === 'PHONE' || field.fieldType === 'CURRENCY'"
+                type="text"
+                disabled
+                [placeholder]="field.placeholder || 'Enter value...'"
+                class="fb-sim-input"
+              />
+
+              <!-- Textarea -->
+              <textarea
+                *ngIf="field.fieldType === 'TEXTAREA'"
+                disabled
+                rows="2"
+                [placeholder]="field.placeholder || 'Enter details...'"
+                class="fb-sim-textarea">
+              </textarea>
+
+              <!-- Dropdown Select -->
+              <div class="fb-sim-select" *ngIf="field.fieldType === 'SELECT'">
+                <span>{{ field.options && field.options.length ? (field.options[0].label + ' (Dropdown)') : 'Select an option...' }}</span>
+                <mat-icon>arrow_drop_down</mat-icon>
+              </div>
+
+              <!-- Master Lookup -->
+              <div class="fb-sim-select fb-sim-select--lookup" *ngIf="field.fieldType === 'LOOKUP'">
+                <span>{{ field.lookupScreenCode ? ('Lookup: ' + field.lookupScreenCode) : 'Select related master...' }}</span>
+                <mat-icon>dataset</mat-icon>
+              </div>
+
+              <!-- Date Picker -->
+              <div class="fb-sim-select" *ngIf="field.fieldType === 'DATE'">
+                <span>YYYY-MM-DD</span>
+                <mat-icon>calendar_today</mat-icon>
+              </div>
+
+              <!-- Toggle -->
+              <div class="fb-sim-toggle" *ngIf="field.fieldType === 'TOGGLE'">
+                <div class="fb-sim-toggle-pill is-active">
+                  <span class="fb-sim-toggle-knob"></span>
+                </div>
+                <span>{{ field.defaultValue !== false ? 'Enabled by default' : 'Disabled by default' }}</span>
+              </div>
+
+              <!-- Radio -->
+              <div class="fb-sim-radio" *ngIf="field.fieldType === 'RADIO'">
+                <span class="fb-radio-dot is-checked"></span>
+                <span>Option 1</span>
+                <span class="fb-radio-dot"></span>
+                <span>Option 2</span>
+              </div>
+            </div>
+
+            <!-- Hint if configured -->
+            <small class="fb-field-card__hint" *ngIf="field.hint">{{ field.hint }}</small>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Right Column: Field Property Inspector -->
+    <aside class="fb-inspector ems-card">
+      <div class="fb-inspector__header">
+        <mat-icon>tune</mat-icon>
+        <span>Field Inspector</span>
+      </div>
+
+      <div class="fb-inspector__empty" *ngIf="!selectedField">
+        <mat-icon>touch_app</mat-icon>
+        <p>Click on any field in the canvas to customize its label, validation rules, and layout.</p>
+      </div>
+
+      <div class="fb-inspector__body" *ngIf="selectedField">
+        <!-- Field Header -->
+        <div class="fb-inspect-badge">
+          <span class="fb-field-type-pill">{{ selectedField.fieldType }}</span>
+          <strong>{{ selectedField.fieldKey }}</strong>
+        </div>
+
+        <!-- Section: Basic Info -->
+        <div class="fb-inspect-group">
+          <label class="fb-inspect-label">Field Label *</label>
+          <input
+            type="text"
+            [(ngModel)]="selectedField.fieldLabel"
+            class="fb-inspect-input"
+            placeholder="Display label..."
+          />
+        </div>
+
+        <div class="fb-inspect-group">
+          <label class="fb-inspect-label">Field Key (Identifier) *</label>
+          <input
+            type="text"
+            [(ngModel)]="selectedField.fieldKey"
+            class="fb-inspect-input fb-inspect-input--code"
+            placeholder="e.g. deptCode"
+          />
+          <small class="fb-inspect-sub">Unique JSON property key stored in database.</small>
+        </div>
+
+        <div class="fb-inspect-group">
+          <label class="fb-inspect-label">Placeholder Text</label>
+          <input
+            type="text"
+            [(ngModel)]="selectedField.placeholder"
+            class="fb-inspect-input"
+            placeholder="Helpful input placeholder..."
+          />
+        </div>
+
+        <div class="fb-inspect-group">
+          <label class="fb-inspect-label">Help Hint Text</label>
+          <input
+            type="text"
+            [(ngModel)]="selectedField.hint"
+            class="fb-inspect-input"
+            placeholder="Instructions shown below input..."
+          />
+        </div>
+
+        <!-- Section: Layout Span -->
+        <div class="fb-inspect-group">
+          <label class="fb-inspect-label">Grid Layout Width</label>
+          <div class="fb-span-selector">
+            <button
+              type="button"
+              class="fb-span-btn"
+              [class.is-active]="selectedField.colSpan === 12"
+              (click)="selectedField.colSpan = 12">
+              Full (12)
+            </button>
+            <button
+              type="button"
+              class="fb-span-btn"
+              [class.is-active]="selectedField.colSpan === 6"
+              (click)="selectedField.colSpan = 6">
+              Half (6)
+            </button>
+            <button
+              type="button"
+              class="fb-span-btn"
+              [class.is-active]="selectedField.colSpan === 4"
+              (click)="selectedField.colSpan = 4">
+              1/3 (4)
+            </button>
+          </div>
+        </div>
+
+        <!-- Section: Validation Rules -->
+        <div class="fb-inspect-divider"></div>
+        <span class="fb-inspect-sec-head">Validation Rules</span>
+
+        <div class="fb-toggle-row">
+          <div>
+            <strong>Mandatory / Required</strong>
+            <small>Field must be filled before submission</small>
+          </div>
+          <mat-slide-toggle [(ngModel)]="selectedField.required" color="primary"></mat-slide-toggle>
+        </div>
+
+        <div class="fb-toggle-row">
+          <div>
+            <strong>Unique Value</strong>
+            <small>Disallow duplicate values in this master</small>
+          </div>
+          <mat-slide-toggle [(ngModel)]="selectedField.unique" color="primary"></mat-slide-toggle>
+        </div>
+
+        <!-- Min/Max Length for Text -->
+        <div class="fb-inspect-row" *ngIf="selectedField.fieldType === 'TEXT' || selectedField.fieldType === 'TEXTAREA'">
+          <div class="fb-inspect-col">
+            <label class="fb-inspect-label">Min Length</label>
+            <input type="number" [(ngModel)]="selectedField.minLength" class="fb-inspect-input" placeholder="0" />
+          </div>
+          <div class="fb-inspect-col">
+            <label class="fb-inspect-label">Max Length</label>
+            <input type="number" [(ngModel)]="selectedField.maxLength" class="fb-inspect-input" placeholder="100" />
+          </div>
+        </div>
+
+        <!-- Min/Max Values for Numbers -->
+        <div class="fb-inspect-row" *ngIf="selectedField.fieldType === 'NUMBER' || selectedField.fieldType === 'CURRENCY'">
+          <div class="fb-inspect-col">
+            <label class="fb-inspect-label">Min Value</label>
+            <input type="number" [(ngModel)]="selectedField.min" class="fb-inspect-input" placeholder="Min" />
+          </div>
+          <div class="fb-inspect-col">
+            <label class="fb-inspect-label">Max Value</label>
+            <input type="number" [(ngModel)]="selectedField.max" class="fb-inspect-input" placeholder="Max" />
+          </div>
+        </div>
+
+        <!-- Pattern / Regex Presets -->
+        <div class="fb-inspect-group" *ngIf="selectedField.fieldType === 'TEXT' || selectedField.fieldType === 'EMAIL' || selectedField.fieldType === 'PHONE'">
+          <label class="fb-inspect-label">Pattern Validation (Regex)</label>
+          <div class="fb-preset-pills">
+            <button type="button" class="fb-preset-pill" (click)="applyRegexPreset(selectedField, 'ALPHANUMERIC')">Alphanumeric</button>
+            <button type="button" class="fb-preset-pill" (click)="applyRegexPreset(selectedField, 'EMAIL')">Email</button>
+            <button type="button" class="fb-preset-pill" (click)="applyRegexPreset(selectedField, 'PHONE')">Phone</button>
+            <button type="button" class="fb-preset-pill" (click)="applyRegexPreset(selectedField, 'NUMBERS')">Digits Only</button>
+            <button type="button" class="fb-preset-pill fb-preset-pill--clear" (click)="applyRegexPreset(selectedField, 'CLEAR')">Clear</button>
+          </div>
+          <input
+            type="text"
+            [(ngModel)]="selectedField.pattern"
+            class="fb-inspect-input fb-inspect-input--code"
+            placeholder="Regex: ^[A-Z0-9]+$"
+          />
+          <input
+            type="text"
+            [(ngModel)]="selectedField.regexMessage"
+            class="fb-inspect-input"
+            style="margin-top: 6px;"
+            placeholder="Custom error message when pattern fails..."
+          />
+        </div>
+
+        <!-- Dropdown Option List Manager (for SELECT & RADIO) -->
+        <div class="fb-inspect-divider" *ngIf="selectedField.fieldType === 'SELECT' || selectedField.fieldType === 'RADIO'"></div>
+        <div class="fb-inspect-group" *ngIf="selectedField.fieldType === 'SELECT' || selectedField.fieldType === 'RADIO'">
+          <div class="fb-opt-head">
+            <span class="fb-inspect-sec-head">Dropdown Options</span>
+            <button type="button" mat-stroked-button class="fb-btn-add-opt" (click)="addOption(selectedField)">
+              <mat-icon>add</mat-icon> Add Option
+            </button>
+          </div>
+
+          <div class="fb-opt-list">
+            <div class="fb-opt-row" *ngFor="let opt of selectedField.options; let optIdx = index">
+              <input type="text" [(ngModel)]="opt.label" placeholder="Display Label" class="fb-inspect-input fb-opt-input" />
+              <input type="text" [(ngModel)]="opt.value" placeholder="Stored Value" class="fb-inspect-input fb-opt-input fb-inspect-input--code" />
+              <button type="button" class="fb-tool-btn fb-tool-btn--danger" (click)="removeOption(selectedField, optIdx)">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Master Relation Lookup (for LOOKUP) -->
+        <div class="fb-inspect-divider" *ngIf="selectedField.fieldType === 'LOOKUP'"></div>
+        <div class="fb-inspect-group" *ngIf="selectedField.fieldType === 'LOOKUP'">
+          <span class="fb-inspect-sec-head">Target Master Lookup</span>
+          <p class="fb-inspect-sub">Select which master screen feeds options into this dropdown.</p>
+
+          <label class="fb-inspect-label">Target Master Screen</label>
+          <select [(ngModel)]="selectedField.lookupScreenCode" class="fb-inspect-select">
+            <option value="">-- Choose Master Screen --</option>
+            <option *ngFor="let s of availableSchemas" [value]="s.screenCode">
+              {{ s.screenName }} ({{ s.screenCode }})
+            </option>
+          </select>
+        </div>
+
+        <!-- Section: Data Table Configuration -->
+        <div class="fb-inspect-divider"></div>
+        <span class="fb-inspect-sec-head">Data Table (Grid) Settings</span>
+
+        <div class="fb-toggle-row">
+          <div>
+            <strong>Show Column in Table</strong>
+            <small>Include this field in the main data grid</small>
+          </div>
+          <mat-slide-toggle [(ngModel)]="selectedField.showInGrid" color="primary"></mat-slide-toggle>
+        </div>
+
+        <div class="fb-toggle-row">
+          <div>
+            <strong>Searchable in Grid</strong>
+            <small>Match table search box queries against this field</small>
+          </div>
+          <mat-slide-toggle [(ngModel)]="selectedField.filterable" color="primary"></mat-slide-toggle>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- =========================================================================
+       LIVE TEST & PREVIEW TAB
+       ========================================================================= -->
+  <div class="fb-preview-layout ems-card" *ngIf="activeTab === 'PREVIEW'">
+    <div class="fb-preview-head">
+      <div>
+        <h2 class="fb-preview-title">
+          <mat-icon>smart_button</mat-icon>
+          Live Form Testing Mode
+        </h2>
+        <p class="fb-preview-sub">
+          Verify form validation, required field indicators, dynamic lookups, and test form submissions before saving.
+        </p>
+      </div>
+
+      <button mat-flat-button color="primary" (click)="testSubmit()">
+        <mat-icon>check_circle</mat-icon>
+        Test Validation & Submit
+      </button>
+    </div>
+
+    <!-- Submission Banner if Tested -->
+    <div class="fb-result-banner" *ngIf="previewSubmissionResult">
+      <div class="fb-result-banner__head">
+        <mat-icon>verified</mat-icon>
+        <strong>Validation Passed! Form payload successfully verified:</strong>
+      </div>
+      <pre class="fb-result-json">{{ previewSubmissionResult | json }}</pre>
+    </div>
+
+    <!-- Live Rendered Reactive Form -->
+    <form [formGroup]="previewForm" class="fb-live-form">
+      <div class="fb-live-grid">
+        <div
+          class="fb-live-col"
+          *ngFor="let field of schema.fields"
+          [ngClass]="'span-' + (field.colSpan || 6)">
+          
+          <label class="fb-live-label">
+            {{ field.fieldLabel }}
+            <span class="fb-req-star" *ngIf="field.required">*</span>
+          </label>
+
+          <!-- Input Types -->
+          <ng-container [ngSwitch]="field.fieldType">
+            <!-- Textarea -->
+            <textarea
+              *ngSwitchCase="'TEXTAREA'"
+              [formControlName]="field.fieldKey"
+              [placeholder]="field.placeholder || ''"
+              rows="3"
+              class="fb-live-input fb-live-textarea">
+            </textarea>
+
+            <!-- Number / Currency -->
+            <input
+              *ngSwitchCase="'NUMBER'"
+              type="number"
+              [formControlName]="field.fieldKey"
+              [placeholder]="field.placeholder || ''"
+              class="fb-live-input"
+            />
+            <input
+              *ngSwitchCase="'CURRENCY'"
+              type="number"
+              [formControlName]="field.fieldKey"
+              [placeholder]="field.placeholder || '0.00'"
+              class="fb-live-input"
+            />
+
+            <!-- Select Dropdown -->
+            <select
+              *ngSwitchCase="'SELECT'"
+              [formControlName]="field.fieldKey"
+              class="fb-live-select">
+              <option value="">-- Select {{ field.fieldLabel }} --</option>
+              <option *ngFor="let opt of field.options" [value]="opt.value">{{ opt.label }}</option>
+            </select>
+
+            <!-- Master Lookup Dropdown -->
+            <select
+              *ngSwitchCase="'LOOKUP'"
+              [formControlName]="field.fieldKey"
+              class="fb-live-select">
+              <option value="">-- Select from {{ field.lookupScreenCode || 'Master' }} --</option>
+              <option *ngFor="let opt of previewLookupChoices[field.fieldKey]" [value]="opt.value">
+                {{ opt.label }}
+              </option>
+            </select>
+
+            <!-- Toggle Switch -->
+            <div *ngSwitchCase="'TOGGLE'" class="fb-live-toggle-wrap">
+              <mat-slide-toggle [formControlName]="field.fieldKey" color="primary">
+                {{ previewForm.get(field.fieldKey)?.value ? 'Active' : 'Inactive' }}
+              </mat-slide-toggle>
+            </div>
+
+            <!-- Radio Choices -->
+            <div *ngSwitchCase="'RADIO'" class="fb-live-radio-group">
+              <label *ngFor="let opt of field.options" class="fb-live-radio-label">
+                <input
+                  type="radio"
+                  [formControlName]="field.fieldKey"
+                  [value]="opt.value"
+                />
+                <span>{{ opt.label }}</span>
+              </label>
+            </div>
+
+            <!-- Default Single-line Text / Email / Phone / Date -->
+            <input
+              *ngSwitchDefault
+              [type]="field.fieldType === 'DATE' ? 'date' : (field.fieldType === 'EMAIL' ? 'email' : 'text')"
+              [formControlName]="field.fieldKey"
+              [placeholder]="field.placeholder || ''"
+              class="fb-live-input"
+            />
+          </ng-container>
+
+          <!-- Field Hint -->
+          <small class="fb-live-hint" *ngIf="field.hint">{{ field.hint }}</small>
+
+          <!-- Live Validation Errors -->
+          <div
+            class="fb-live-error"
+            *ngIf="previewForm.get(field.fieldKey)?.invalid && previewForm.get(field.fieldKey)?.touched">
+            <span *ngIf="previewForm.get(field.fieldKey)?.errors?.['required']">
+              {{ field.fieldLabel }} is required.
+            </span>
+            <span *ngIf="previewForm.get(field.fieldKey)?.errors?.['minlength']">
+              Must be at least {{ field.minLength }} characters.
+            </span>
+            <span *ngIf="previewForm.get(field.fieldKey)?.errors?.['maxlength']">
+              Must not exceed {{ field.maxLength }} characters.
+            </span>
+            <span *ngIf="previewForm.get(field.fieldKey)?.errors?.['min']">
+              Must be at least {{ field.min }}.
+            </span>
+            <span *ngIf="previewForm.get(field.fieldKey)?.errors?.['max']">
+              Must not exceed {{ field.max }}.
+            </span>
+            <span *ngIf="previewForm.get(field.fieldKey)?.errors?.['pattern']">
+              {{ field.regexMessage || 'Format is invalid.' }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>

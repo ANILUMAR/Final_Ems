@@ -97,7 +97,7 @@
 .ems-qa-instruction-callout__desc {
   margin: 0;
   font-size: 0.8rem;
-  color: #cbd5e1;
+  color: var(--ems-text-2, #cbd5e1);
   line-height: 1.35;
 }
 
@@ -142,7 +142,7 @@
 
 .ems-owner-role {
   font-size: 0.82rem;
-  color: #f8fafc;
+  color: var(--ems-headline, #f8fafc);
 }
 
 .ems-owner-sub {
@@ -180,8 +180,9 @@
   font-size: 0.78rem !important;
   font-weight: 600 !important;
   height: 28px !important;
-  padding: 0 8px !important;
+  padding: 0 10px !important;
   line-height: 28px !important;
+  border-radius: 9999px !important;
 }
 
 .ems-btn-fail-qa mat-icon {
@@ -189,4 +190,76 @@
   width: 15px !important;
   height: 15px !important;
   margin-right: 2px !important;
+}
+
+/* Download CSV button styling */
+.ems-btn-download {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  height: 38px !important;
+  padding: 0 16px !important;
+  border-radius: 8px !important;
+  border: 1px solid var(--ems-primary, #6366f1) !important;
+  color: var(--ems-primary, #6366f1) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  transition: all 0.2s ease !important;
+  white-space: nowrap !important;
+}
+
+.ems-btn-download:hover {
+  background: rgba(99, 102, 241, 0.18) !important;
+  border-color: #6366f1 !important;
+  color: #fff !important;
+}
+
+.ems-btn-download mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  margin-right: 4px;
+}
+
+/* Actions / Details Column in Table */
+.all-actions-col {
+  width: 120px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.all-actions-col .mat-mdc-icon-button {
+  vertical-align: middle;
+}
+
+/* Interactive elements in table rows */
+.tk-clickable {
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.tk-clickable:hover {
+  opacity: 0.85;
+  text-decoration: underline;
+}
+
+.tk-clickable-title {
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.tk-clickable-title:hover {
+  color: var(--ems-primary, #6366f1);
+  text-decoration: underline;
+}
+
+.ems-rows__main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ems-rows__main small {
+  color: var(--ems-text-3, #94a3b8);
+  font-size: 12px;
 }

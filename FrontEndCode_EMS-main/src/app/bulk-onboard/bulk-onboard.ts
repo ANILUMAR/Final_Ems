@@ -95,11 +95,21 @@ export class BulkOnboardDialog {
         return;
       }
 
+      let rawRole = (cells[3] || 'EMPLOYEE').trim();
+      let roleUpper = rawRole.toUpperCase().replace(/\s+/g, '_');
+      if (roleUpper === 'TEAM_LEADER' || roleUpper === 'TEAM_LEAD') {
+        roleUpper = 'TEAM_LEAD';
+      } else if (roleUpper === 'DEVELOPER_TEAM_LEADER' || roleUpper === 'DEVELOPMENT_TEAM_LEAD') {
+        roleUpper = 'DEVELOPER_LEAD';
+      } else if (roleUpper === 'TESTER_TEAM_LEADER' || roleUpper === 'QA_TEAM_LEAD') {
+        roleUpper = 'TESTER_LEAD';
+      }
+
       rows.push({
         name: cells[0],
         email: cells[1],
         password: cells[2],
-        role: (cells[3] || 'EMPLOYEE').toUpperCase(),
+        role: roleUpper,
         phoneNumber: cells[4] || undefined,
         address: cells[5] || undefined
       });

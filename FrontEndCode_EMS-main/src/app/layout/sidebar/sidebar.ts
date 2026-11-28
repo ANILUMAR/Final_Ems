@@ -3,36 +3,68 @@ import { Component, computed, inject } from '@angular/core';
 import { NavigationEnd, Router, RouterModule } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { filter, map, startWith } from 'rxjs';
-import { RoleGuard } from '../../role-guard';
-
-interface NavItem {
-  label: string;
-  icon: string;
-  route: string;
-  roles?: string[];
-  /** Extra right inside the role: a plain tester needs the admin's provision
-   *  to manage tasks. */
-  access?: 'taskManager';
-}
-
-interface NavGroup {
-  title: string;
-  items: NavItem[];
-}
+import { RolePermissionService } from '../../services/role-permission.service';
+import { NavigationPreferenceService } from '../../services/navigation-preference.service';
+import { LocalAvatarService } from '../../services/local-avatar.service';
+import {
+  NAV_GROUPS,
+  NavGroup,
+  NavItem,
+  isNavItemVisible,
+  groupHasVisibleItems
+} from '../../models/navigation';
 
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [CommonModule, RouterModule, MatIconModule],
+  imports: [CommonModule, RouterModule, MatIconModule, MatTooltipModule],
   templateUrl: './sidebar.html',
   styleUrls: ['./sidebar.css'],
 })
 export class Sidebar {
-  role = (localStorage.getItem('role') || '').toUpperCase();
-  name = localStorage.getItem('name') || localStorage.getItem('email') || 'User';
-
   private router = inject(Router);
+  private rolePermissionService = inject(RolePermissionService);
+  readonly navPref = inject(NavigationPreferenceService);
+  private avatarService = inject(LocalAvatarService);
+
+  get avatarUrl(): string {
+    return this.avatarService.getDefaultAvatarForRole(this.role);
+  }
+
+  onImgError(event: Event): void {
+    const img = event.target as HTMLImageElement;
+    if (img) {
+      img.style.display = 'none';
+      const fallback = img.parentElement?.querySelector('.ems-sidebar__avatar--fallback') as HTMLElement;
+      if (fallback) {
+        fallback.style.display = 'inline-flex';
+      }
+    }
+  }
+
+  /** Shared navigation group catalog */
+  groups: NavGroup[] = NAV_GROUPS;
+
+  /** Set of expanded module titles. Initially empty so only main module headings display. */
+  expandedGroups = new Set<string>();
+
+  get isIconOnly(): boolean {
+    return this.navPref.layoutStyle() === 'icon-only';
+  }
+
+  get tooltipPosition(): 'left' | 'right' {
+    return this.navPref.sidebarPosition() === 'right' ? 'left' : 'right';
+  }
+
+  get role(): string {
+    return this.rolePermissionService.normalizeRole(localStorage.getItem('role'));
+  }
+
+  get name(): string {
+    return localStorage.getItem('name') || localStorage.getItem('email') || 'User';
+  }
 
   /** The address on screen, kept in step with every navigation. */
   private url = toSignal(
@@ -44,75 +76,56 @@ export class Sidebar {
     { initialValue: this.router.url }
   );
 
-  groups: NavGroup[] = [
-    {
-      title: 'Overview',
-      items: [
-        { label: 'Admin Dashboard', icon: 'space_dashboard', route: '/dashboard', roles: ['SUPER_ADMIN', 'ADMIN'] },
-        { label: 'Java Developer Board', icon: 'code', route: '/developer-board', roles: ['SUPER_ADMIN', 'ADMIN', 'DEVELOPER_LEAD', 'EMPLOYEE'] },
-        { label: 'Tester Board', icon: 'bug_report', route: '/tester-board', roles: ['SUPER_ADMIN', 'ADMIN', 'TESTER_LEAD', 'TESTER'] },
-        { label: 'Testing Lead Dashboard', icon: 'rule', route: '/testing-lead-dashboard', roles: ['SUPER_ADMIN', 'ADMIN', 'TESTER_LEAD'] },
-      ],
-    },
-    {
-      title: 'Work',
-      items: [
-        // The approval chain, top to bottom: a tester raises, their team leader
-        // decides, and the developer team leader hands the approved work out.
-        // Each role sees only the step it performs, which is what keeps a
-        // tester's report from reaching a developer unreviewed. Raising belongs
-        // to the testing team alone - the CEO reads both decisions but files no
-        // work - and the developer side only receives, so neither raise row is
-        // offered to a developer or to the CEO.
-        { label: 'Raise task / bug', icon: 'add_circle', route: '/issues/new', roles: ['TESTER_LEAD', 'TESTER'] },
-        { label: 'My submissions', icon: 'fact_check', route: '/my-submissions', roles: ['TESTER_LEAD', 'TESTER'] },
-        // Screen 1 - what the testers raised, waiting for a decision.
-        { label: 'Testing review', icon: 'approval', route: '/approvals', roles: ['SUPER_ADMIN', 'ADMIN', 'TESTER_LEAD'] },
-        // Screen 2 - approved work waiting for an owner.
-        { label: 'Java Team Assignment', icon: 'assignment_ind', route: '/triage', roles: ['SUPER_ADMIN', 'ADMIN', 'DEVELOPER_LEAD'] },
-        { label: 'Developer Completed Tasks', icon: 'inventory_2', route: '/developer-completed', roles: ['SUPER_ADMIN', 'ADMIN', 'DEVELOPER_LEAD'] },
-        { label: 'On Hold Tasks', icon: 'pause_circle_outline', route: '/on-hold-tasks', roles: ['SUPER_ADMIN', 'ADMIN', 'DEVELOPER_LEAD', 'EMPLOYEE'] },
-        // Tested Completed Review for both Testing Team Leader and Developer Team Leader
-        { label: 'Tested Completed Review', icon: 'verified', route: '/tested-completed', roles: ['SUPER_ADMIN', 'ADMIN', 'TESTER_LEAD', 'DEVELOPER_LEAD'] },
-        // Personal tasks and personal completed tasks
-        { label: 'My Tasks', icon: 'task_alt', route: '/my-tasks', roles: ['DEVELOPER_LEAD', 'EMPLOYEE', 'TESTER_LEAD', 'TESTER'] },
-        { label: 'My Completed Tasks', icon: 'check_circle', route: '/developer-completed', roles: ['EMPLOYEE'] },
-        { label: 'My Completed Tasks', icon: 'fact_check', route: '/tester-completed', roles: ['TESTER', 'TESTER_LEAD'] },
-        { label: 'Task Board', icon: 'view_kanban', route: '/tasks', roles: ['SUPER_ADMIN', 'ADMIN', 'DEVELOPER_LEAD', 'TESTER_LEAD'] },
-        { label: 'All Tasks', icon: 'list_alt', route: '/tasks/all', roles: ['SUPER_ADMIN', 'ADMIN', 'TESTER', 'TESTER_LEAD', 'DEVELOPER_LEAD'], access: 'taskManager' },
-        // The vocabulary the task forms pick from (module / sub module / screen).
-        // Curating it is administrative work, so only the CEO changes it; every
-        // other role still reads it from the task forms.
-        { label: 'Master data', icon: 'account_tree', route: '/masters', roles: ['SUPER_ADMIN', 'ADMIN'] },
-        { label: 'Deleted tasks', icon: 'delete_sweep', route: '/tasks/deleted', roles: ['SUPER_ADMIN', 'ADMIN'] },
-      ],
-    },
-    {
-      title: 'Delivery',
-      items: [
-        { label: 'Project Overview', icon: 'insights', route: '/projects', roles: ['SUPER_ADMIN', 'ADMIN'] },
-        { label: 'Create Project', icon: 'create_new_folder', route: '/projects/new', roles: ['SUPER_ADMIN', 'ADMIN'] },
-        { label: 'My Projects', icon: 'folder_open', route: '/my-projects' },
-        { label: 'Registered Employees', icon: 'badge', route: '/people/accounts', roles: ['SUPER_ADMIN', 'ADMIN'] },
-      ],
-    },
-    {
-      title: 'Time',
-      items: [
-        // Time is logged by the people who deliver, team leaders included; the
-        // CEO reviews and approves it.
-        { label: 'Submit Timesheet', icon: 'edit_calendar', route: '/timesheets/new', roles: ['DEVELOPER_LEAD', 'EMPLOYEE', 'TESTER_LEAD', 'TESTER'] },
-        { label: 'View Timesheets', icon: 'table_view', route: '/timesheets', roles: ['SUPER_ADMIN', 'ADMIN'] },
-      ],
-    },
-    {
-      title: 'Account',
-      items: [
-        { label: 'Update Profile', icon: 'manage_accounts', route: '/profile' },
-        { label: 'Settings', icon: 'tune', route: '/settings' },
-      ],
-    },
-  ];
+  isGroupExpanded(group: NavGroup): boolean {
+    if (this.navPref.layoutStyle() === 'expanded' || this.navPref.navDisplayMode() === 'always-expanded') {
+      return true;
+    }
+    return this.expandedGroups.has(group.title);
+  }
+
+  toggleGroup(group: NavGroup): void {
+    if (this.navPref.layoutStyle() === 'expanded' || this.navPref.navDisplayMode() === 'always-expanded') {
+      return;
+    }
+    const isCurrentlyExpanded = this.expandedGroups.has(group.title);
+    if (this.navPref.navDisplayMode() === 'accordion') {
+      this.expandedGroups.clear();
+      if (!isCurrentlyExpanded) {
+        this.expandedGroups.add(group.title);
+      }
+    } else {
+      if (isCurrentlyExpanded) {
+        this.expandedGroups.delete(group.title);
+      } else {
+        this.expandedGroups.add(group.title);
+      }
+    }
+  }
+
+  get allExpanded(): boolean {
+    const visibleGroups = this.groups.filter((g) => this.groupHasItems(g));
+    return visibleGroups.length > 0 && visibleGroups.every((g) => this.expandedGroups.has(g.title));
+  }
+
+  toggleAllGroups(): void {
+    if (this.allExpanded) {
+      this.expandedGroups.clear();
+    } else {
+      this.groups.forEach((g) => {
+        if (this.groupHasItems(g)) {
+          this.expandedGroups.add(g.title);
+        }
+      });
+    }
+  }
+
+  groupHasActiveRoute(group: NavGroup): boolean {
+    return group.items.some((item) => this.isVisible(item) && this.isActive(item));
+  }
+
+  visibleCount(group: NavGroup): number {
+    return group.items.filter((item) => this.isVisible(item)).length;
+  }
 
   get initials(): string {
     return (this.name || 'U')
@@ -124,21 +137,17 @@ export class Sidebar {
   }
 
   isVisible(item: NavItem): boolean {
-    if (item.roles && item.roles.length > 0 && (this.role === '' || !item.roles.includes(this.role))) {
-      return false;
-    }
-    if (item.access === 'taskManager') {
-      return RoleGuard.managesTasks(this.role);
-    }
-    return true;
+    // Dynamic signal dependency: triggers re-render when permissions change
+    this.rolePermissionService.currentRolePermissions();
+    return isNavItemVisible(item, this.role, this.rolePermissionService);
+  }
+
+  groupHasItems(group: NavGroup): boolean {
+    return groupHasVisibleItems(group, this.role, this.rolePermissionService);
   }
 
   /**
    * The single entry that owns the current screen.
-   *
-   * <p>Routes nest - /tasks, /tasks/all, /tasks/deleted - so a plain "starts
-   * with" test lights several rows at once. The longest match wins, which
-   * leaves exactly one entry selected whatever the depth.</p>
    */
   private activeRoute = computed(() => {
     const path = (this.url() || '').split(/[?#]/)[0];
@@ -160,9 +169,5 @@ export class Sidebar {
 
   isActive(item: NavItem): boolean {
     return this.activeRoute() === item.route;
-  }
-
-  groupHasItems(group: NavGroup): boolean {
-    return group.items.some((item) => this.isVisible(item));
   }
 }

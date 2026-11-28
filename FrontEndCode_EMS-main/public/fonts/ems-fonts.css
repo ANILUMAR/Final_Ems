@@ -1,0 +1,59 @@
+/* ------------------------------------------------------------------
+   Self-hosted Material Icons and Roboto fonts.
+   Bundled locally in the project so the application renders 100% offline
+   without requiring an internet connection or external servers.
+   ------------------------------------------------------------------ */
+
+@font-face {
+  font-family: "Material Icons";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("./material-icons.woff2") format("woff2"),
+       url("/fonts/material-icons.woff2") format("woff2");
+}
+
+.material-icons {
+  font-family: "Material Icons";
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "liga";
+}
+
+@font-face {
+  font-family: "Roboto";
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url("./roboto-latin-300-normal.woff2") format("woff2"),
+       url("/fonts/roboto-latin-300-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Roboto";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./roboto-latin-400-normal.woff2") format("woff2"),
+       url("/fonts/roboto-latin-400-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Roboto";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("./roboto-latin-500-normal.woff2") format("woff2"),
+       url("/fonts/roboto-latin-500-normal.woff2") format("woff2");
+}

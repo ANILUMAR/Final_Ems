@@ -91,6 +91,15 @@ public class WorkflowService {
         }
         WorkStatus target = WorkStatus.parse(request == null ? null : request.getStatus());
         String devEmail = assignment.getAssignedTo() == null ? null : assignment.getAssignedTo().getEmail();
+        if (devEmail == null && assignment.getAssignedToName() != null) {
+            UserEntity u = userRepository.findByName(assignment.getAssignedToName()).orElse(null);
+            if (u == null) {
+                u = userRepository.findByEmailIgnoreCase(assignment.getAssignedToName()).orElse(null);
+            }
+            if (u != null) {
+                devEmail = u.getEmail();
+            }
+        }
         String testerEmail = assignment.getAssignedTesterEmail() != null ? assignment.getAssignedTesterEmail()
                 : (assignment.getAssignedTester() != null ? assignment.getAssignedTester().getEmail() : null);
         requireAssigneeOrAdmin(authentication, devEmail, testerEmail);
@@ -148,8 +157,10 @@ public class WorkflowService {
             AssignTask assignment = assignBugRepository.findById(id).map(b -> (AssignTask) b)
                     .orElseGet(() -> assignTaskRepository.findById(id).orElse(null));
             if (assignment != null) {
-                requireOwnerOrAdmin(authentication,
-                        assignment.getAssignedTo() == null ? null : assignment.getAssignedTo().getEmail());
+                String devEmail = assignment.getAssignedTo() == null ? null : assignment.getAssignedTo().getEmail();
+                String testerEmail = assignment.getAssignedTesterEmail() != null ? assignment.getAssignedTesterEmail()
+                        : (assignment.getAssignedTester() != null ? assignment.getAssignedTester().getEmail() : null);
+                requireAssigneeOrAdmin(authentication, devEmail, testerEmail);
             }
         }
         return statusChangeRepository.findByEntityTypeAndEntityIdOrderByChangedAtDesc(type, id);

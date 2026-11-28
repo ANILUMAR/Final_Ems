@@ -43,16 +43,32 @@ export function applyRoleLookups(items: { code: string; label?: string; tone?: s
   ROLE_LOOKUP = next;
 }
 
-/** `EMPLOYEE` -> "Developer". Unknown values fall back to title-cased words. */
+/** `EMPLOYEE` -> "Software Developer". Unknown values fall back to standardized titles. */
 export function roleLabel(role?: string | null): string {
   const value = String(role || '').trim();
   if (!value) {
     return 'Unassigned';
   }
   const key = value.toUpperCase();
+  if (ROLE_LOOKUP[key]?.label) {
+    return ROLE_LOOKUP[key].label;
+  }
+  const defaults: Record<string, string> = {
+    SUPER_ADMIN: 'Super Admin',
+    ADMIN: 'Super Admin',
+    PROJECT_MANAGER: 'Project Manager',
+    TEAM_LEAD: 'Team Leader',
+    TEAM_LEADER: 'Team Leader',
+    DEVELOPER_LEAD: 'Team Leader',
+    EMPLOYEE: 'Software Developer',
+    TESTER_LEAD: 'QA Team Lead',
+    TESTER: 'QA Engineer'
+  };
+  if (defaults[key]) {
+    return defaults[key];
+  }
   const words = key.toLowerCase().split('_').filter((word) => !!word);
-  return ROLE_LOOKUP[key]?.label
-    || words.map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+  return words.map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
 }
 
 /** Admins read amber, everyone else neutral by default - the tone comes from the row. */
@@ -71,8 +87,11 @@ export function roleBadgeClass(role?: string | null): string {
 export function roleFamily(role?: string | null): RoleFamily | '' {
   switch (String(role || '').trim().toUpperCase()) {
     case 'SUPER_ADMIN':
+    case 'PROJECT_MANAGER':
     case LEGACY_ADMIN:
       return 'ADMIN';
+    case 'TEAM_LEAD':
+    case 'TEAM_LEADER':
     case 'DEVELOPER_LEAD':
     case 'EMPLOYEE':
       return 'EMPLOYEE';
@@ -90,15 +109,25 @@ export function isSuperAdminRole(role?: string | null): boolean {
   return value === 'SUPER_ADMIN' || value === LEGACY_ADMIN;
 }
 
-/** A team leader of either team. */
+/** A team leader of any team (general Team Leader, Dev Lead, QA Lead). */
 export function isLeadRole(role?: string | null): boolean {
   const value = String(role || '').trim().toUpperCase();
-  return value === 'TESTER_LEAD' || value === 'DEVELOPER_LEAD';
+  return (
+    value === 'TESTER_LEAD' ||
+    value === 'DEVELOPER_LEAD' ||
+    value === 'TEAM_LEAD' ||
+    value === 'TEAM_LEADER'
+  );
 }
 
-/** CEO or team leader: the people who read the whole register. */
+/** Project Manager: oversees project leads and cross-project allocations. */
+export function isProjectManagerRole(role?: string | null): boolean {
+  return String(role || '').trim().toUpperCase() === 'PROJECT_MANAGER';
+}
+
+/** CEO, Project Manager or team leader: the people who run the workspace or teams. */
 export function isManagerRole(role?: string | null): boolean {
-  return isSuperAdminRole(role) || isLeadRole(role);
+  return isSuperAdminRole(role) || isProjectManagerRole(role) || isLeadRole(role);
 }
 
 /** A plain tester - the only role the two provisions can be handed to. */
@@ -106,14 +135,28 @@ export function isPlainTesterRole(role?: string | null): boolean {
   return String(role || '').trim().toUpperCase() === 'TESTER';
 }
 
+/** Normalizes any role representation (e.g. legacy ADMIN -> SUPER_ADMIN, DEVELOPER_LEAD -> TEAM_LEAD). */
+export function normalizeRole(role?: string | null): string {
+  const r = String(role || '').trim().toUpperCase();
+  if (r === 'ADMIN') return 'SUPER_ADMIN';
+  if (r === 'TEAM_LEADER' || r === 'DEVELOPER_LEAD') return 'TEAM_LEAD';
+  return r;
+}
+
 /**
  * Narrows a ROLE list to the codes a picker may offer, keeping its order. The
- * legacy ADMIN code is dropped: it means the same person as SUPER_ADMIN.
+ * legacy ADMIN code is dropped (maps to SUPER_ADMIN) and DEVELOPER_LEAD is unified
+ * into TEAM_LEAD ("Team Leader") for the frontend development team.
  */
 export function assignableRoles(codes: (string | null | undefined)[]): string[] {
   const seen = new Set<string>();
   return (codes || [])
-    .map((code) => String(code || '').trim().toUpperCase())
+    .map((code) => {
+      const c = String(code || '').trim().toUpperCase();
+      if (c === 'DEVELOPER_LEAD' || c === 'TEAM_LEADER') return 'TEAM_LEAD';
+      if (c === LEGACY_ADMIN) return 'SUPER_ADMIN';
+      return c;
+    })
     .filter((code) => {
       if (!code || code === LEGACY_ADMIN || seen.has(code)) {
         return false;

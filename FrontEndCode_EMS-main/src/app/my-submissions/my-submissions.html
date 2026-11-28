@@ -1,9 +1,9 @@
 <div class="ems-page">
   <div class="ems-page-head">
     <div>
-      <h1 class="ems-page-title">My submissions</h1>
+      <h1 class="ems-page-title">My Reported Issues</h1>
       <p class="ems-page-subtitle">
-        Every task and bug you raised, with the team leader's decision and the task ID that follows it through.
+        Every ticket and bug you raised, with the team leader's decision and the ticket ID that follows it through.
       </p>
     </div>
     <div class="ems-actions">
@@ -13,7 +13,7 @@
       </button>
       <button mat-flat-button color="primary" type="button" (click)="goToRaise()">
         <mat-icon>add</mat-icon>
-        Raise task / bug
+        Create Issue
       </button>
     </div>
   </div>
@@ -27,153 +27,263 @@
     <span>{{ successMessage }}</span>
   </div>
 
-  <div class="ems-stat-grid submission-stats">
-    <div class="ems-stat">
-      <span class="ems-stat__label">Raised</span>
-      <span class="ems-stat__value">{{ counts.all }}</span>
-      <span class="ems-stat__hint">tasks and bugs from you</span>
-    </div>
-    <div class="ems-stat">
-      <span class="ems-stat__label">Waiting</span>
-      <span class="ems-stat__value">{{ counts.pending }}</span>
-      <span class="ems-stat__hint">with the testing team leader</span>
-    </div>
-    <div class="ems-stat">
-      <span class="ems-stat__label">Approved</span>
-      <span class="ems-stat__value">{{ counts.approved }}</span>
-      <span class="ems-stat__hint">cleared for development</span>
-    </div>
-    <div class="ems-stat">
-      <span class="ems-stat__label">Sent back</span>
-      <span class="ems-stat__value">{{ counts.rejected }}</span>
-      <span class="ems-stat__hint">needs your correction</span>
-    </div>
-  </div>
+  <!-- KPI Metric Cards -->
+  <section class="ems-kpis">
+    <article class="ems-kpi-card" [class.is-active]="filter === 'ALL'" (click)="setFilter('ALL')">
+      <div class="ems-kpi-card__icon" style="background:rgba(99, 102, 241, 0.14);color:#6366f1;">
+        <mat-icon>task_alt</mat-icon>
+      </div>
+      <div class="ems-kpi-card__body">
+        <span class="ems-kpi-card__label">Total Raised</span>
+        <strong class="ems-kpi-card__value">{{ counts.all }}</strong>
+      </div>
+    </article>
 
-  <div class="ems-toolbar submission-toolbar">
-    <div class="filter-chips">
-      <button type="button" class="filter-chip" [class.is-active]="filter === 'ALL'" (click)="setFilter('ALL')">
-        All <span>{{ counts.all }}</span>
+    <article class="ems-kpi-card" [class.is-active]="filter === 'PENDING'" (click)="setFilter('PENDING')">
+      <div class="ems-kpi-card__icon" style="background:rgba(245, 158, 11, 0.14);color:#f59e0b;">
+        <mat-icon>hourglass_top</mat-icon>
+      </div>
+      <div class="ems-kpi-card__body">
+        <span class="ems-kpi-card__label">Waiting Review</span>
+        <strong class="ems-kpi-card__value">{{ counts.pending }}</strong>
+      </div>
+    </article>
+
+    <article class="ems-kpi-card" [class.is-active]="filter === 'APPROVED'" (click)="setFilter('APPROVED')">
+      <div class="ems-kpi-card__icon" style="background:rgba(16, 185, 129, 0.14);color:#10b981;">
+        <mat-icon>check_circle</mat-icon>
+      </div>
+      <div class="ems-kpi-card__body">
+        <span class="ems-kpi-card__label">Approved</span>
+        <strong class="ems-kpi-card__value">{{ counts.approved }}</strong>
+      </div>
+    </article>
+
+    <article class="ems-kpi-card" [class.is-active]="filter === 'REJECTED'" (click)="setFilter('REJECTED')">
+      <div class="ems-kpi-card__icon" style="background:rgba(225, 29, 72, 0.14);color:#e11d48;">
+        <mat-icon>undo</mat-icon>
+      </div>
+      <div class="ems-kpi-card__body">
+        <span class="ems-kpi-card__label">Sent Back</span>
+        <strong class="ems-kpi-card__value">{{ counts.rejected }}</strong>
+      </div>
+    </article>
+  </section>
+
+  <!-- Filter Chips Toolbar -->
+  <div class="ems-toolbar" style="margin-bottom: 16px;">
+    <div class="ems-filter-chips">
+      <button type="button" class="ems-chip" [class.is-active]="filter === 'ALL'" (click)="setFilter('ALL')">
+        All ({{ counts.all }})
       </button>
-      <button type="button" class="filter-chip" [class.is-active]="filter === 'PENDING'" (click)="setFilter('PENDING')">
-        Waiting <span>{{ counts.pending }}</span>
+      <button type="button" class="ems-chip" [class.is-active]="filter === 'PENDING'" (click)="setFilter('PENDING')">
+        Waiting ({{ counts.pending }})
       </button>
-      <button type="button" class="filter-chip" [class.is-active]="filter === 'APPROVED'" (click)="setFilter('APPROVED')">
-        Approved <span>{{ counts.approved }}</span>
+      <button type="button" class="ems-chip" [class.is-active]="filter === 'APPROVED'" (click)="setFilter('APPROVED')">
+        Approved ({{ counts.approved }})
       </button>
-      <button type="button" class="filter-chip" [class.is-active]="filter === 'REJECTED'" (click)="setFilter('REJECTED')">
-        Sent back <span>{{ counts.rejected }}</span>
+      <button type="button" class="ems-chip" [class.is-active]="filter === 'REJECTED'" (click)="setFilter('REJECTED')">
+        Sent back ({{ counts.rejected }})
       </button>
     </div>
   </div>
 
   <p class="ems-muted submission-loading" *ngIf="loading">Loading your submissions…</p>
 
-  <div class="ems-empty" *ngIf="!loading && !filtered.length">
-    <mat-icon>inbox</mat-icon>
-    <h3>Nothing here yet</h3>
-    <p>
-      {{ filter === 'ALL' ? 'Raise a task or a bug and it will appear here with its task ID.' : 'No item is in this state.' }}
-    </p>
-  </div>
+  <!-- Ticket Register Table Section (Matches All Tickets List layout & design) -->
+  <section class="ems-card" style="margin-top: 16px;">
+    <div class="ems-toolbar">
+      <h2 class="ems-section-title" style="margin: 0">
+        <mat-icon>list_alt</mat-icon>
+        Ticket register
+      </h2>
 
-  <div class="submission-list">
-    <article class="ems-card submission-card" *ngFor="let item of pagedItems">
-      <header class="submission-card__head">
-        <span class="task-code">{{ code(item) }}</span>
-        <span class="ems-badge" [ngClass]="kindClass(item)">{{ kind(item) }}</span>
-        <span class="ems-badge" [ngClass]="stateClass(item)">{{ stateLabel(item) }}</span>
-        <span class="ems-badge ems-badge--neutral">{{ priorityLabel(item.priority) }}</span>
-        <span class="submission-card__spacer"></span>
-        <span class="ems-dim submission-card__date">
-          raised {{ item.createdAt || item.startDate | date:'d MMM yyyy' }}
-        </span>
-      </header>
-
-      <h3 class="submission-card__title">{{ item.taskTitle }}</h3>
-
-      <p class="submission-card__meta">
-        <span>{{ item.project || 'No project' }}</span>
-        <span *ngIf="item.module">· {{ item.module }}</span>
-        <span *ngIf="item.screen">· {{ item.screen }}</span>
-      </p>
-
-      <p class="submission-card__body" *ngIf="item.description">{{ item.description }}</p>
-
-      <p class="submission-card__attachment" *ngIf="item.attachmentPath">
-        <mat-icon>attachment</mat-icon>
-        <a [href]="attachmentUrl(item.attachmentPath)" target="_blank" rel="noopener">{{ item.attachmentPath }}</a>
-      </p>
-
-      <!-- the leader's decision, kept on the card the tester reads -->
-      <div
-        class="ems-quote"
-        [class.ems-quote--danger]="stateOf(item) === 'REJECTED'"
-        *ngIf="item.reviewNote"
-      >
-        <mat-icon>{{ stateOf(item) === 'REJECTED' ? 'undo' : 'verified' }}</mat-icon>
-        <div>
-          <strong>
-            {{ stateOf(item) === 'REJECTED' ? 'Sent back' : 'Note' }} by
-            {{ item.reviewedBy || 'the testing team leader' }}
-          </strong>
-          <p>{{ item.reviewNote }}</p>
-        </div>
-      </div>
-
-      <div class="submission-assigned" *ngIf="isAssigned(item)">
-        <mat-icon>engineering</mat-icon>
-        <span>
-          Handed to <strong>{{ item.assignedToName }}</strong>
-          <ng-container *ngIf="item.assignedAt"> · {{ item.assignedAt | date:'d MMM yyyy' }}</ng-container>
-        </span>
-      </div>
-
-      <div class="ems-actions submission-card__actions">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <!-- Download Option for Ticket Register Records -->
         <button
           mat-stroked-button
-          type="button"
-          *ngIf="stateOf(item) === 'REJECTED' && editing?.id !== item.id"
-          (click)="startCorrection(item)"
-        >
-          <mat-icon>edit</mat-icon>
-          Correct &amp; resubmit
+          class="ems-btn-download"
+          (click)="downloadCsv()"
+          matTooltip="Download ticket register records as CSV">
+          <mat-icon>download</mat-icon>
+          Download CSV
         </button>
-      </div>
 
-      <!-- the correction form opens inside the card it belongs to -->
-      <div class="correction" *ngIf="editing?.id === item.id">
-        <h4>Correct {{ code(item) }}</h4>
-        <mat-form-field appearance="outline">
+        <mat-form-field appearance="outline" class="ems-search">
+          <mat-label>Search submissions</mat-label>
+          <input matInput [(ngModel)]="search" (ngModelChange)="onSearchChange()" placeholder="Ticket, project, title…" />
+          <mat-icon matPrefix>search</mat-icon>
+        </mat-form-field>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div class="ems-empty" *ngIf="!loading && filtered.length === 0">
+      <mat-icon>inbox</mat-icon>
+      <h3>Nothing here yet</h3>
+      <p>
+        {{ filter === 'ALL' ? 'Raise a ticket or a bug and it will appear here with its ticket ID.' : 'No item matches the current filter or search criteria.' }}
+      </p>
+    </div>
+
+    <!-- Data Table -->
+    <div class="ems-table-wrap" *ngIf="!loading && filtered.length > 0">
+      <table>
+        <thead>
+          <tr>
+            <th>Ticket ID</th>
+            <th>Ticket</th>
+            <th>Project</th>
+            <th>Status</th>
+            <th>Priority</th>
+            <th>Raised Date</th>
+            <th>Reviewer / Assignee</th>
+            <th class="all-actions-col">Details</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of pagedItems">
+            <td>
+              <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-start;">
+                <span class="task-code tk-clickable" (click)="openTicketDetails(item)" matTooltip="Open Ticket 360° View">
+                  {{ code(item) }}
+                </span>
+                <span class="ems-badge" [ngClass]="kindClass(item)">{{ kind(item) }}</span>
+              </div>
+            </td>
+            <td>
+              <div class="ems-rows__main">
+                <strong class="tk-clickable-title" (click)="openTicketDetails(item)" matTooltip="Open Ticket 360° View">
+                  {{ item.taskTitle }}
+                </strong>
+                <small>
+                  {{ kind(item) }}<ng-container *ngIf="item.module"> · {{ item.module }}</ng-container><ng-container *ngIf="item.screen"> · {{ item.screen }}</ng-container>
+                </small>
+                <small *ngIf="item.reviewNote" style="display:block;font-size:11px;" [style.color]="stateOf(item) === 'REJECTED' ? '#f87171' : '#38bdf8'">
+                  {{ stateOf(item) === 'REJECTED' ? 'Sent back note: ' : 'Lead note: ' }}“{{ item.reviewNote }}”
+                </small>
+              </div>
+            </td>
+            <td>{{ item.project || '—' }}</td>
+            <td>
+              <span class="ems-badge" [ngClass]="stateClass(item)">{{ stateLabel(item) }}</span>
+            </td>
+            <td>
+              <span class="ems-badge" [ngClass]="priorityBadge(item.priority)">{{ priorityLabel(item.priority) }}</span>
+            </td>
+            <td>{{ (item.createdAt || item.startDate) ? ((item.createdAt || item.startDate) | date:'dd MMM yyyy') : '—' }}</td>
+            <td>
+              <div *ngIf="isAssigned(item)" class="ems-task-card__owner">
+                <span class="ems-avatar-sm">{{ initials(item.assignedToName || '') }}</span>
+                <span>Dev: {{ item.assignedToName }}</span>
+              </div>
+              <div *ngIf="!isAssigned(item) && item.reviewedBy" class="ems-task-card__owner">
+                <span class="ems-avatar-sm">{{ initials(item.reviewedBy || '') }}</span>
+                <span>Reviewer: {{ item.reviewedBy }}</span>
+              </div>
+              <span *ngIf="!isAssigned(item) && !item.reviewedBy" class="ems-dim" style="font-size:12px;color:var(--ems-text-3);">
+                Pending Review
+              </span>
+            </td>
+            <td class="all-actions-col">
+              <button
+                mat-icon-button
+                style="color: #6366f1;"
+                matTooltip="Open Ticket 360° View"
+                (click)="openTicketDetails(item)"
+                aria-label="Open Ticket Modal">
+                <mat-icon>open_in_new</mat-icon>
+              </button>
+              <button
+                *ngIf="isBug(item) || isProdIssue(item)"
+                mat-icon-button
+                style="color: #e11d48;"
+                matTooltip="View Details"
+                (click)="openBugDetails(item)"
+                aria-label="View Details">
+                <mat-icon>account_tree</mat-icon>
+              </button>
+              <a
+                *ngIf="item.attachmentPath"
+                mat-icon-button
+                [href]="attachmentUrl(item.attachmentPath)"
+                target="_blank"
+                rel="noopener"
+                matTooltip="Open attachment"
+                aria-label="Open attachment">
+                <mat-icon>attach_file</mat-icon>
+              </a>
+              <button
+                *ngIf="stateOf(item) === 'REJECTED'"
+                mat-icon-button
+                style="color: #f59e0b;"
+                matTooltip="Correct & Resubmit"
+                (click)="startCorrection(item)"
+                aria-label="Correct & Resubmit">
+                <mat-icon>edit</mat-icon>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pager -->
+    <app-pager
+      *ngIf="!loading && filtered.length > 0"
+      [length]="filtered.length"
+      [(pageIndex)]="pageIndex"
+      [(pageSize)]="pageSize"
+      noun="submission">
+    </app-pager>
+  </section>
+</div>
+
+<!-- Correction Modal Dialog -->
+<div *ngIf="editing" class="ems-modal-backdrop" (click)="cancelCorrection()">
+  <div class="ems-modal" (click)="$event.stopPropagation()">
+    <div class="ems-modal__header">
+      <div class="ems-modal__title-wrap">
+        <mat-icon class="ems-modal__icon" style="color:#f59e0b;">edit</mat-icon>
+        <div>
+          <h2>Correct &amp; Resubmit {{ code(editing) }}</h2>
+          <p>{{ editing.taskTitle }}</p>
+        </div>
+      </div>
+      <button class="ems-modal__close" (click)="cancelCorrection()">&times;</button>
+    </div>
+    <div class="ems-modal__body">
+      <div *ngIf="editing.reviewNote" class="ems-hold-info-box" style="margin-bottom:16px;">
+        <mat-icon>info</mat-icon>
+        <span><strong>Team Leader Note:</strong> “{{ editing.reviewNote }}”</span>
+      </div>
+      <div class="ems-form-field" style="margin-bottom:12px;">
+        <mat-form-field appearance="outline" style="width:100%;">
           <mat-label>Title</mat-label>
           <input matInput [(ngModel)]="editTitle" maxlength="100" />
         </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Severity</mat-label>
+      </div>
+      <div class="ems-form-field" style="margin-bottom:12px;">
+        <mat-form-field appearance="outline" style="width:100%;">
+          <mat-label>Severity / Priority</mat-label>
           <mat-select [(ngModel)]="editPriority">
             <mat-option *ngFor="let option of priorities" [value]="option.code">{{ option.label }}</mat-option>
           </mat-select>
         </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Details</mat-label>
+      </div>
+      <div class="ems-form-field">
+        <mat-form-field appearance="outline" style="width:100%;">
+          <mat-label>Details / Description</mat-label>
           <textarea matInput rows="4" [(ngModel)]="editDescription" maxlength="500"></textarea>
         </mat-form-field>
-        <div class="ems-actions">
-          <button mat-button type="button" (click)="cancelCorrection()">Cancel</button>
-          <button mat-flat-button color="primary" type="button" [disabled]="!canResubmit" (click)="resubmit()">
-            <mat-icon>{{ saving ? 'hourglass_top' : 'send' }}</mat-icon>
-            {{ saving ? 'Sending…' : 'Resubmit for review' }}
-          </button>
-        </div>
       </div>
-    </article>
+    </div>
+    <div class="ems-modal__footer">
+      <button mat-button type="button" (click)="cancelCorrection()" [disabled]="saving">Cancel</button>
+      <button mat-flat-button color="primary" type="button" [disabled]="!canResubmit" (click)="resubmit()">
+        <mat-icon>{{ saving ? 'hourglass_top' : 'send' }}</mat-icon>
+        {{ saving ? 'Sending…' : 'Resubmit for review' }}
+      </button>
+    </div>
   </div>
-
-  <!-- Five submissions a page by default, with the dropdown to change it. -->
-  <app-pager
-    [length]="filtered.length"
-    [(pageIndex)]="pageIndex"
-    [(pageSize)]="pageSize"
-    noun="submission">
-  </app-pager>
 </div>

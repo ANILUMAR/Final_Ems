@@ -1,0 +1,1406 @@
+<section class="ems-page">
+  <header class="ems-page-head">
+    <div>
+      <h1 class="ems-page-title">Project & Team Hierarchy</h1>
+      <p class="ems-page-subtitle">
+        Centralized workspace to configure project-wise team hierarchies. Designate Project Managers (who can manage multiple projects), assign dedicated Java and Testing Team Leaders per project, and map developers and testers to their respective projects based on requirements and priorities.
+      </p>
+    </div>
+    <div class="ems-actions">
+      <button mat-flat-button color="primary" (click)="openAssignProjectTeamModal()" *ngIf="canManage">
+        <mat-icon>group_add</mat-icon>
+        Configure Project Hierarchy
+      </button>
+      <button mat-stroked-button (click)="openCreateProjectModal()" *ngIf="canManage">
+        <mat-icon>create_new_folder</mat-icon>
+        New Project
+      </button>
+      <button mat-stroked-button (click)="openAddPmModal()" *ngIf="canManage">
+        <mat-icon>person_add</mat-icon>
+        Add Project Manager
+      </button>
+      <button mat-stroked-button (click)="loadAll()">
+        <mat-icon>refresh</mat-icon>
+        Refresh
+      </button>
+    </div>
+  </header>
+
+  <!-- Metric Statistics Grid -->
+  <div class="ems-stat-grid">
+    <article class="ems-stat">
+      <span class="ems-stat__label">Total Projects</span>
+      <span class="ems-stat__value th-val--dev">{{ totalProjectsCount }}</span>
+      <span class="ems-stat__hint">Registered in system</span>
+    </article>
+
+    <article class="ems-stat">
+      <span class="ems-stat__label">Project Managers</span>
+      <span class="ems-stat__value">{{ totalPms }}</span>
+      <span class="ems-stat__hint">Supervising delivery</span>
+    </article>
+
+    <article class="ems-stat">
+      <span class="ems-stat__label">Team Leaders</span>
+      <span class="ems-stat__value">{{ totalLeads }}</span>
+      <span class="ems-stat__hint">Java & Testing Leads</span>
+    </article>
+
+    <article class="ems-stat">
+      <span class="ems-stat__label">Developers Mapped</span>
+      <span class="ems-stat__value th-val--dev">{{ totalDevelopers }}</span>
+      <span class="ems-stat__hint">Under Java Leads</span>
+    </article>
+
+    <article class="ems-stat">
+      <span class="ems-stat__label">Testers Mapped</span>
+      <span class="ems-stat__value th-val--tester">{{ totalTesters }}</span>
+      <span class="ems-stat__hint">Under Testing Leads</span>
+    </article>
+
+    <article class="ems-stat">
+      <span class="ems-stat__label">Active Assignments</span>
+      <span class="ems-stat__value th-val--success">{{ totalProjectAssignments }}</span>
+      <span class="ems-stat__hint">Cross-project mappings</span>
+    </article>
+  </div>
+
+  <!-- Filter & Controls Toolbar -->
+  <div class="ems-card th-toolbar">
+    <div class="th-search-wrap">
+      <mat-form-field appearance="outline" class="th-search-field">
+        <mat-label>Search projects, managers, leads, members, responsibilities…</mat-label>
+        <input matInput [(ngModel)]="search" placeholder="Type to filter hierarchy & assignments…" />
+        <mat-icon matPrefix>search</mat-icon>
+      </mat-form-field>
+    </div>
+
+    <div class="th-view-toggle">
+      <button
+        type="button"
+        class="ems-chip"
+        [class.is-active]="viewMode === 'PROJECTS'"
+        (click)="viewMode = 'PROJECTS'">
+        <mat-icon>folder_special</mat-icon>
+        Project-Wise Hierarchy
+      </button>
+      <button
+        type="button"
+        class="ems-chip"
+        [class.is-active]="viewMode === 'TREE'"
+        (click)="viewMode = 'TREE'">
+        <mat-icon>account_tree</mat-icon>
+        Manager Hierarchy Tree
+      </button>
+      <button
+        type="button"
+        class="ems-chip"
+        [class.is-active]="viewMode === 'CARDS'"
+        (click)="viewMode = 'CARDS'">
+        <mat-icon>grid_view</mat-icon>
+        Overview Summary
+      </button>
+    </div>
+  </div>
+
+  <!-- Error Note -->
+  <div class="ems-auth__note ems-auth__note--error" *ngIf="errorMessage">
+    <mat-icon>error_outline</mat-icon>
+    <span>{{ errorMessage }}</span>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- VIEW 1: CENTRALIZED PROJECT HUB (PROJECT-WISE ASSIGNMENTS & RESPONSIBILITY) -->
+  <!-- ========================================================================= -->
+  <div class="th-projects-grid" *ngIf="viewMode === 'PROJECTS'">
+    <div class="ems-card th-project-card" *ngFor="let roster of filteredProjectRosters">
+      <!-- Project Header -->
+      <div class="th-project-card__head">
+        <div class="th-project-title-group">
+          <div class="th-proj-icon">
+            <mat-icon>folder</mat-icon>
+          </div>
+          <div>
+            <div class="th-proj-name-row">
+              <h2 class="th-proj-name">{{ roster.projectName }}</h2>
+              <span class="ems-badge th-badge--auth-approved" *ngIf="roster.approvalStatus === 'APPROVED' || roster.workAuthorized" matTooltip="Approved by CEO/Director — Project work officially authorized">
+                <mat-icon>verified</mat-icon> Work Authorized
+              </span>
+              <span class="ems-badge th-badge--auth-submitted" *ngIf="roster.approvalStatus === 'SUBMITTED'" matTooltip="Submitted to CEO/Director — Awaiting authorization">
+                <mat-icon>hourglass_top</mat-icon> Pending CEO Approval
+              </span>
+              <span class="ems-badge th-badge--auth-rejected" *ngIf="roster.approvalStatus === 'REJECTED'" matTooltip="CEO/Director requested revisions">
+                <mat-icon>cancel</mat-icon> Revision Requested
+              </span>
+              <span class="ems-badge th-badge--auth-draft" *ngIf="!roster.approvalStatus || roster.approvalStatus === 'DRAFT'" matTooltip="Configured hierarchy has not been submitted yet">
+                <mat-icon>edit_note</mat-icon> Draft Hierarchy
+              </span>
+            </div>
+            <p class="th-proj-desc">{{ roster.projectDescription || 'No description provided.' }}</p>
+
+            <!-- Approval & Authorization Workflow Banner -->
+            <div class="th-auth-status-banner th-auth-status-banner--submitted" *ngIf="roster.approvalStatus === 'SUBMITTED'">
+              <div class="th-asb-content">
+                <mat-icon class="th-asb-icon th-asb-icon--submitted">hourglass_top</mat-icon>
+                <div class="th-asb-text">
+                  <div class="th-asb-title">Hierarchy Submitted for CEO/Director Approval</div>
+                  <div class="th-asb-detail">
+                    Submitted by <strong>{{ roster.submittedByName || roster.submittedBy || 'Project Manager' }}</strong>
+                    <span *ngIf="roster.submittedAt"> on {{ roster.submittedAt | date:'medium' }}</span>.
+                    <span class="th-asb-note-highlight" *ngIf="roster.submissionNotes">"{{ roster.submissionNotes }}"</span>
+                    <em>Approval from the CEO/Director authorizes project work to begin.</em>
+                  </div>
+                </div>
+              </div>
+              <div class="th-asb-actions" *ngIf="isSuperAdmin">
+                <button mat-flat-button color="primary" class="th-btn-auth-approve" (click)="approveProjectHierarchy(roster)">
+                  <mat-icon>verified</mat-icon> Approve & Authorize Work
+                </button>
+                <button mat-stroked-button color="warn" class="th-btn-auth-reject" (click)="rejectProjectHierarchy(roster)">
+                  <mat-icon>cancel</mat-icon> Request Changes
+                </button>
+              </div>
+            </div>
+
+            <div class="th-auth-status-banner th-auth-status-banner--approved" *ngIf="roster.approvalStatus === 'APPROVED' || roster.workAuthorized">
+              <div class="th-asb-content">
+                <mat-icon class="th-asb-icon th-asb-icon--approved">verified</mat-icon>
+                <div class="th-asb-text">
+                  <div class="th-asb-title">Project Work Officially Authorized</div>
+                  <div class="th-asb-detail">
+                    Approved by <strong>{{ roster.approvedByName || roster.approvedBy || 'CEO / Director' }}</strong>
+                    <span *ngIf="roster.approvedAt"> on {{ roster.approvedAt | date:'medium' }}</span>.
+                    Full authorization granted for sprint execution, ticket assignment, and timesheet logging.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="th-auth-status-banner th-auth-status-banner--rejected" *ngIf="roster.approvalStatus === 'REJECTED'">
+              <div class="th-asb-content">
+                <mat-icon class="th-asb-icon th-asb-icon--rejected">report_problem</mat-icon>
+                <div class="th-asb-text">
+                  <div class="th-asb-title">Hierarchy Needs Revision (CEO / Director Feedback)</div>
+                  <div class="th-asb-detail">
+                    <strong>Feedback:</strong> {{ roster.rejectionRemarks || 'Please revise assigned leads or allocations and resubmit.' }}
+                  </div>
+                </div>
+              </div>
+              <div class="th-asb-actions" *ngIf="canManage">
+                <button mat-flat-button color="primary" class="th-btn-auth-revise" (click)="openAssignProjectTeamModal(roster)">
+                  <mat-icon>edit</mat-icon> Revise & Resubmit
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="th-card-actions" *ngIf="canManage">
+          <!-- Submit for Approval button when in Draft or Rejected -->
+          <button
+            mat-flat-button
+            color="accent"
+            class="th-action-btn th-action-btn--submit"
+            (click)="submitProjectForApproval(roster)"
+            matTooltip="Submit configured team hierarchy to CEO/Director for approval"
+            *ngIf="roster.approvalStatus === 'DRAFT' || roster.approvalStatus === 'REJECTED' || !roster.approvalStatus">
+            <mat-icon>send</mat-icon>
+            Submit for Approval
+          </button>
+          <!-- CEO Review action buttons when in Submitted -->
+          <button
+            mat-flat-button
+            color="primary"
+            class="th-action-btn th-btn-auth-approve"
+            (click)="approveProjectHierarchy(roster)"
+            matTooltip="Approve team hierarchy and authorize project work to begin"
+            *ngIf="roster.approvalStatus === 'SUBMITTED' && isSuperAdmin">
+            <mat-icon>verified</mat-icon>
+            Approve & Authorize
+          </button>
+          <button
+            mat-stroked-button
+            color="warn"
+            class="th-action-btn th-btn-auth-reject"
+            (click)="rejectProjectHierarchy(roster)"
+            matTooltip="Request changes from Project Manager"
+            *ngIf="roster.approvalStatus === 'SUBMITTED' && isSuperAdmin">
+            <mat-icon>cancel</mat-icon>
+            Request Changes
+          </button>
+          <button
+            mat-flat-button
+            color="primary"
+            class="th-action-btn"
+            (click)="openAssignProjectTeamModal(roster)">
+            <mat-icon>tune</mat-icon>
+            Assign / Update Team
+          </button>
+          <button
+            mat-stroked-button
+            class="th-action-btn"
+            (click)="clearProjectHierarchy(roster)"
+            matTooltip="Clear all team hierarchy assignments for this project"
+            *ngIf="roster.pmEmail || roster.devLeadEmail || roster.testerLeadEmail || (roster.members && roster.members.length)">
+            <mat-icon>layers_clear</mat-icon>
+            Clear Hierarchy
+          </button>
+          <button
+            mat-icon-button
+            color="warn"
+            (click)="deleteProject(roster)"
+            matTooltip="Delete project '{{ roster.projectName }}' and its assignments">
+            <mat-icon>delete_outline</mat-icon>
+          </button>
+        </div>
+      </div>
+
+      <!-- Leadership Row: PM, Java Lead, Testing Lead -->
+      <div class="th-leadership-row">
+        <!-- Project Manager -->
+        <div class="th-leader-box th-leader-box--pm">
+          <div class="th-leader-box__role">
+            <div class="th-lbr-title">
+              <mat-icon>engineering</mat-icon>
+              <span>Project Manager</span>
+            </div>
+            <button
+              mat-icon-button
+              class="th-btn-unassign"
+              color="warn"
+              matTooltip="Unassign Project Manager from {{ roster.projectName }}"
+              (click)="unassignPmFromProject(roster)"
+              *ngIf="canManage && roster.pmEmail">
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
+          <div class="th-leader-box__body" *ngIf="roster.pmEmail; else noPm">
+            <div class="th-leader-info">
+              <span class="th-avatar th-avatar--pm-sm">{{ initials(roster.pmName) }}</span>
+              <div>
+                <strong>{{ roster.pmName }}</strong>
+                <small>{{ roster.pmEmail }}</small>
+              </div>
+            </div>
+            <div class="th-resp-snippet" *ngIf="roster.pmResponsibilities">
+              <mat-icon>assignment_turned_in</mat-icon>
+              <span>{{ roster.pmResponsibilities }}</span>
+            </div>
+          </div>
+          <ng-template #noPm>
+            <div class="th-leader-unassigned">
+              <span>Unassigned</span>
+              <button mat-button color="primary" class="th-btn-link" (click)="openAssignProjectTeamModal(roster)" *ngIf="canManage">
+                + Assign PM
+              </button>
+            </div>
+          </ng-template>
+        </div>
+
+        <!-- Java / Dev Team Leader -->
+        <div class="th-leader-box th-leader-box--dev">
+          <div class="th-leader-box__role">
+            <div class="th-lbr-title">
+              <mat-icon>code</mat-icon>
+              <span>Team Leader / Dev Lead</span>
+            </div>
+            <button
+              mat-icon-button
+              class="th-btn-unassign"
+              color="warn"
+              matTooltip="Unassign Lead from {{ roster.projectName }}"
+              (click)="unassignLeadFromProject(roster, 'DEVELOPER_LEAD')"
+              *ngIf="canManage && roster.devLeadEmail">
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
+          <div class="th-leader-box__body" *ngIf="roster.devLeadEmail; else noDevLead">
+            <div class="th-leader-info">
+              <span class="th-avatar th-avatar--dev-sm">{{ initials(roster.devLeadName) }}</span>
+              <div>
+                <strong>{{ roster.devLeadName }}</strong>
+                <small>{{ roster.devLeadEmail }}</small>
+                <span class="th-prod-support-badge" *ngIf="roster.devLeadProductionSupport">
+                  <mat-icon>shield</mat-icon> Production Support
+                </span>
+              </div>
+            </div>
+            <div class="th-resp-snippet" *ngIf="roster.devLeadResponsibilities">
+              <mat-icon>assignment_turned_in</mat-icon>
+              <span>{{ roster.devLeadResponsibilities }}</span>
+            </div>
+          </div>
+          <ng-template #noDevLead>
+            <div class="th-leader-unassigned">
+              <span>Unassigned</span>
+              <button mat-button color="primary" class="th-btn-link" (click)="openAssignProjectTeamModal(roster)" *ngIf="canManage">
+                + Assign Team Leader / Dev Lead
+              </button>
+            </div>
+          </ng-template>
+        </div>
+
+        <!-- Testing Team Leader -->
+        <div class="th-leader-box th-leader-box--test">
+          <div class="th-leader-box__role">
+            <div class="th-lbr-title">
+              <mat-icon>bug_report</mat-icon>
+              <span>Testing Team Leader</span>
+            </div>
+            <button
+              mat-icon-button
+              class="th-btn-unassign"
+              color="warn"
+              matTooltip="Unassign Testing Lead from {{ roster.projectName }}"
+              (click)="unassignLeadFromProject(roster, 'TESTER_LEAD')"
+              *ngIf="canManage && roster.testerLeadEmail">
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
+          <div class="th-leader-box__body" *ngIf="roster.testerLeadEmail; else noTesterLead">
+            <div class="th-leader-info">
+              <span class="th-avatar th-avatar--test-sm">{{ initials(roster.testerLeadName) }}</span>
+              <div>
+                <strong>{{ roster.testerLeadName }}</strong>
+                <small>{{ roster.testerLeadEmail }}</small>
+                <span class="th-prod-support-badge" *ngIf="roster.testerLeadProductionSupport">
+                  <mat-icon>shield</mat-icon> Production Support
+                </span>
+              </div>
+            </div>
+            <div class="th-resp-snippet" *ngIf="roster.testerLeadResponsibilities">
+              <mat-icon>assignment_turned_in</mat-icon>
+              <span>{{ roster.testerLeadResponsibilities }}</span>
+            </div>
+          </div>
+          <ng-template #noTesterLead>
+            <div class="th-leader-unassigned">
+              <span>Unassigned</span>
+              <button mat-button color="primary" class="th-btn-link" (click)="openAssignProjectTeamModal(roster)" *ngIf="canManage">
+                + Assign Testing Lead
+              </button>
+            </div>
+          </ng-template>
+        </div>
+      </div>
+
+      <!-- Assigned Developers & Testers Roster -->
+      <div class="th-project-roster-section">
+        <div class="th-roster-head">
+          <h4>
+            <mat-icon>groups</mat-icon>
+            Assigned Developers & Testers ({{ roster.members.length }})
+          </h4>
+          <button
+            mat-stroked-button
+            color="primary"
+            class="th-action-btn-sm"
+            (click)="openAssignProjectTeamModal(roster)"
+            *ngIf="canManage">
+            <mat-icon>add</mat-icon>
+            Add / Edit Members
+          </button>
+        </div>
+
+        <div class="th-roster-table-wrap" *ngIf="roster.members.length; else emptyRoster">
+          <table class="ems-table th-roster-table">
+            <thead>
+              <tr>
+                <th>Team Member</th>
+                <th>Role</th>
+                <th>Assigned Responsibilities / Module</th>
+                <th>Priority</th>
+                <th>Allocation</th>
+                <th>Reporting Lead</th>
+                <th class="th-th-actions" *ngIf="canManage">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let m of roster.members">
+                <td>
+                  <div class="th-roster-member-cell">
+                    <span class="ems-avatar-sm">{{ initials(m.memberName) }}</span>
+                    <div>
+                      <strong>{{ m.memberName }}</strong>
+                      <small class="th-roster-email">{{ m.memberEmail }}</small>
+                      <span class="th-prod-support-badge th-prod-support-badge--sm" *ngIf="m.productionSupport" matTooltip="Responsible for Production Support on this project">
+                        <mat-icon>shield</mat-icon> Prod Support
+                      </span>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <span
+                    class="th-role-pill"
+                    [class.th-role-pill--dev]="m.memberRole === 'EMPLOYEE'"
+                    [class.th-role-pill--tester]="m.memberRole === 'TESTER'">
+                    {{ m.memberRole === 'EMPLOYEE' ? 'Developer' : 'Tester' }}
+                  </span>
+                </td>
+                <td>
+                  <span class="th-roster-resp" *ngIf="m.responsibilities; else noResp">
+                    <mat-icon>task_alt</mat-icon>
+                    {{ m.responsibilities }}
+                  </span>
+                  <ng-template #noResp>
+                    <span class="th-text-muted">Standard tasks</span>
+                  </ng-template>
+                </td>
+                <td>
+                  <span class="th-prio-chip" [ngClass]="priorityClass(m.priority)">
+                    {{ m.priority }}
+                  </span>
+                </td>
+                <td>
+                  <span class="th-alloc-badge">{{ m.allocation }}%</span>
+                </td>
+                <td>
+                  <div class="th-reporting-to">
+                    <mat-icon>{{ m.memberRole === 'EMPLOYEE' ? 'code' : 'bug_report' }}</mat-icon>
+                    <span>{{ m.reportingLeadName || m.reportingLeadEmail }}</span>
+                  </div>
+                </td>
+                <td class="th-td-actions" *ngIf="canManage">
+                  <button
+                    mat-icon-button
+                    color="primary"
+                    matTooltip="Edit {{ m.memberName }}'s assignment in {{ roster.projectName }}"
+                    (click)="openEditProjectMember(roster, m)">
+                    <mat-icon>edit</mat-icon>
+                  </button>
+                  <button
+                    mat-icon-button
+                    color="warn"
+                    matTooltip="Remove {{ m.memberName }} from {{ roster.projectName }}"
+                    (click)="unassignMemberFromProject(roster, m)">
+                    <mat-icon>delete_outline</mat-icon>
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <ng-template #emptyRoster>
+          <div class="th-empty-branch">
+            <mat-icon>group_add</mat-icon>
+            <span>No developers or testers mapped to {{ roster.projectName }} yet. Click "Add / Edit Members" above to assign employees and responsibilities.</span>
+          </div>
+        </ng-template>
+      </div>
+    </div>
+  </div>
+
+  <!-- Empty Projects State -->
+  <div class="ems-empty" *ngIf="viewMode === 'PROJECTS' && !filteredProjectRosters.length">
+    <mat-icon>folder_open</mat-icon>
+    <h3>No Projects Found</h3>
+    <p>Create a project or clear your search term to see project team hierarchies.</p>
+    <button mat-flat-button color="primary" (click)="openCreateProjectModal()" *ngIf="canManage">
+      <mat-icon>create_new_folder</mat-icon>
+      Create Project
+    </button>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- VIEW 2: INTERACTIVE HIERARCHY TREE VIEW (PM -> LEADS -> MEMBERS)          -->
+  <!-- ========================================================================= -->
+  <div class="th-tree-container" *ngIf="viewMode === 'TREE'">
+    <div class="th-pm-branch" *ngFor="let h of filteredHierarchies">
+      <!-- LEVEL 1: PROJECT MANAGER CARD -->
+      <div class="ems-card th-pm-card">
+        <div class="th-pm-card__head">
+          <div class="th-user-badge">
+            <span class="th-avatar th-avatar--pm">{{ initials(h.projectManagerName) }}</span>
+            <div class="th-user-meta">
+              <div class="th-name-row">
+                <h3 class="th-user-name">{{ h.projectManagerName }}</h3>
+                <span class="ems-badge ems-badge--warning">Project Manager</span>
+              </div>
+              <span class="th-user-email">{{ h.projectManagerEmail }}</span>
+              <span class="th-resp-text" *ngIf="h.pmResponsibilities">
+                <mat-icon>assignment_turned_in</mat-icon>
+                {{ h.pmResponsibilities }}
+              </span>
+            </div>
+          </div>
+
+          <!-- PM Actions -->
+          <div class="th-card-actions" *ngIf="canManage">
+            <button
+              mat-stroked-button
+              color="primary"
+              class="th-action-btn"
+              (click)="openAssignLeadModal(h)">
+              <mat-icon>person_add</mat-icon>
+              Assign Lead
+            </button>
+
+            <button
+              mat-stroked-button
+              class="th-action-btn"
+              (click)="openEditPmProjects(h)">
+              <mat-icon>folder</mat-icon>
+              Edit Projects
+            </button>
+
+            <button
+              mat-icon-button
+              color="warn"
+              matTooltip="Remove Project Manager hierarchy"
+              (click)="deleteProjectManager(h)">
+              <mat-icon>delete_outline</mat-icon>
+            </button>
+          </div>
+        </div>
+
+        <!-- Managed Projects Pills -->
+        <div class="th-projects-strip">
+          <span class="th-projects-label">Managed Projects:</span>
+          <span class="th-project-chip" *ngFor="let proj of h.managedProjects">
+            <mat-icon>folder_special</mat-icon>
+            {{ proj }}
+          </span>
+          <span class="th-projects-none" *ngIf="!h.managedProjects.length">
+            No projects assigned yet. Click "Edit Projects" to assign.
+          </span>
+        </div>
+
+        <!-- LEVEL 2: TEAM LEADS (Java Lead & Testing Lead) -->
+        <div class="th-leads-wrapper" *ngIf="h.teamLeads.length; else noLeads">
+          <div
+            class="th-lead-branch"
+            *ngFor="let lead of h.teamLeads"
+            [class.th-lead-branch--dev]="isDevLead(lead.leadRole)"
+            [class.th-lead-branch--test]="lead.leadRole === 'TESTER_LEAD'">
+            
+            <!-- Team Lead Card -->
+            <div class="th-lead-card">
+              <div class="th-lead-card__head">
+                <div class="th-lead-identity">
+                  <span
+                    class="th-avatar"
+                    [class.th-avatar--dev]="isDevLead(lead.leadRole)"
+                    [class.th-avatar--test]="lead.leadRole === 'TESTER_LEAD'">
+                    <mat-icon>{{ isDevLead(lead.leadRole) ? 'code' : 'bug_report' }}</mat-icon>
+                  </span>
+
+                  <div>
+                    <div class="th-lead-title-row">
+                      <strong>{{ lead.leadTitle || (isDevLead(lead.leadRole) ? 'Team Leader' : 'Testing Lead') }}</strong>
+                      <span class="th-lead-count">({{ lead.members.length || 0 }} members)</span>
+                    </div>
+                    <span class="th-lead-name">{{ lead.leadName }} ({{ lead.leadEmail }})</span>
+                    <small class="th-resp-text" *ngIf="lead.responsibilities">
+                      <mat-icon>assignment_turned_in</mat-icon>
+                      {{ lead.responsibilities }}
+                    </small>
+                  </div>
+                </div>
+
+                <div class="th-lead-actions" *ngIf="canManage">
+                  <button
+                    mat-stroked-button
+                    color="primary"
+                    class="th-action-btn-sm"
+                    (click)="openMapMemberModal(h, lead)">
+                    <mat-icon>add</mat-icon>
+                    Map {{ isDevLead(lead.leadRole) ? 'Developer' : 'Tester' }}
+                  </button>
+
+                  <button
+                    mat-icon-button
+                    color="warn"
+                    matTooltip="Remove Team Leader"
+                    (click)="removeLead(h.id, lead)">
+                    <mat-icon>close</mat-icon>
+                  </button>
+                </div>
+              </div>
+
+              <!-- LEVEL 3: MAPPED MEMBERS -->
+              <div class="th-members-tree" *ngIf="lead.members.length; else noMembers">
+                <div class="th-member-node" *ngFor="let member of lead.members">
+                  <div class="th-member-card">
+                    <div class="th-member-info">
+                      <span class="ems-avatar-sm">{{ initials(member.memberName) }}</span>
+                      <div>
+                        <div class="th-member-title-row">
+                          <strong>{{ member.memberName }}</strong>
+                          <span
+                            class="th-role-pill"
+                            [class.th-role-pill--dev]="member.memberRole === 'EMPLOYEE'"
+                            [class.th-role-pill--tester]="member.memberRole === 'TESTER'">
+                            {{ member.memberRole === 'EMPLOYEE' ? 'Developer' : 'Tester' }}
+                          </span>
+                        </div>
+                        <small class="th-member-email">{{ member.memberEmail }}</small>
+                        <small class="th-resp-text" *ngIf="member.responsibilities">
+                          <mat-icon>task_alt</mat-icon>
+                          {{ member.responsibilities }}
+                        </small>
+                      </div>
+                    </div>
+
+                    <!-- Multi-Project Priorities -->
+                    <div class="th-member-projects">
+                      <span class="th-mp-title">Project Priorities:</span>
+                      <div class="th-prio-chips" *ngIf="member.projectAssignments.length; else noPrio">
+                        <span
+                          class="th-prio-chip"
+                          *ngFor="let pa of member.projectAssignments"
+                          [ngClass]="priorityClass(pa.priority)">
+                          <mat-icon>assignment</mat-icon>
+                          <strong>{{ pa.projectName }}</strong>
+                          <span class="th-prio-label">{{ pa.priority }}</span>
+                          <small *ngIf="pa.allocation">({{ pa.allocation }}%)</small>
+                        </span>
+                      </div>
+                      <ng-template #noPrio>
+                        <span class="th-prio-none">No project priority set</span>
+                      </ng-template>
+                    </div>
+
+                    <div class="th-member-actions" *ngIf="canManage">
+                      <button
+                        mat-icon-button
+                        matTooltip="Edit cross-project priorities and responsibilities"
+                        (click)="openEditMember(h, lead, member)">
+                        <mat-icon>tune</mat-icon>
+                      </button>
+
+                      <button
+                        mat-icon-button
+                        color="warn"
+                        matTooltip="Remove member from lead"
+                        (click)="removeMember(h.id, lead.leadEmail, member)">
+                        <mat-icon>delete_outline</mat-icon>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <ng-template #noMembers>
+                <div class="th-empty-branch">
+                  <mat-icon>groups</mat-icon>
+                  <span>No {{ isDevLead(lead.leadRole) ? 'developers' : 'testers' }} mapped yet. Click "Map {{ isDevLead(lead.leadRole) ? 'Developer' : 'Tester' }}" above.</span>
+                </div>
+              </ng-template>
+            </div>
+          </div>
+        </div>
+
+        <ng-template #noLeads>
+          <div class="th-empty-box">
+            <mat-icon>group_add</mat-icon>
+            <h4>No Team Leaders Assigned</h4>
+            <p>Assign a Development Team Lead and a QA Team Lead to manage developers and testers under this Project Manager.</p>
+            <button mat-stroked-button color="primary" (click)="openAssignLeadModal(h)" *ngIf="canManage">
+              <mat-icon>person_add</mat-icon>
+              Assign Dev or QA Lead
+            </button>
+          </div>
+        </ng-template>
+      </div>
+    </div>
+
+    <!-- Empty State for Tree View -->
+    <div class="ems-empty" *ngIf="!filteredHierarchies.length">
+      <mat-icon>account_tree</mat-icon>
+      <h3>No Project Managers Configured Yet</h3>
+      <p>Get started by designating an employee as a Project Manager and assigning projects.</p>
+      <button mat-flat-button color="primary" (click)="openAddPmModal()" *ngIf="canManage">
+        <mat-icon>add</mat-icon>
+        Designate Project Manager
+      </button>
+    </div>
+  </div>
+
+  <!-- VIEW 3: SUMMARY CARDS VIEW -->
+  <div class="th-cards-grid" *ngIf="viewMode === 'CARDS'">
+    <div class="ems-card th-summary-card" *ngFor="let h of filteredHierarchies">
+      <div class="th-sc-header">
+        <span class="th-avatar th-avatar--pm">{{ initials(h.projectManagerName) }}</span>
+        <div>
+          <h3>{{ h.projectManagerName }}</h3>
+          <small>{{ h.projectManagerEmail }}</small>
+        </div>
+      </div>
+
+      <div class="th-sc-projects">
+        <strong>Managed Projects:</strong>
+        <div class="th-sc-tags">
+          <span class="th-project-chip" *ngFor="let p of h.managedProjects">{{ p }}</span>
+        </div>
+      </div>
+
+      <div class="th-sc-leads">
+        <strong>Team Leaders ({{ h.teamLeads.length || 0 }}):</strong>
+        <ul class="th-sc-list">
+          <li *ngFor="let l of h.teamLeads">
+            <mat-icon>{{ isDevLead(l.leadRole) ? 'code' : 'bug_report' }}</mat-icon>
+            <span><strong>{{ l.leadTitle }}:</strong> {{ l.leadName }} ({{ l.members.length || 0 }} members)</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="th-sc-foot" *ngIf="canManage">
+        <button mat-stroked-button color="primary" (click)="openAssignLeadModal(h)">
+          <mat-icon>person_add</mat-icon>
+          Assign Lead
+        </button>
+        <button mat-stroked-button (click)="openEditPmProjects(h)">
+          <mat-icon>edit</mat-icon>
+          Projects
+        </button>
+      </div>
+    </div>
+
+    <!-- Empty State for Cards View -->
+    <div class="ems-empty" *ngIf="!filteredHierarchies.length">
+      <mat-icon>grid_view</mat-icon>
+      <h3>No Team Hierarchies to Summarize</h3>
+      <p>Create a Project Manager or assign project teams to see summary cards.</p>
+      <button mat-flat-button color="primary" (click)="openAddPmModal()" *ngIf="canManage">
+        <mat-icon>add</mat-icon>
+        Designate Project Manager
+      </button>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 1: CREATE PROJECT MODAL                                             -->
+  <!-- ========================================================================= -->
+  <div class="th-modal-overlay" *ngIf="showCreateProjectModal">
+    <div class="th-modal-dialog" (click)="$event.stopPropagation()">
+      <div class="th-modal-head">
+        <h3>Create New Project</h3>
+        <button mat-icon-button (click)="showCreateProjectModal = false">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+
+      <div class="th-modal-body">
+        <p class="th-modal-hint">
+          Add a new project to the EMS portfolio. You can immediately assign the Project Manager, Java Team Leader, and team members.
+        </p>
+
+        <mat-form-field appearance="outline" class="th-field--full">
+          <mat-label>Project Name *</mat-label>
+          <input matInput [(ngModel)]="createProjectForm.name" placeholder="e.g. Hospital Management System, Billing Engine…" required />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="th-field--full">
+          <mat-label>Project Description</mat-label>
+          <textarea matInput rows="3" [(ngModel)]="createProjectForm.description" placeholder="Brief summary of project scope, client, or deliverables…"></textarea>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="th-field--full">
+          <mat-label>Designate Project Manager (Optional)</mat-label>
+          <mat-select [(ngModel)]="createProjectForm.pmUserId">
+            <mat-option [value]="null">Assign later</mat-option>
+            <mat-option *ngFor="let cand of candidates.pmCandidates" [value]="cand.id">
+              {{ cand.name }} ({{ cand.email }})
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <div class="th-modal-foot">
+        <button mat-stroked-button (click)="showCreateProjectModal = false" [disabled]="submitting">Cancel</button>
+        <button mat-flat-button color="primary" (click)="saveNewProject()" [disabled]="submitting || !createProjectForm.name">
+          <mat-icon>check</mat-icon>
+          {{ submitting ? 'Creating…' : 'Create Project' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 2: CENTRALIZED PROJECT TEAM & RESPONSIBILITY ASSIGNMENT MODAL       -->
+  <!-- ========================================================================= -->
+  <div class="th-modal-overlay" *ngIf="showProjectAssignModal">
+    <div class="th-modal-dialog th-modal-dialog--xl" (click)="$event.stopPropagation()">
+      <div class="th-modal-head">
+        <div>
+          <h3>{{ projectAssignTitle }}</h3>
+          <p class="th-modal-sub">Configure project-wise team hierarchy: Assign the Project Manager (who can oversee multiple projects), dedicated Java and Testing Team Leaders, and map developers and testers to this project.</p>
+        </div>
+        <button mat-icon-button (click)="showProjectAssignModal = false">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+
+      <div class="th-modal-body">
+        <!-- Approval Status Overview in Modal -->
+        <div class="th-modal-auth-banner" [ngClass]="'th-mab--' + (activeAssignRoster?.approvalStatus || 'DRAFT').toLowerCase()">
+          <div class="th-mab-left">
+            <mat-icon>{{ (activeAssignRoster?.approvalStatus === 'APPROVED' || activeAssignRoster?.workAuthorized) ? 'verified' : (activeAssignRoster?.approvalStatus === 'SUBMITTED' ? 'hourglass_top' : (activeAssignRoster?.approvalStatus === 'REJECTED' ? 'cancel' : 'edit_note')) }}</mat-icon>
+            <div>
+              <div class="th-mab-title">
+                Approval Status: {{ (activeAssignRoster?.approvalStatus || 'DRAFT') | uppercase }}
+                <span class="th-mab-badge" *ngIf="activeAssignRoster?.approvalStatus === 'APPROVED' || activeAssignRoster?.workAuthorized">Work Authorized by CEO</span>
+                <span class="th-mab-badge" *ngIf="activeAssignRoster?.approvalStatus === 'SUBMITTED'">Pending CEO/Director Review</span>
+                <span class="th-mab-badge" *ngIf="activeAssignRoster?.approvalStatus === 'REJECTED'">Changes Requested</span>
+              </div>
+              <div class="th-mab-sub" *ngIf="activeAssignRoster?.approvalStatus === 'APPROVED' || activeAssignRoster?.workAuthorized">
+                Approval from CEO/Director indicates authorization to begin project work.
+              </div>
+              <div class="th-mab-sub" *ngIf="activeAssignRoster?.approvalStatus === 'SUBMITTED'">
+                Hierarchy submitted by {{ activeAssignRoster?.submittedByName || activeAssignRoster?.submittedBy }} on {{ activeAssignRoster?.submittedAt | date:'medium' }}.
+              </div>
+              <div class="th-mab-sub th-mab-sub--error" *ngIf="activeAssignRoster?.approvalStatus === 'REJECTED'">
+                CEO Feedback: {{ activeAssignRoster?.rejectionRemarks }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 1: Project Selection -->
+        <div class="th-modal-section">
+          <h4 class="th-section-title"><mat-icon>folder</mat-icon> Target Project</h4>
+          <mat-form-field appearance="outline" class="th-field--full">
+            <mat-label>Select Project *</mat-label>
+            <mat-select [(ngModel)]="projectAssignForm.projectName" (selectionChange)="onProjectAssignProjectChange($event.value)" required>
+              <mat-select-trigger>
+                <span class="th-proj-option" *ngIf="projectAssignForm.projectName">
+                  <mat-icon>folder</mat-icon>
+                  <strong>{{ projectAssignForm.projectName }}</strong>
+                </span>
+                <span *ngIf="!projectAssignForm.projectName" class="th-text-muted">— Select Project —</span>
+              </mat-select-trigger>
+              <mat-option *ngFor="let p of candidates.projects" [value]="p">
+                {{ p }}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+
+        <!-- Section 2: Leadership Hierarchy (PM + Leads) -->
+        <div class="th-modal-section">
+          <h4 class="th-section-title"><mat-icon>shield</mat-icon> Project Leadership & Responsibilities</h4>
+          
+          <div class="th-leadership-inputs-grid">
+            <!-- Project Manager Assignment -->
+            <div class="th-input-card">
+              <span class="th-ic-badge th-ic-badge--pm">Project Manager (Can handle multiple projects)</span>
+              <mat-form-field appearance="outline" class="th-field--full">
+                <mat-label>Assign Project Manager</mat-label>
+                <mat-select [(ngModel)]="projectAssignForm.pmUserId" (selectionChange)="onProjectAssignPmSelect($event.value)">
+                  <mat-select-trigger>
+                    <span *ngIf="findCandidate(projectAssignForm.pmUserId) as cand" class="th-sel-trigger-content">
+                      <strong>{{ cand.name }}</strong>
+                      <span class="th-opt-email">({{ cand.email }})</span>
+                    </span>
+                    <span *ngIf="!projectAssignForm.pmUserId" class="th-text-muted">— Unassigned / Select Project Manager —</span>
+                  </mat-select-trigger>
+                  <mat-option [value]="null">
+                    <span class="th-text-muted">— Unassigned / Select Project Manager —</span>
+                  </mat-option>
+                  <mat-option *ngFor="let pm of allEmployeeCandidates" [value]="pm.id">
+                    {{ pm.name }} ({{ pm.email }}) — {{ pm.roleLabel || formatRole(pm.role) }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="th-field--full">
+                <mat-label>Manager Responsibilities for this Project</mat-label>
+                <input matInput [(ngModel)]="projectAssignForm.pmResponsibilities" placeholder="e.g. Project delivery, sprint planning, client liaison" />
+              </mat-form-field>
+            </div>
+
+            <!-- Development Team Lead Assignment -->
+            <div class="th-input-card">
+              <span class="th-ic-badge th-ic-badge--dev">Development Team Lead (Project Lead)</span>
+              <mat-form-field appearance="outline" class="th-field--full">
+                <mat-label>Assign Dev Lead</mat-label>
+                <mat-select [(ngModel)]="projectAssignForm.devLeadId" (selectionChange)="onProjectAssignDevLeadSelect($event.value)">
+                  <mat-select-trigger>
+                    <span *ngIf="findCandidate(projectAssignForm.devLeadId) as cand" class="th-sel-trigger-content">
+                      <strong>{{ cand.name }}</strong>
+                      <span class="th-opt-email">({{ cand.email }})</span>
+                    </span>
+                    <span *ngIf="!projectAssignForm.devLeadId" class="th-text-muted">— Unassigned / Select Java Lead —</span>
+                  </mat-select-trigger>
+                  <mat-option [value]="null">
+                    <span class="th-text-muted">— Unassigned / Select Java Lead —</span>
+                  </mat-option>
+                  <mat-optgroup label="Java / Developer Leads & Developers" *ngIf="candidates.devLeads && candidates.devLeads.length">
+                    <mat-option *ngFor="let dl of candidates.devLeads" [value]="dl.id">
+                      {{ dl.name }} ({{ dl.email }}) — {{ dl.roleLabel || formatRole(dl.role) }}
+                    </mat-option>
+                  </mat-optgroup>
+                  <mat-optgroup label="All Other Employees" *ngIf="otherDevLeadCandidates && otherDevLeadCandidates.length">
+                    <mat-option *ngFor="let emp of otherDevLeadCandidates" [value]="emp.id">
+                      {{ emp.name }} ({{ emp.email }}) — {{ emp.roleLabel || formatRole(emp.role) }}
+                    </mat-option>
+                  </mat-optgroup>
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="th-field--full">
+                <mat-label>Java Lead Responsibilities for this Project</mat-label>
+                <input matInput [(ngModel)]="projectAssignForm.devLeadResponsibilities" placeholder="e.g. Backend architecture, code reviews, API delivery" />
+              </mat-form-field>
+              <div class="th-prod-support-check-wrap">
+                <label class="th-prod-check-label">
+                  <input type="checkbox" [(ngModel)]="projectAssignForm.devLeadProductionSupport" />
+                  <span class="th-prod-check-box-text">
+                    <mat-icon class="th-prod-icon">shield</mat-icon>
+                    <strong>Production Support</strong>
+                    <small>— Responsible for production issue handling & releases</small>
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Testing Team Leader Assignment -->
+            <div class="th-input-card">
+              <span class="th-ic-badge th-ic-badge--test">Testing Team Leader (Project Lead)</span>
+              <mat-form-field appearance="outline" class="th-field--full">
+                <mat-label>Assign Testing Lead</mat-label>
+                <mat-select [(ngModel)]="projectAssignForm.testerLeadId" (selectionChange)="onProjectAssignTesterLeadSelect($event.value)">
+                  <mat-select-trigger>
+                    <span *ngIf="findCandidate(projectAssignForm.testerLeadId) as cand" class="th-sel-trigger-content">
+                      <strong>{{ cand.name }}</strong>
+                      <span class="th-opt-email">({{ cand.email }})</span>
+                    </span>
+                    <span *ngIf="!projectAssignForm.testerLeadId" class="th-text-muted">— Unassigned / Select Testing Lead —</span>
+                  </mat-select-trigger>
+                  <mat-option [value]="null">
+                    <span class="th-text-muted">— Unassigned / Select Testing Lead —</span>
+                  </mat-option>
+                  <mat-optgroup label="QA / Testing Leads & Testers" *ngIf="candidates.testerLeads && candidates.testerLeads.length">
+                    <mat-option *ngFor="let tl of candidates.testerLeads" [value]="tl.id">
+                      {{ tl.name }} ({{ tl.email }}) — {{ tl.roleLabel || formatRole(tl.role) }}
+                    </mat-option>
+                  </mat-optgroup>
+                  <mat-optgroup label="All Other Employees" *ngIf="otherTesterLeadCandidates && otherTesterLeadCandidates.length">
+                    <mat-option *ngFor="let emp of otherTesterLeadCandidates" [value]="emp.id">
+                      {{ emp.name }} ({{ emp.email }}) — {{ emp.roleLabel || formatRole(emp.role) }}
+                    </mat-option>
+                  </mat-optgroup>
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="th-field--full">
+                <mat-label>Testing Lead Responsibilities for this Project</mat-label>
+                <input matInput [(ngModel)]="projectAssignForm.testerLeadResponsibilities" placeholder="e.g. Test automation, QA sign-off, bug tracking" />
+              </mat-form-field>
+              <div class="th-prod-support-check-wrap">
+                <label class="th-prod-check-label">
+                  <input type="checkbox" [(ngModel)]="projectAssignForm.testerLeadProductionSupport" />
+                  <span class="th-prod-check-box-text">
+                    <mat-icon class="th-prod-icon">shield</mat-icon>
+                    <strong>Production Support</strong>
+                    <small>— Responsible for production issue QA & verification</small>
+                  </span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 3: Project Team Members (Developers & Testers) -->
+        <div class="th-modal-section">
+          <div class="th-section-header-row">
+            <div>
+              <h4 class="th-section-title"><mat-icon>groups</mat-icon> Developers & Testers Assigned to this Project</h4>
+              <p class="th-section-desc">Map employees as Developers (reporting to Java Lead) or Testers (reporting to Testing Lead) with assigned modules and priorities specifically for this project.</p>
+            </div>
+            <button mat-stroked-button color="primary" type="button" (click)="addMemberToProjectAssign()">
+              <mat-icon>add</mat-icon>
+              Add Team Member
+            </button>
+          </div>
+
+          <div class="th-member-assign-rows" *ngIf="projectAssignForm.members.length; else noMembersInAssign">
+            <div class="th-member-assign-row" *ngFor="let m of projectAssignForm.members; let idx = index">
+              <span class="th-pa-num">#{{ idx + 1 }}</span>
+
+              <!-- Member Dropdown -->
+              <mat-form-field appearance="outline" class="th-field th-field--member">
+                <mat-label>Select Employee *</mat-label>
+                <mat-select [(ngModel)]="m.memberId" (selectionChange)="onProjectMemberSelect(idx, $event.value)">
+                  <mat-select-trigger>
+                    <span *ngIf="findCandidate(m.memberId) as cand" class="th-sel-trigger-content">
+                      <strong>{{ cand.name }}</strong>
+                      <span class="th-opt-email">({{ cand.email }})</span>
+                    </span>
+                    <span *ngIf="!m.memberId" class="th-text-muted">— Select Team Member —</span>
+                  </mat-select-trigger>
+                  <mat-option [value]="null">
+                    <span class="th-text-muted">— Select Team Member —</span>
+                  </mat-option>
+                  <mat-optgroup label="Developers (Mapped under Java Lead)" *ngIf="candidates.developers && candidates.developers.length">
+                    <mat-option *ngFor="let d of candidates.developers" [value]="d.id">
+                      {{ d.name }} ({{ d.email }}) — {{ d.roleLabel || 'Developer' }}
+                    </mat-option>
+                  </mat-optgroup>
+                  <mat-optgroup label="Testers (Mapped under Testing Lead)" *ngIf="candidates.testers && candidates.testers.length">
+                    <mat-option *ngFor="let t of candidates.testers" [value]="t.id">
+                      {{ t.name }} ({{ t.email }}) — {{ t.roleLabel || 'Tester' }}
+                    </mat-option>
+                  </mat-optgroup>
+                  <mat-optgroup label="All Other Employees" *ngIf="otherMemberCandidates && otherMemberCandidates.length">
+                    <mat-option *ngFor="let e of otherMemberCandidates" [value]="e.id">
+                      {{ e.name }} ({{ e.email }}) — {{ e.roleLabel || formatRole(e.role) }}
+                    </mat-option>
+                  </mat-optgroup>
+                </mat-select>
+              </mat-form-field>
+
+              <!-- Role Toggle Button (Developer vs Tester) -->
+              <button
+                type="button"
+                mat-stroked-button
+                class="th-role-toggle-btn"
+                [class.th-role-toggle-btn--dev]="m.memberRole === 'EMPLOYEE'"
+                [class.th-role-toggle-btn--test]="m.memberRole === 'TESTER'"
+                (click)="m.memberRole = (m.memberRole === 'EMPLOYEE' ? 'TESTER' : 'EMPLOYEE')"
+                matTooltip="Click to switch between Developer and Tester">
+                <mat-icon>{{ m.memberRole === 'EMPLOYEE' ? 'code' : 'bug_report' }}</mat-icon>
+                <span>{{ m.memberRole === 'EMPLOYEE' ? 'Developer' : 'Tester' }}</span>
+              </button>
+
+              <!-- Responsibility in this project -->
+              <mat-form-field appearance="outline" class="th-field th-field--resp">
+                <mat-label>Assigned Module / Responsibilities</mat-label>
+                <input matInput [(ngModel)]="m.responsibilities" placeholder="e.g. Patient Registration, Payment Gateway, QA Automation" />
+              </mat-form-field>
+
+              <!-- Priority -->
+              <mat-form-field appearance="outline" class="th-field th-field--prio">
+                <mat-label>Priority</mat-label>
+                <mat-select [(ngModel)]="m.priority">
+                  <mat-option value="HIGH">HIGH Priority</mat-option>
+                  <mat-option value="MEDIUM">MEDIUM Priority</mat-option>
+                  <mat-option value="LOW">LOW Priority</mat-option>
+                </mat-select>
+              </mat-form-field>
+
+              <!-- Allocation % -->
+              <mat-form-field appearance="outline" class="th-field th-field--alloc">
+                <mat-label>Allocation</mat-label>
+                <input matInput type="number" min="10" max="100" step="10" [(ngModel)]="m.allocation" />
+                <span matSuffix>%</span>
+              </mat-form-field>
+
+              <!-- Production Support Checkbox -->
+              <label class="th-member-prod-label" matTooltip="Mark as responsible for Production Support on this project">
+                <input type="checkbox" [(ngModel)]="m.productionSupport" />
+                <span class="th-member-prod-pill" [class.is-active]="m.productionSupport">
+                  <mat-icon>shield</mat-icon>
+                  <span>Prod Support</span>
+                </span>
+              </label>
+
+              <!-- Remove Member -->
+              <button mat-icon-button color="warn" type="button" (click)="removeMemberFromProjectAssign(idx)" matTooltip="Remove member from this project">
+                <mat-icon>delete_outline</mat-icon>
+              </button>
+            </div>
+          </div>
+
+          <ng-template #noMembersInAssign>
+            <div class="th-empty-branch">
+              <mat-icon>person_add</mat-icon>
+              <span>No team members added yet. Click "Add Team Member" above to assign developers and testers to this project.</span>
+            </div>
+          </ng-template>
+        </div>
+
+        <!-- Optional Submission Notes for CEO/Director -->
+        <div class="th-modal-section th-modal-section--notes">
+          <h4 class="th-section-title"><mat-icon>notes</mat-icon> Submission Notes for CEO / Director (Optional)</h4>
+          <mat-form-field appearance="outline" class="th-field--full">
+            <mat-label>Notes / Context for CEO Review & Authorization</mat-label>
+            <textarea matInput [(ngModel)]="submissionNotesText" rows="2" placeholder="e.g. Sprints planned for 4 developers and 2 testers. Ready for CEO authorization to begin work."></textarea>
+          </mat-form-field>
+        </div>
+      </div>
+
+      <div class="th-modal-foot">
+        <button
+          mat-stroked-button
+          color="warn"
+          type="button"
+          (click)="clearProjectHierarchyFromModal()"
+          [disabled]="submitting"
+          *ngIf="projectAssignForm.projectName && (projectAssignForm.pmUserId || projectAssignForm.devLeadId || projectAssignForm.testerLeadId || (projectAssignForm.members && projectAssignForm.members.length))">
+          <mat-icon>layers_clear</mat-icon>
+          Clear Assignments
+        </button>
+        <span class="th-modal-foot-spacer"></span>
+        <button mat-stroked-button (click)="showProjectAssignModal = false" [disabled]="submitting">Cancel</button>
+
+        <!-- Save as Draft (PM or Admin) -->
+        <button mat-stroked-button color="primary" (click)="saveProjectTeamAssignment('SAVE_DRAFT')" [disabled]="submitting || !projectAssignForm.projectName">
+          <mat-icon>save</mat-icon>
+          Save as Draft
+        </button>
+
+        <!-- Submit to CEO/Director for Approval (PM or Admin) -->
+        <button mat-flat-button color="accent" class="th-btn-submit-ceo" (click)="saveProjectTeamAssignment('SUBMIT')" [disabled]="submitting || !projectAssignForm.projectName" *ngIf="isProjectManager || isSuperAdmin">
+          <mat-icon>send</mat-icon>
+          Submit to CEO for Approval
+        </button>
+
+        <!-- Save & Approve (CEO / Super Admin only) -->
+        <button mat-flat-button color="primary" class="th-btn-approve-ceo" (click)="saveProjectTeamAssignment('APPROVE')" [disabled]="submitting || !projectAssignForm.projectName" *ngIf="isSuperAdmin">
+          <mat-icon>verified</mat-icon>
+          Save & Authorize Work
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 3: ADD / EDIT PROJECT MANAGER                                       -->
+  <!-- ========================================================================= -->
+  <div class="th-modal-overlay" *ngIf="showPmModal">
+    <div class="th-modal-dialog" (click)="$event.stopPropagation()">
+      <div class="th-modal-head">
+        <h3>{{ pmModalTitle }}</h3>
+        <button mat-icon-button (click)="showPmModal = false">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+
+      <div class="th-modal-body">
+        <p class="th-modal-hint">
+          Designate an employee as a Project Manager responsible for project delivery and overseeing Team Leaders.
+        </p>
+
+        <!-- Select PM User if adding -->
+        <mat-form-field appearance="outline" class="th-field--full" *ngIf="!pmForm.hierarchyId">
+          <mat-label>Select Employee for Project Manager *</mat-label>
+          <mat-select [(ngModel)]="pmForm.userId" (selectionChange)="onPmSelect($event.value)" required>
+            <mat-option [value]="null">
+              <span class="th-text-muted">— Select Employee for Project Manager —</span>
+            </mat-option>
+            <mat-option *ngFor="let cand of allEmployeeCandidates" [value]="cand.id">
+              {{ cand.name }} ({{ cand.email }}) — {{ cand.roleLabel || formatRole(cand.role) }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <div class="th-locked-field" *ngIf="pmForm.hierarchyId">
+          <label>Project Manager:</label>
+          <strong>{{ pmForm.name }} ({{ pmForm.email }})</strong>
+        </div>
+
+        <!-- Manager Responsibilities -->
+        <mat-form-field appearance="outline" class="th-field--full">
+          <mat-label>Management Responsibilities</mat-label>
+          <input matInput [(ngModel)]="pmForm.pmResponsibilities" placeholder="e.g. Sprint planning, overall client delivery, cross-team alignment" />
+        </mat-form-field>
+
+        <!-- Multi-select Managed Projects -->
+        <mat-form-field appearance="outline" class="th-field--full">
+          <mat-label>Managed Projects (Select multiple)</mat-label>
+          <mat-select [(ngModel)]="pmForm.managedProjects" multiple placeholder="Select projects">
+            <mat-option *ngFor="let proj of candidates.projects" [value]="proj">
+              {{ proj }}
+            </mat-option>
+          </mat-select>
+          <mat-hint>Projects this Project Manager will supervise</mat-hint>
+        </mat-form-field>
+      </div>
+
+      <div class="th-modal-foot">
+        <button mat-stroked-button (click)="showPmModal = false" [disabled]="submitting">Cancel</button>
+        <button mat-flat-button color="primary" (click)="saveProjectManager()" [disabled]="submitting || !pmForm.email">
+          <mat-icon>save</mat-icon>
+          {{ submitting ? 'Saving…' : 'Save Project Manager' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 4: ASSIGN TEAM LEADER                                               -->
+  <!-- ========================================================================= -->
+  <div class="th-modal-overlay" *ngIf="showLeadModal">
+    <div class="th-modal-dialog" (click)="$event.stopPropagation()">
+      <div class="th-modal-head">
+        <h3>Assign Team Leader under Project Manager</h3>
+        <button mat-icon-button (click)="showLeadModal = false">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+
+      <div class="th-modal-body">
+        <p class="th-modal-hint">
+          Assign a Java Lead (Developer Lead) or Testing Lead under this Project Manager to supervise respective developers and testers.
+        </p>
+
+        <!-- Lead Type -->
+        <mat-form-field appearance="outline" class="th-field--full">
+          <mat-label>Team Lead Type</mat-label>
+          <mat-select [(ngModel)]="leadForm.leadType" (selectionChange)="onLeadTypeChange()">
+            <mat-option value="TEAM_LEAD">Team Leader (Cross-Functional Lead)</mat-option>
+            <mat-option value="DEVELOPER_LEAD">Development Team Lead (Dev Lead)</mat-option>
+            <mat-option value="TESTER_LEAD">QA Team Lead (Test Lead)</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <!-- Lead Title -->
+        <mat-form-field appearance="outline" class="th-field--full">
+          <mat-label>Custom Title (Optional)</mat-label>
+          <input matInput [(ngModel)]="leadForm.leadTitle" placeholder="e.g. Java Lead, QA Automation Lead…" />
+        </mat-form-field>
+
+        <!-- Lead Responsibilities -->
+        <mat-form-field appearance="outline" class="th-field--full">
+          <mat-label>Role Responsibilities</mat-label>
+          <input matInput [(ngModel)]="leadForm.responsibilities" placeholder="e.g. Backend architecture, code review, test plan sign-off…" />
+        </mat-form-field>
+
+        <!-- Select User from Leads -->
+        <mat-form-field appearance="outline" class="th-field--full">
+          <mat-label>Select Leader *</mat-label>
+          <mat-select [(ngModel)]="leadForm.leadId" (selectionChange)="onLeadSelect($event.value)" required>
+            <mat-option [value]="null">
+              <span class="th-text-muted">— Select Team Leader —</span>
+            </mat-option>
+            <mat-optgroup [label]="leadForm.leadType === 'TESTER_LEAD' ? 'QA / Testing Leads & Testers' : (leadForm.leadType === 'TEAM_LEAD' ? 'Team Leaders & Leads' : 'Java / Developer Leads & Developers')">
+              <mat-option *ngFor="let cand of availableLeadsForType" [value]="cand.id">
+                {{ cand.name }} ({{ cand.email }}) — {{ cand.roleLabel || formatRole(cand.role) }}
+              </mat-option>
+            </mat-optgroup>
+            <mat-optgroup label="All Other Employees" *ngIf="otherLeadsForType && otherLeadsForType.length">
+              <mat-option *ngFor="let cand of otherLeadsForType" [value]="cand.id">
+                {{ cand.name }} ({{ cand.email }}) — {{ cand.roleLabel || formatRole(cand.role) }}
+              </mat-option>
+            </mat-optgroup>
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <div class="th-modal-foot">
+        <button mat-stroked-button (click)="showLeadModal = false" [disabled]="submitting">Cancel</button>
+        <button mat-flat-button color="primary" (click)="saveLead()" [disabled]="submitting || !leadForm.leadEmail">
+          <mat-icon>check</mat-icon>
+          {{ submitting ? 'Assigning…' : 'Assign Team Leader' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 5: MAP MEMBER & CROSS-PROJECT PRIORITIES                            -->
+  <!-- ========================================================================= -->
+  <div class="th-modal-overlay" *ngIf="showMemberModal">
+    <div class="th-modal-dialog th-modal-dialog--lg" (click)="$event.stopPropagation()">
+      <div class="th-modal-head">
+        <h3>{{ memberModalTitle }}</h3>
+        <button mat-icon-button (click)="showMemberModal = false">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+
+      <div class="th-modal-body">
+        <p class="th-modal-hint">
+          Map a {{ memberForm.memberRole === 'EMPLOYEE' ? 'developer' : 'tester' }} to their team leader and assign project priorities and responsibilities.
+        </p>
+
+        <!-- Pick Member if adding -->
+        <mat-form-field appearance="outline" class="th-field--full" *ngIf="!memberForm.memberId">
+          <mat-label>Select {{ memberForm.memberRole === 'EMPLOYEE' ? 'Developer' : 'Tester' }} *</mat-label>
+          <mat-select [(ngModel)]="memberForm.memberId" (selectionChange)="onMemberSelect($event.value)" required>
+            <mat-option [value]="null">
+              <span class="th-text-muted">— Select {{ memberForm.memberRole === 'EMPLOYEE' ? 'Developer' : 'Tester' }} —</span>
+            </mat-option>
+            <mat-optgroup [label]="memberForm.memberRole === 'EMPLOYEE' ? 'Developers' : 'Testers'">
+              <mat-option *ngFor="let cand of availableMembersForLead" [value]="cand.id">
+                {{ cand.name }} ({{ cand.email }}) — {{ cand.roleLabel || formatRole(cand.role) }}
+              </mat-option>
+            </mat-optgroup>
+            <mat-optgroup label="All Other Employees" *ngIf="otherMembersForLead && otherMembersForLead.length">
+              <mat-option *ngFor="let cand of otherMembersForLead" [value]="cand.id">
+                {{ cand.name }} ({{ cand.email }}) — {{ cand.roleLabel || formatRole(cand.role) }}
+              </mat-option>
+            </mat-optgroup>
+          </mat-select>
+        </mat-form-field>
+
+        <div class="th-locked-field" *ngIf="memberForm.memberId">
+          <label>Member:</label>
+          <strong>{{ memberForm.memberName }} ({{ memberForm.memberEmail }})</strong>
+          <span class="th-role-pill">{{ memberForm.memberRole === 'EMPLOYEE' ? 'Developer' : 'Tester' }}</span>
+        </div>
+
+        <mat-form-field appearance="outline" class="th-field--full">
+          <mat-label>Assigned Responsibilities / Core Focus</mat-label>
+          <input matInput [(ngModel)]="memberForm.responsibilities" placeholder="e.g. Lead API developer, Authentication & Master modules…" />
+        </mat-form-field>
+
+        <!-- Dynamic Multi-Project Priority Allocation Table -->
+        <div class="th-pa-section">
+          <div class="th-pa-header">
+            <h4>Cross-Project Priority Assignments</h4>
+            <button mat-stroked-button color="primary" type="button" (click)="addProjectAssignmentRow()">
+              <mat-icon>add</mat-icon>
+              Add Project
+            </button>
+          </div>
+
+          <div class="th-pa-rows">
+            <div class="th-pa-row" *ngFor="let pa of memberForm.projectAssignments; let idx = index">
+              <span class="th-pa-num">#{{ idx + 1 }}</span>
+
+              <!-- Project Dropdown -->
+              <mat-form-field appearance="outline" class="th-field th-field--proj">
+                <mat-label>Project</mat-label>
+                <mat-select [(ngModel)]="pa.projectName" required>
+                  <mat-option *ngFor="let p of candidates.projects" [value]="p">{{ p }}</mat-option>
+                </mat-select>
+              </mat-form-field>
+
+              <!-- Priority Dropdown -->
+              <mat-form-field appearance="outline" class="th-field th-field--prio">
+                <mat-label>Priority</mat-label>
+                <mat-select [(ngModel)]="pa.priority" required>
+                  <mat-option value="HIGH">HIGH Priority</mat-option>
+                  <mat-option value="MEDIUM">MEDIUM Priority</mat-option>
+                  <mat-option value="LOW">LOW Priority</mat-option>
+                </mat-select>
+              </mat-form-field>
+
+              <!-- Allocation % -->
+              <mat-form-field appearance="outline" class="th-field th-field--alloc">
+                <mat-label>Allocation %</mat-label>
+                <input matInput type="number" min="10" max="100" step="10" [(ngModel)]="pa.allocation" />
+                <span matSuffix>%</span>
+              </mat-form-field>
+
+              <!-- Notes / Module -->
+              <mat-form-field appearance="outline" class="th-field th-field--notes">
+                <mat-label>Project Responsibility / Module</mat-label>
+                <input matInput [(ngModel)]="pa.responsibilities" placeholder="e.g. Lead dev for authentication module…" />
+              </mat-form-field>
+
+              <!-- Delete Row -->
+              <button
+                mat-icon-button
+                color="warn"
+                type="button"
+                matTooltip="Remove this project assignment"
+                (click)="removeProjectAssignmentRow(idx)"
+                [disabled]="memberForm.projectAssignments.length <= 1">
+                <mat-icon>delete_outline</mat-icon>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="th-modal-foot">
+        <button mat-stroked-button (click)="showMemberModal = false" [disabled]="submitting">Cancel</button>
+        <button mat-flat-button color="primary" (click)="saveMember()" [disabled]="submitting || !memberForm.memberEmail">
+          <mat-icon>save</mat-icon>
+          {{ submitting ? 'Mapping…' : 'Save Member Mapping' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</section>

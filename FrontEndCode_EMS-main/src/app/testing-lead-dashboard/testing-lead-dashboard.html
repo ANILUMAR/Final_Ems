@@ -5,9 +5,9 @@
       <div class="ems-header__eyebrow">
         <span>Delivery QA</span>
         <span class="ems-header__sep">/</span>
-        <span>Testing Team Leader</span>
+        <span>QA Team Lead</span>
       </div>
-      <h1 class="ems-header__title">Testing Team Leader Dashboard</h1>
+      <h1 class="ems-header__title">QA Lead Dashboard</h1>
       <p class="ems-header__subtitle">
         Review completed work released by development and assign to testers for verification.
       </p>
@@ -15,7 +15,7 @@
     <div class="ems-header__actions">
       <!-- Shortcut to Tested Completed Tasks Review for Team Leader -->
       <a mat-stroked-button routerLink="/tested-completed" style="border-color:#10b981;color:#10b981;">
-        <mat-icon>verified</mat-icon> Tested Completed Review
+        <mat-icon>verified</mat-icon> Review Verified Tickets
       </a>
 
       <!-- Toggle Team Workload drawer/bar -->
@@ -103,7 +103,7 @@
       </div>
       <div class="ems-stat-card__content">
         <span class="ems-stat-card__value">{{ queue.awaiting }}</span>
-        <span class="ems-stat-card__label">Awaiting Tester</span>
+        <span class="ems-stat-card__label">Ready for QA</span>
       </div>
     </div>
 
@@ -113,7 +113,7 @@
       </div>
       <div class="ems-stat-card__content">
         <span class="ems-stat-card__value">{{ queue.assigned }}</span>
-        <span class="ems-stat-card__label">In Testing</span>
+        <span class="ems-stat-card__label">In QA Testing</span>
       </div>
     </div>
 
@@ -123,7 +123,7 @@
       </div>
       <div class="ems-stat-card__content">
         <span class="ems-stat-card__value">{{ queue.verified }}</span>
-        <span class="ems-stat-card__label">Verified & Passed</span>
+        <span class="ems-stat-card__label">Verified & Closed</span>
       </div>
     </div>
   </div>

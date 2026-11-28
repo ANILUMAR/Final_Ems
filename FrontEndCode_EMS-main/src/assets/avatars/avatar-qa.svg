@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <linearGradient id="bg-qa" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#9a3412"/>
+      <stop offset="100%" stop-color="#431407"/>
+    </linearGradient>
+    <linearGradient id="qa-body" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fdba74"/>
+      <stop offset="100%" stop-color="#f97316"/>
+    </linearGradient>
+  </defs>
+  <rect width="100" height="100" rx="50" fill="url(#bg-qa)"/>
+  <circle cx="50" cy="50" r="47" fill="none" stroke="#fb923c" stroke-width="2.5"/>
+  <circle cx="50" cy="38" r="17" fill="url(#qa-body)"/>
+  <path d="M 23 84 C 23 63, 36 60, 50 60 C 64 60, 77 63, 77 84 Z" fill="url(#qa-body)"/>
+  <!-- QA check/bug badge -->
+  <circle cx="75" cy="30" r="11" fill="#f97316"/>
+  <path d="M 70 30 L 73 33 L 80 26" stroke="#431407" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+</svg>

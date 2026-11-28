@@ -8,12 +8,14 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { isManagerRole } from '../models/role';
+import { isManagerRole, isSuperAdminRole } from '../models/role';
 import { kindBadge, kindLabel, taskCodeOf, WorkItem } from '../models/work-item';
 import { WorkflowService } from '../services/workflow.service';
 import { Pager } from '../shared/pager';
 import { DEFAULT_PAGE_SIZE, lastPageOf, pageSlice } from '../shared/pagination';
 import { BugDetailDialog } from '../bug-detail-dialog/bug-detail-dialog';
+import { TicketDetailDialog } from '../ticket-detail-dialog/ticket-detail-dialog';
+import { WorkflowPipelineComponent } from '../shared/workflow-pipeline/workflow-pipeline.component';
 
 @Component({
   selector: 'app-on-hold-tasks',
@@ -28,7 +30,8 @@ import { BugDetailDialog } from '../bug-detail-dialog/bug-detail-dialog';
     MatInputModule,
     MatTooltipModule,
     MatDialogModule,
-    Pager
+    Pager,
+    WorkflowPipelineComponent
   ],
   templateUrl: './on-hold-tasks.html',
   styleUrl: './on-hold-tasks.css'
@@ -48,6 +51,7 @@ export class OnHoldTasksComponent implements OnInit {
 
   /** Leader rights */
   isLeader = false;
+  isSuperAdmin = false;
   currentRole = '';
   currentEmail = '';
 
@@ -66,20 +70,28 @@ export class OnHoldTasksComponent implements OnInit {
   ) {
     this.currentRole = (localStorage.getItem('role') || '').trim().toUpperCase();
     this.currentEmail = (localStorage.getItem('email') || '').trim().toLowerCase();
-    this.isLeader = isManagerRole(this.currentRole) || this.currentRole === 'DEVELOPER_LEAD';
+    this.isSuperAdmin = isSuperAdminRole(this.currentRole);
+    this.isLeader = isManagerRole(this.currentRole) || this.currentRole === 'DEVELOPER_LEAD' || this.currentRole === 'TEAM_LEAD' || this.currentRole === 'TEAM_LEADER';
   }
 
   ngOnInit(): void {
     this.loadData();
   }
 
-  openBugDetails(item: WorkItem): void {
-    this.dialog.open(BugDetailDialog, {
+  openTicketDetails(item: WorkItem): void {
+    const ref = this.dialog.open(TicketDetailDialog, {
       data: { item },
       width: '92vw',
-      maxWidth: '1100px',
+      maxWidth: '1150px',
       maxHeight: '92vh'
     });
+    ref.afterClosed().subscribe(() => {
+      this.loadData();
+    });
+  }
+
+  openBugDetails(item: WorkItem): void {
+    this.openTicketDetails(item);
   }
 
   loadData(): void {

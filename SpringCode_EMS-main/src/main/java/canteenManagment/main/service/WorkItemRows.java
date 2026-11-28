@@ -17,9 +17,10 @@ import canteenManagment.main.UserEntity.WorkStatus;
  */
 public final class WorkItemRows {
 
-    /** "BUG" is the other value; anything else reads as a task. */
+    /** "BUG" or "PRODUCTION_ISSUE" are the other values; anything else reads as a task. */
     public static final String KIND_TASK = "TASK";
     public static final String KIND_BUG = "BUG";
+    public static final String KIND_PRODUCTION_ISSUE = "PRODUCTION_ISSUE";
 
     private WorkItemRows() {
     }
@@ -114,6 +115,9 @@ public final class WorkItemRows {
     /** Trimmed upper-case kind, defaulting to a task. */
     public static String kindOf(AssignTask task) {
         String stored = task.getKind() == null ? "" : task.getKind().trim().toUpperCase();
+        if (KIND_PRODUCTION_ISSUE.equals(stored) || "PROD_ISSUE".equals(stored) || "PROD".equals(stored)) {
+            return KIND_PRODUCTION_ISSUE;
+        }
         return KIND_BUG.equals(stored) ? KIND_BUG : KIND_TASK;
     }
 }

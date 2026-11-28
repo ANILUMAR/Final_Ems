@@ -7,7 +7,9 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { map, switchMap } from 'rxjs';
+import { roleLabel as formatRole } from '../models/role';
 import { ProjectTasksData, ProjectTasksDialog } from '../project-tasks-dialog/project-tasks-dialog';
 import { QuickActions } from '../quick-actions/quick-actions';
 import { TeamMemberRow, TaskItem, WorkspaceService } from '../services/workspace.service';
@@ -25,6 +27,7 @@ import { TaskStatus } from '../task-status/task-status';
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
+    MatTooltipModule,
     QuickActions,
     TaskStatus
   ],
@@ -36,37 +39,42 @@ export class TesterDashboardComponent implements OnInit {
   errorMessage = '';
 
   /**
-   * The admin picks a tester from the list and then reads that person's board.
-   * A tester opens the same component with only their own data and no picker.
+   * True for QA Lead, Team Leader, or Super Admin viewing the QA testing board.
+   * False for an individual QA Engineer / Tester viewing their personal cockpit.
    */
   isAdmin = false;
   selectedEmail = '';
-  /** Admin picker filter: a name or email fragment. */
   search = '';
-  /** The list is open until a tester is picked, then it collapses to that one. */
-  pickerOpen = true;
 
   myTasks: TaskItem[] = [];
   teamTasks: TaskItem[] = [];
   teamRows: TeamMemberRow[] = [];
   today = new Date();
 
-  constructor(private router: Router, private workspace: WorkspaceService, private dialog: MatDialog) {
+  constructor(
+    private router: Router,
+    private workspace: WorkspaceService,
+    private dialog: MatDialog
+  ) {
     this.isAdmin = workspace.seesTeam();
   }
 
   ngOnInit(): void {
-    // A tester reads their own assignment list. The CEO and a team leader read
-    // one list per tester so the picker counters and the queue come from the
-    // same records.
+    this.loadData();
+  }
+
+  loadData(): void {
+    this.loading = true;
+    this.errorMessage = '';
+
     const load$ = this.isAdmin
       ? this.workspace.getTeamMembers().pipe(
-          switchMap((people) =>
-            this.workspace.assignmentsForRole(people, 'TESTER').pipe(
-              map((tasks) => ({ people, tasks }))
-            )
+        switchMap((people) =>
+          this.workspace.assignmentsForRole(people, 'TESTER').pipe(
+            map((tasks) => ({ people, tasks }))
           )
         )
+      )
       : this.workspace.myAssignments().pipe(map((tasks) => ({ people: [] as any[], tasks })));
 
     load$.subscribe({
@@ -75,8 +83,8 @@ export class TesterDashboardComponent implements OnInit {
           const team = this.workspace.teamWork(tasks, [], people, 'TESTER');
           this.teamTasks = team.tasks;
           this.teamRows = team.rows;
-          this.selectedEmail = this.pickSelection(team.rows);
-          this.pickerOpen = !this.selectedEmail;
+          // By default, display the entire team queue. Clicking any tester filters to that individual.
+          this.selectedEmail = '';
         } else {
           this.myTasks = tasks || [];
         }
@@ -90,26 +98,22 @@ export class TesterDashboardComponent implements OnInit {
     });
   }
 
-  /** Open on someone who actually has work; otherwise the first account. */
-  private pickSelection(rows: TeamMemberRow[]): string {
-    const busy = rows.find((row) => row.total > 0);
-    return (busy || rows[0])?.email || '';
+  get employeeName(): string {
+    return localStorage.getItem('name') || localStorage.getItem('email') || 'there';
   }
 
-  /** The admin's picker: switch the whole board to another tester. */
-  selectMember(member: TeamMemberRow): void {
-    this.selectedEmail = member.email;
-    // Collapse the list so only the picked tester stays on screen.
-    this.pickerOpen = false;
+  get firstName(): string {
+    return (this.employeeName || '').split(' ')[0] || this.employeeName;
   }
 
-  /** Re-open the list to choose someone else, starting from the full team. */
-  openPicker(): void {
-    this.search = '';
-    this.pickerOpen = true;
+  get roleLabel(): string {
+    return formatRole(localStorage.getItem('role') || 'TESTER');
   }
 
-  /** Picker rows, narrowed by the search box. */
+  get activeTestersCount(): number {
+    return this.teamRows.filter((r) => r.active).length;
+  }
+
   get filteredRows(): TeamMemberRow[] {
     const term = this.search.trim().toLowerCase();
     if (!term) {
@@ -120,19 +124,42 @@ export class TesterDashboardComponent implements OnInit {
     );
   }
 
-  /**
-   * Keeps the detail panel in step with the search: one match opens that
-   * tester, and if the current pick is filtered out the first match takes over.
-   */
+  selectMember(member: TeamMemberRow): void {
+    if (this.selectedEmail === member.email) {
+      this.selectedEmail = ''; // toggle off filter to show all team tasks
+    } else {
+      this.selectedEmail = member.email;
+    }
+  }
+
+  clearMemberSelection(): void {
+    this.selectedEmail = '';
+  }
+
   onSearchChange(): void {
     const rows = this.filteredRows;
     if (rows.length === 1) {
       this.selectedEmail = rows[0].email;
       return;
     }
-    if (!rows.some((row) => row.email === this.selectedEmail)) {
-      this.selectedEmail = rows[0]?.email || '';
+    if (this.selectedEmail && !rows.some((row) => row.email === this.selectedEmail)) {
+      this.selectedEmail = '';
     }
+  }
+
+  testerWorkloadLabel(member: TeamMemberRow): string {
+    if (!member.active) return 'Inactive';
+    if (member.inProgress >= 4) return 'Heavy Load';
+    if (member.inProgress >= 2) return 'Optimal';
+    if (member.inProgress === 1) return 'Light Load';
+    return 'Available';
+  }
+
+  testerWorkloadClass(member: TeamMemberRow): string {
+    if (!member.active) return 'is-inactive';
+    if (member.inProgress >= 4) return 'is-heavy';
+    if (member.inProgress >= 2) return 'is-optimal';
+    return 'is-available';
   }
 
   onStatusChanged(task: TaskItem, status: string): void {
@@ -140,7 +167,22 @@ export class TesterDashboardComponent implements OnInit {
     this.recountTeamRow(task);
   }
 
-  /** Keeps the picker's per-person numbers in step with a status change. */
+  updateTaskStatus(task: TaskItem, newStatus: string): void {
+    const oldStatus = task.status;
+    task.status = newStatus;
+    this.workspace.updateAssignmentStatus(task.id, newStatus, undefined, task.kind).subscribe({
+      next: () => {
+        if (this.isAdmin) {
+          this.recountTeamRow(task);
+        }
+      },
+      error: (err) => {
+        console.error('Failed to update task status:', err);
+        task.status = oldStatus;
+      }
+    });
+  }
+
   private recountTeamRow(task: TaskItem): void {
     const email = (task.user?.email || '').trim().toLowerCase();
     const row = this.teamRows.find((candidate) => candidate.email === email);
@@ -152,20 +194,11 @@ export class TesterDashboardComponent implements OnInit {
     );
     row.total = owned.length;
     row.done = owned.filter((item) => item.status === 'DONE').length;
-    row.inProgress = owned.filter((item) => item.status === 'IN_PROGRESS').length;
+    row.inProgress = owned.filter((item) => item.status === 'IN_PROGRESS' || item.status === 'IN_REVIEW').length;
     row.todo = row.total - row.done - row.inProgress;
     row.progress = row.total ? Math.round((row.done / row.total) * 100) : 0;
   }
 
-  get employeeName(): string {
-    return localStorage.getItem('name') || localStorage.getItem('email') || 'there';
-  }
-
-  get firstName(): string {
-    return (this.employeeName || '').split(' ')[0] || this.employeeName;
-  }
-
-  /** The tester whose board is on screen (admin picker) or the signed-in one. */
   get selectedRow(): TeamMemberRow | null {
     return this.teamRows.find((row) => row.email === this.selectedEmail) || null;
   }
@@ -174,17 +207,23 @@ export class TesterDashboardComponent implements OnInit {
     return this.selectedRow?.name || '';
   }
 
-  /** The list the board is talking about: the picked tester's queue for an admin. */
   get boardTasks(): TaskItem[] {
     if (!this.isAdmin) {
       return this.myTasks;
     }
     if (!this.selectedEmail) {
-      return [];
+      return this.teamTasks;
     }
     return this.teamTasks.filter(
       (task) => (task.user?.email || '').trim().toLowerCase() === this.selectedEmail
     );
+  }
+
+  get urgentVerificationItems(): TaskItem[] {
+    return this.boardTasks.filter((t) => {
+      if (t.status === 'DONE') return false;
+      return t.priority === 'High' || t.priority === 'Critical' || t.kind === 'BUG';
+    });
   }
 
   get pending(): number {
@@ -195,10 +234,15 @@ export class TesterDashboardComponent implements OnInit {
     return this.boardTasks.filter((task) => task.status === 'DONE').length;
   }
 
-  /** In flight covers both the working and the review state. */
   get inProgress(): TaskItem[] {
     return this.boardTasks.filter(
       (task) => task.status === 'IN_PROGRESS' || task.status === 'IN_REVIEW'
+    );
+  }
+
+  get todoTasks(): TaskItem[] {
+    return this.boardTasks.filter(
+      (task) => task.status !== 'DONE' && task.status !== 'IN_PROGRESS' && task.status !== 'IN_REVIEW'
     );
   }
 
@@ -206,7 +250,18 @@ export class TesterDashboardComponent implements OnInit {
     return this.boardTasks.length ? Math.round((this.completed / this.boardTasks.length) * 100) : 0;
   }
 
-  /** Distinct projects behind the queue, shown to the admin as a headline number. */
+  get teamTotalQueue(): number {
+    return this.teamTasks.length;
+  }
+
+  get teamInProgressCount(): number {
+    return this.teamTasks.filter((t) => t.status === 'IN_PROGRESS' || t.status === 'IN_REVIEW').length;
+  }
+
+  get teamVerifiedCount(): number {
+    return this.teamTasks.filter((t) => t.status === 'DONE').length;
+  }
+
   get projectCount(): number {
     return new Set(
       this.boardTasks
@@ -215,12 +270,6 @@ export class TesterDashboardComponent implements OnInit {
     ).size;
   }
 
-  /**
-   * The queue grouped by project, each group keeping its own records so the
-   * row can open the detail popup. Same card, same popup as the developer
-   * board; "done" reads as "verified" here. 'Unassigned' collects the loose
-   * items so nothing on the queue disappears from this list.
-   */
   get projectRows(): { name: string; taskCount: number; doneCount: number; tasks: TaskItem[] }[] {
     const map = new Map<string, { name: string; taskCount: number; doneCount: number; tasks: TaskItem[] }>();
     this.boardTasks.forEach((task) => {
@@ -236,7 +285,6 @@ export class TesterDashboardComponent implements OnInit {
     return Array.from(map.values());
   }
 
-  /** A project row is a door: it opens every item behind it in full. */
   openProject(project: { name: string; tasks: TaskItem[] }): void {
     this.dialog.open(ProjectTasksDialog, {
       data: { project: project.name, tasks: project.tasks, doneLabel: 'verified' } as ProjectTasksData,
@@ -247,7 +295,6 @@ export class TesterDashboardComponent implements OnInit {
     });
   }
 
-  /** Where "my queue" points: the admin has no personal queue any more. */
   get taskListLink(): string {
     return this.isAdmin ? '/tasks' : '/my-tasks';
   }
@@ -256,12 +303,10 @@ export class TesterDashboardComponent implements OnInit {
     this.router.navigate([this.taskListLink]);
   }
 
-  /** Every item the team raises starts on this one screen. */
   goToRaise() {
     this.router.navigate(['/issues/new']);
   }
 
-  /** The testing team leader's decision screen. */
   goToApprovals() {
     this.router.navigate(['/approvals']);
   }

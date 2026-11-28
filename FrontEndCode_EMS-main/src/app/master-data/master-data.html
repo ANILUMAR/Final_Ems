@@ -1,268 +1,620 @@
 <section class="ems-page">
+  <!-- Header -->
   <header class="ems-page-head">
     <div>
-      <h1 class="ems-page-title">Master data</h1>
+      <h1 class="ems-page-title">Module & Screen Setup</h1>
       <p class="ems-page-subtitle">
-        The module, sub module and screen values offered on the task forms. Add a value once here
-        and every new task can pick it.
+        Manage the 3-tier functional hierarchy (Modules → Sub-Modules → Screens) used across tasks, bugs, and project workflows.
       </p>
+
+      <!-- Quick Metric Badges -->
+      <div class="md-header-stats">
+        <span class="md-stat-badge">
+          <mat-icon>folder</mat-icon>
+          <strong>{{ modules.length }}</strong> Modules
+        </span>
+        <span class="md-stat-badge">
+          <mat-icon>account_tree</mat-icon>
+          <strong>{{ totalSubModulesCount }}</strong> Sub-Modules
+        </span>
+        <span class="md-stat-badge">
+          <mat-icon>desktop_windows</mat-icon>
+          <strong>{{ totalScreensCount }}</strong> Screens
+        </span>
+      </div>
     </div>
+
     <div class="ems-actions">
-      <button mat-stroked-button type="button" matTooltip="Reload all three lists" (click)="reload()">
+      <a mat-stroked-button class="md-btn-dyn-hub" routerLink="/dynamic-masters" matTooltip="Open Dynamic Master Hub & Form Designer" style="border-color:#38bdf8;color:#38bdf8;">
+        <mat-icon>dynamic_form</mat-icon>
+        Dynamic Master Hub
+      </a>
+      <button mat-stroked-button type="button" class="md-btn-template" *ngIf="canExport" matTooltip="Download pre-formatted Excel template" (click)="downloadSampleTemplate()">
+        <mat-icon>file_download</mat-icon>
+        Template
+      </button>
+      <button mat-flat-button color="primary" type="button" class="md-btn-upload-top" *ngIf="canEdit" matTooltip="Upload Modules, Sub-Modules, and Screens via Excel" (click)="openUploadModal()">
+        <mat-icon>upload_file</mat-icon>
+        Upload Excel
+      </button>
+      <button mat-stroked-button type="button" matTooltip="Reload all lists" (click)="reload()">
         <mat-icon>refresh</mat-icon>
         Refresh
       </button>
     </div>
   </header>
 
-  <!-- Who may write is said once, at the top, instead of on every column. -->
-  <div class="ems-auth__note">
-    <mat-icon>{{ canEdit ? 'verified_user' : 'visibility' }}</mat-icon>
-    <span *ngIf="canEdit; else readOnly">
-      You can add and retire values. Retiring keeps the name on work that already uses it — it
-      only stops offering it on new tasks.
-    </span>
-    <ng-template #readOnly>
-      <span>
-        You can read these lists. Adding and retiring belongs to an administrator, who can also
-        hand the right to a tester on Registered employees.
+  <!-- Interactive Hierarchy Flow Breadcrumb Bar -->
+  <div class="md-trail-bar">
+    <div class="md-trail-track">
+      <span class="md-trail-label">Active Flow:</span>
+
+      <!-- Step 1 pill -->
+      <button
+        type="button"
+        class="md-trail-item"
+        [class.is-active]="moduleId === null"
+        (click)="resetHierarchy()"
+        matTooltip="View all top-level modules">
+        <mat-icon>folder_open</mat-icon>
+        <span>All Modules ({{ modules.length }})</span>
+      </button>
+
+      <mat-icon class="md-trail-sep">chevron_right</mat-icon>
+
+      <!-- Step 2 pill -->
+      <button
+        type="button"
+        class="md-trail-item"
+        [class.is-active]="moduleId !== null && subModuleId === null"
+        [class.is-disabled]="moduleId === null"
+        [disabled]="moduleId === null"
+        (click)="clearSubModuleSelection()"
+        [matTooltip]="moduleId ? 'Selected module: ' + selectedModuleName : 'Select a module in Step 1'">
+        <mat-icon>account_tree</mat-icon>
+        <span>{{ selectedModuleName || 'No Module Selected' }}</span>
+        <mat-icon *ngIf="moduleId !== null" class="md-trail-clear" (click)="$event.stopPropagation(); resetHierarchy()" title="Deselect module">close</mat-icon>
+      </button>
+
+      <mat-icon class="md-trail-sep">chevron_right</mat-icon>
+
+      <!-- Step 3 pill -->
+      <span
+        class="md-trail-item"
+        [class.is-active]="subModuleId !== null"
+        [class.is-disabled]="subModuleId === null"
+        [matTooltip]="subModuleId ? 'Selected sub-module: ' + selectedSubModuleName : 'Select a sub-module in Step 2'">
+        <mat-icon>desktop_windows</mat-icon>
+        <span>{{ selectedSubModuleName || 'No Sub-Module Selected' }}</span>
+        <mat-icon *ngIf="subModuleId !== null" class="md-trail-clear" (click)="$event.stopPropagation(); clearSubModuleSelection()" title="Deselect sub-module">close</mat-icon>
       </span>
-    </ng-template>
+    </div>
+
+    <!-- Right side: Tip -->
+    <div class="md-trail-hint">
+      <mat-icon>info_outline</mat-icon>
+      <span>Select a module to view its sub-modules, then select a sub-module to manage screens.</span>
+    </div>
   </div>
 
+  <!-- Error banner if any -->
   <div class="ems-auth__note ems-auth__note--error" *ngIf="errorMessage">
     <mat-icon>error_outline</mat-icon>
     <span>{{ errorMessage }}</span>
   </div>
 
+  <!-- The 3 Column Cards -->
   <div class="md-grid">
-    <!-- 1. Modules -->
-    <article class="ems-card md-col">
+    <!-- ==================== STEP 1: MODULES ==================== -->
+    <article class="ems-card md-col md-col--step1">
       <header class="md-col__head">
-        <span class="md-col__step">Step 1</span>
-        <h2 class="ems-section-title">Modules</h2>
+        <div class="md-col__title-row">
+          <div class="md-step-badge md-step-badge--1">
+            <span>1</span>
+          </div>
+          <div class="md-col__titles">
+            <h2 class="ems-section-title">Modules</h2>
+            <p class="md-col__subtitle">Top-level product domains</p>
+          </div>
+          <span class="md-col-counter">{{ filteredModules.length }}</span>
+        </div>
+
+        <!-- Search input for modules -->
+        <div class="md-search-box">
+          <mat-icon class="md-search-icon">search</mat-icon>
+          <input
+            type="text"
+            class="md-search-input"
+            [(ngModel)]="searchModule"
+            placeholder="Filter modules..." />
+          <button
+            type="button"
+            class="md-search-clear"
+            *ngIf="searchModule"
+            (click)="clearSearch('module')">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
       </header>
-      <p class="md-col__hint ems-dim">
-        A part of the product, such as Timesheet or Authentication.
-        <ng-container *ngIf="modules.length"> {{ modules.length }} so far.</ng-container>
-      </p>
 
-      <ul class="md-list" *ngIf="modules.length; else noModules">
-        <li *ngFor="let module of pagedModules">
-          <button
-            type="button"
-            class="md-row"
-            [class.is-active]="moduleId === module.id"
-            [attr.aria-pressed]="moduleId === module.id"
-            (click)="selectModule(module)">
-            <mat-icon>folder_open</mat-icon>
-            <span class="md-row__name">{{ module.name }}</span>
-            <span class="md-row__count" matTooltip="Sub modules under this module">
-              {{ subModuleCount(module) }}
-            </span>
-          </button>
-          <button
-            *ngIf="canEdit"
-            mat-icon-button
-            type="button"
-            class="md-row__act"
-            [disabled]="saving"
-            [matTooltip]="retireHint(module)"
-            [attr.aria-label]="'Retire ' + module.name"
-            (click)="retire(module)">
-            <mat-icon>remove_circle_outline</mat-icon>
-          </button>
-        </li>
-      </ul>
+      <!-- List of modules -->
+      <div class="md-list-wrap">
+        <ul class="md-list" *ngIf="filteredModules.length; else noModulesTemplate">
+          <li *ngFor="let module of pagedModules">
+            <button
+              type="button"
+              class="md-row"
+              [class.is-active]="moduleId === module.id"
+              (click)="selectModule(module)">
+              <mat-icon class="md-row-icon">folder</mat-icon>
+              <span class="md-row__name">{{ module.name }}</span>
+              <span class="md-row__count" matTooltip="Sub-modules under this module">
+                <mat-icon style="font-size:12px;width:12px;height:12px">account_tree</mat-icon>
+                {{ subModuleCount(module) }}
+              </span>
+              <mat-icon class="md-row__arrow" *ngIf="moduleId === module.id">chevron_right</mat-icon>
+            </button>
+            <button
+              *ngIf="canDelete"
+              type="button"
+              class="md-row__delete-btn"
+              [disabled]="saving"
+              [matTooltip]="retireHint(module)"
+              (click)="retire(module)">
+              <mat-icon>delete_outline</mat-icon>
+            </button>
+          </li>
+        </ul>
 
-      <ng-template #noModules>
-        <p class="md-empty">{{ loading ? 'Loading the lists…' : 'No modules yet.' }}</p>
-      </ng-template>
+        <ng-template #noModulesTemplate>
+          <div class="md-empty-card">
+            <mat-icon>{{ searchModule ? 'search_off' : 'folder_off' }}</mat-icon>
+            <p *ngIf="searchModule">No modules match "{{ searchModule }}"</p>
+            <p *ngIf="!searchModule">{{ loading ? 'Loading modules...' : 'No modules found. Add the first one below.' }}</p>
+          </div>
+        </ng-template>
+      </div>
 
-      <!-- Five rows a column by default. The strip appears once a column runs
-           past one small page, so a short vocabulary keeps its plain look. -->
+      <!-- Module pager if > smallestPage -->
       <app-pager
-        *ngIf="modules.length > smallestPage"
+        *ngIf="filteredModules.length > smallestPage"
         [compact]="true"
-        [length]="modules.length"
+        [length]="filteredModules.length"
         [(pageIndex)]="modulePage"
         [pageSize]="pageSize"
         (pageSizeChange)="setPageSize($event)"
         noun="module">
       </app-pager>
 
-      <div class="md-add" *ngIf="canEdit">
-        <mat-form-field appearance="outline">
-          <mat-label>Add a module</mat-label>
+      <!-- Add module inline bar -->
+      <div class="md-add-bar" *ngIf="canEdit">
+        <div class="md-add-input-wrap">
+          <mat-icon class="md-add-lead-icon">add</mat-icon>
           <input
-            matInput
+            type="text"
+            class="md-add-text-input"
             maxlength="120"
             [(ngModel)]="newModule"
+            placeholder="Add new module..."
             [disabled]="saving"
             (keyup.enter)="addModule()" />
-        </mat-form-field>
+        </div>
         <button
-          mat-flat-button
-          color="primary"
           type="button"
+          class="md-add-submit-btn"
           [disabled]="!newModule.trim() || saving"
           (click)="addModule()">
-          <mat-icon>add</mat-icon>
-          Save
+          <span>Add</span>
         </button>
       </div>
     </article>
 
-    <!-- 2. Sub modules -->
-    <article class="ems-card md-col">
+    <!-- ==================== STEP 2: SUB MODULES ==================== -->
+    <article
+      class="ems-card md-col md-col--step2"
+      [class.is-inactive]="moduleId === null">
       <header class="md-col__head">
-        <span class="md-col__step">Step 2</span>
-        <h2 class="ems-section-title">Sub modules</h2>
+        <div class="md-col__title-row">
+          <div class="md-step-badge md-step-badge--2">
+            <span>2</span>
+          </div>
+          <div class="md-col__titles">
+            <h2 class="ems-section-title">Sub Modules</h2>
+            <p class="md-col__subtitle" *ngIf="moduleId !== null">
+              Under: <strong class="md-parent-highlight">{{ selectedModuleName }}</strong>
+            </p>
+            <p class="md-col__subtitle" *ngIf="moduleId === null">Components within a module</p>
+          </div>
+          <span class="md-col-counter" *ngIf="moduleId !== null">{{ filteredSubModules.length }}</span>
+        </div>
+
+        <!-- Search input for sub-modules (visible only when module is selected) -->
+        <div class="md-search-box" *ngIf="moduleId !== null && subModules.length > 0">
+          <mat-icon class="md-search-icon">search</mat-icon>
+          <input
+            type="text"
+            class="md-search-input"
+            [(ngModel)]="searchSubModule"
+            placeholder="Filter sub-modules..." />
+          <button
+            type="button"
+            class="md-search-clear"
+            *ngIf="searchSubModule"
+            (click)="clearSearch('subModule')">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
       </header>
-      <p class="md-col__hint ems-dim" *ngIf="moduleId === null">
-        Pick a module on the left first — a sub module belongs to one.
-      </p>
-      <p class="md-col__hint ems-dim" *ngIf="moduleId !== null">
-        {{ selectedModuleName }} · {{ subModules.length }} sub module{{ subModules.length === 1 ? '' : 's' }}
-      </p>
 
-      <ul class="md-list" *ngIf="subModules.length; else noSubModules">
-        <li *ngFor="let subModule of pagedSubModules">
-          <button
-            type="button"
-            class="md-row"
-            [class.is-active]="subModuleId === subModule.id"
-            [attr.aria-pressed]="subModuleId === subModule.id"
-            (click)="selectSubModule(subModule)">
-            <mat-icon>account_tree</mat-icon>
-            <span class="md-row__name">{{ subModule.name }}</span>
-            <span class="md-row__count" matTooltip="Screens under this sub module">
-              {{ screenCount(subModule) }}
-            </span>
-          </button>
-          <button
-            *ngIf="canEdit"
-            mat-icon-button
-            type="button"
-            class="md-row__act"
-            [disabled]="saving"
-            [matTooltip]="retireHint(subModule)"
-            [attr.aria-label]="'Retire ' + subModule.name"
-            (click)="retire(subModule)">
-            <mat-icon>remove_circle_outline</mat-icon>
-          </button>
-        </li>
-      </ul>
+      <!-- Content area -->
+      <div class="md-list-wrap">
+        <!-- If no module selected -->
+        <div class="md-guide-state" *ngIf="moduleId === null">
+          <mat-icon class="md-guide-icon">west</mat-icon>
+          <h4>Select a Module</h4>
+          <p>Click on any module in Step 1 to view and manage its sub-modules.</p>
+        </div>
 
-      <ng-template #noSubModules>
-        <p class="md-empty">
-          {{ loading ? 'Loading the lists…'
-             : (moduleId === null ? 'No module chosen yet.' : 'This module has no sub modules yet.') }}
-        </p>
-      </ng-template>
+        <!-- If module selected -->
+        <ng-container *ngIf="moduleId !== null">
+          <ul class="md-list" *ngIf="filteredSubModules.length; else noSubModulesTemplate">
+            <li *ngFor="let subModule of pagedSubModules">
+              <button
+                type="button"
+                class="md-row"
+                [class.is-active]="subModuleId === subModule.id"
+                (click)="selectSubModule(subModule)">
+                <mat-icon class="md-row-icon">account_tree</mat-icon>
+                <span class="md-row__name">{{ subModule.name }}</span>
+                <span class="md-row__count" matTooltip="Screens under this sub-module">
+                  <mat-icon style="font-size:12px;width:12px;height:12px">desktop_windows</mat-icon>
+                  {{ screenCount(subModule) }}
+                </span>
+                <mat-icon class="md-row__arrow" *ngIf="subModuleId === subModule.id">chevron_right</mat-icon>
+              </button>
+              <button
+                *ngIf="canDelete"
+                type="button"
+                class="md-row__delete-btn"
+                [disabled]="saving"
+                [matTooltip]="retireHint(subModule)"
+                (click)="retire(subModule)">
+                <mat-icon>delete_outline</mat-icon>
+              </button>
+            </li>
+          </ul>
 
+          <ng-template #noSubModulesTemplate>
+            <div class="md-empty-card">
+              <mat-icon>{{ searchSubModule ? 'search_off' : 'post_add' }}</mat-icon>
+              <p *ngIf="searchSubModule">No sub-modules match "{{ searchSubModule }}"</p>
+              <p *ngIf="!searchSubModule">No sub-modules yet under "{{ selectedModuleName }}". Add one below.</p>
+            </div>
+          </ng-template>
+        </ng-container>
+      </div>
+
+      <!-- Sub-module pager -->
       <app-pager
-        *ngIf="subModules.length > smallestPage"
+        *ngIf="moduleId !== null && filteredSubModules.length > smallestPage"
         [compact]="true"
-        [length]="subModules.length"
+        [length]="filteredSubModules.length"
         [(pageIndex)]="subModulePage"
         [pageSize]="pageSize"
         (pageSizeChange)="setPageSize($event)"
         noun="sub module">
       </app-pager>
 
-      <div class="md-add" *ngIf="canEdit">
-        <mat-form-field appearance="outline">
-          <mat-label>Add a sub module</mat-label>
+      <!-- Add sub-module bar -->
+      <div class="md-add-bar" *ngIf="canEdit">
+        <div class="md-add-input-wrap" [class.is-disabled]="moduleId === null">
+          <mat-icon class="md-add-lead-icon">add</mat-icon>
           <input
-            matInput
+            type="text"
+            class="md-add-text-input"
             maxlength="120"
             [(ngModel)]="newSubModule"
+            [placeholder]="moduleId === null ? 'Select a module first' : 'Add sub-module to ' + selectedModuleName + '...'"
             [disabled]="saving || moduleId === null"
             (keyup.enter)="addSubModule()" />
-        </mat-form-field>
+        </div>
         <button
-          mat-flat-button
-          color="primary"
           type="button"
+          class="md-add-submit-btn"
           [disabled]="!newSubModule.trim() || moduleId === null || saving"
           (click)="addSubModule()">
-          <mat-icon>add</mat-icon>
-          Save
+          <span>Add</span>
         </button>
       </div>
     </article>
 
-    <!-- 3. Screens -->
-    <article class="ems-card md-col">
+    <!-- ==================== STEP 3: SCREENS ==================== -->
+    <article
+      class="ems-card md-col md-col--step3"
+      [class.is-inactive]="subModuleId === null">
       <header class="md-col__head">
-        <span class="md-col__step">Step 3</span>
-        <h2 class="ems-section-title">Screens</h2>
-      </header>
-      <p class="md-col__hint ems-dim" *ngIf="subModuleId === null">
-        Pick a sub module first — a screen belongs to one.
-      </p>
-      <p class="md-col__hint ems-dim" *ngIf="subModuleId !== null">
-        {{ selectedSubModuleName }} · {{ screens.length }} screen{{ screens.length === 1 ? '' : 's' }}
-      </p>
+        <div class="md-col__title-row">
+          <div class="md-step-badge md-step-badge--3">
+            <span>3</span>
+          </div>
+          <div class="md-col__titles">
+            <h2 class="ems-section-title">Screens</h2>
+            <p class="md-col__subtitle" *ngIf="subModuleId !== null">
+              Under: <strong class="md-parent-highlight">{{ selectedSubModuleName }}</strong>
+            </p>
+            <p class="md-col__subtitle" *ngIf="subModuleId === null">Individual screens & pages</p>
+          </div>
+          <span class="md-col-counter" *ngIf="subModuleId !== null">{{ filteredScreens.length }}</span>
+        </div>
 
-      <ul class="md-list" *ngIf="screens.length; else noScreens">
-        <li *ngFor="let screen of pagedScreens">
-          <span class="md-row md-row--static">
-            <mat-icon>web_asset</mat-icon>
-            <span class="md-row__name">{{ screen.name }}</span>
-          </span>
+        <!-- Search input for screens -->
+        <div class="md-search-box" *ngIf="subModuleId !== null && screens.length > 0">
+          <mat-icon class="md-search-icon">search</mat-icon>
+          <input
+            type="text"
+            class="md-search-input"
+            [(ngModel)]="searchScreen"
+            placeholder="Filter screens..." />
           <button
-            *ngIf="canEdit"
-            mat-icon-button
             type="button"
-            class="md-row__act"
-            [disabled]="saving"
-            [matTooltip]="retireHint(screen)"
-            [attr.aria-label]="'Retire ' + screen.name"
-            (click)="retire(screen)">
-            <mat-icon>remove_circle_outline</mat-icon>
+            class="md-search-clear"
+            *ngIf="searchScreen"
+            (click)="clearSearch('screen')">
+            <mat-icon>close</mat-icon>
           </button>
-        </li>
-      </ul>
+        </div>
+      </header>
 
-      <ng-template #noScreens>
-        <p class="md-empty">
-          {{ loading ? 'Loading the lists…'
-             : (subModuleId === null ? 'No sub module chosen yet.' : 'This sub module has no screens yet.') }}
-        </p>
-      </ng-template>
+      <!-- Content area -->
+      <div class="md-list-wrap">
+        <!-- If no sub-module selected -->
+        <div class="md-guide-state" *ngIf="subModuleId === null">
+          <mat-icon class="md-guide-icon">west</mat-icon>
+          <h4>Select a Sub-Module</h4>
+          <p>Choose a sub-module in Step 2 to view and manage its screens.</p>
+        </div>
 
+        <!-- If sub-module selected -->
+        <ng-container *ngIf="subModuleId !== null">
+          <ul class="md-list" *ngIf="filteredScreens.length; else noScreensTemplate">
+            <li *ngFor="let screen of pagedScreens">
+              <span class="md-row md-row--static">
+                <mat-icon class="md-row-icon">desktop_windows</mat-icon>
+                <span class="md-row__name">{{ screen.name }}</span>
+              </span>
+              <div class="md-row-tools" style="display:flex;align-items:center;gap:4px;">
+                <a
+                  class="md-row__action-link"
+                  [routerLink]="['/dynamic-masters/builder']"
+                  [queryParams]="{ name: screen.name, module: selectedModuleName, subModule: selectedSubModuleName }"
+                  matTooltip="Design Dynamic Form for this screen"
+                  style="color:#38bdf8;padding:4px;display:inline-flex;border-radius:4px;">
+                  <mat-icon style="font-size:18px;width:18px;height:18px;">tune</mat-icon>
+                </a>
+                <button
+                  *ngIf="canDelete"
+                  type="button"
+                  class="md-row__delete-btn"
+                  [disabled]="saving"
+                  [matTooltip]="retireHint(screen)"
+                  (click)="retire(screen)">
+                  <mat-icon>delete_outline</mat-icon>
+                </button>
+              </div>
+            </li>
+          </ul>
+
+          <ng-template #noScreensTemplate>
+            <div class="md-empty-card">
+              <mat-icon>{{ searchScreen ? 'search_off' : 'web_asset_off' }}</mat-icon>
+              <p *ngIf="searchScreen">No screens match "{{ searchScreen }}"</p>
+              <p *ngIf="!searchScreen">No screens yet under "{{ selectedSubModuleName }}". Add one below.</p>
+            </div>
+          </ng-template>
+        </ng-container>
+      </div>
+
+      <!-- Screen pager -->
       <app-pager
-        *ngIf="screens.length > smallestPage"
+        *ngIf="subModuleId !== null && filteredScreens.length > smallestPage"
         [compact]="true"
-        [length]="screens.length"
+        [length]="filteredScreens.length"
         [(pageIndex)]="screenPage"
         [pageSize]="pageSize"
         (pageSizeChange)="setPageSize($event)"
         noun="screen">
       </app-pager>
 
-      <div class="md-add" *ngIf="canEdit">
-        <mat-form-field appearance="outline">
-          <mat-label>Add a screen</mat-label>
+      <!-- Add screen bar -->
+      <div class="md-add-bar" *ngIf="canEdit">
+        <div class="md-add-input-wrap" [class.is-disabled]="subModuleId === null">
+          <mat-icon class="md-add-lead-icon">add</mat-icon>
           <input
-            matInput
+            type="text"
+            class="md-add-text-input"
             maxlength="120"
             [(ngModel)]="newScreen"
+            [placeholder]="subModuleId === null ? 'Select a sub-module first' : 'Add screen to ' + selectedSubModuleName + '...'"
             [disabled]="saving || subModuleId === null"
             (keyup.enter)="addScreen()" />
-        </mat-form-field>
+        </div>
+        <button
+          type="button"
+          class="md-add-submit-btn"
+          [disabled]="!newScreen.trim() || subModuleId === null || saving"
+          (click)="addScreen()">
+          <span>Add</span>
+        </button>
+      </div>
+    </article>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- EXCEL UPLOAD MODAL DIALOG                                                 -->
+  <!-- ========================================================================= -->
+  <div class="md-modal-overlay" *ngIf="showUploadModal" (click)="closeUploadModal()">
+    <div class="md-modal-dialog" (click)="$event.stopPropagation()">
+      <div class="md-modal-head">
+        <div class="md-modal-head__title">
+          <mat-icon class="md-modal-head__icon">upload_file</mat-icon>
+          <div>
+            <h3>Upload Module & Screen Setup</h3>
+            <p>Upload an Excel (.xlsx, .xls) file to dynamically set up Modules, Sub-Modules, and Screens.</p>
+          </div>
+        </div>
+        <button mat-icon-button type="button" (click)="closeUploadModal()" [disabled]="uploading">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+
+      <div class="md-modal-body">
+        <!-- File Dropzone -->
+        <div
+          class="md-dropzone"
+          [class.is-dragover]="isDragging"
+          [class.has-file]="!!selectedFile"
+          (dragover)="onDragOver($event)"
+          (dragleave)="onDragLeave($event)"
+          (drop)="onFileDrop($event)"
+          (click)="fileInput.click()">
+          <input
+            #fileInput
+            type="file"
+            accept=".xlsx, .xls"
+            style="display: none"
+            (change)="onFileSelected($event)" />
+
+          <div *ngIf="!selectedFile" class="md-dropzone-content">
+            <mat-icon class="md-dropzone-icon">cloud_upload</mat-icon>
+            <h4>Click to browse or drag & drop Excel file</h4>
+            <p>Supports <strong>.xlsx</strong> and <strong>.xls</strong> files with columns: <strong>Module</strong>, <strong>Sub Module</strong>, and <strong>Screen</strong></p>
+            <div class="md-dropzone-actions">
+              <span class="md-dropzone-btn">
+                <mat-icon>folder_open</mat-icon>
+                Select Excel File
+              </span>
+            </div>
+          </div>
+
+          <div *ngIf="selectedFile" class="md-file-info-strip">
+            <mat-icon class="md-file-icon">description</mat-icon>
+            <div class="md-file-meta">
+              <strong class="md-file-name">{{ selectedFile.name }}</strong>
+              <span class="md-file-size">{{ formatFileSize(selectedFile.size) }}</span>
+            </div>
+            <button mat-icon-button type="button" class="md-file-remove" (click)="$event.stopPropagation(); removeSelectedFile()" [disabled]="uploading">
+              <mat-icon>delete_outline</mat-icon>
+            </button>
+          </div>
+        </div>
+
+        <!-- Template Download Help Banner -->
+        <div class="md-template-tip">
+          <mat-icon>lightbulb_outline</mat-icon>
+          <div class="md-tt-text">
+            <span>Need the standard layout? Download the sample Excel template.</span>
+          </div>
+          <button type="button" class="md-tt-btn" (click)="downloadSampleTemplate()">
+            <mat-icon>file_download</mat-icon>
+            Download Template
+          </button>
+        </div>
+
+        <!-- Preview Statistics Summary -->
+        <div class="md-preview-summary" *ngIf="parsedPreviewRows.length > 0">
+          <div class="md-ps-badge md-ps-badge--rows">
+            <mat-icon>table_chart</mat-icon>
+            <strong>{{ parsedPreviewRows.length }}</strong> Rows Detected
+          </div>
+          <div class="md-ps-badge md-ps-badge--mod">
+            <mat-icon>folder</mat-icon>
+            <strong>{{ previewModuleCount }}</strong> Unique Modules
+          </div>
+          <div class="md-ps-badge md-ps-badge--sub">
+            <mat-icon>account_tree</mat-icon>
+            <strong>{{ previewSubModuleCount }}</strong> Sub-Modules
+          </div>
+          <div class="md-ps-badge md-ps-badge--screen">
+            <mat-icon>desktop_windows</mat-icon>
+            <strong>{{ previewScreenCount }}</strong> Screens
+          </div>
+        </div>
+
+        <!-- Preview Table -->
+        <div class="md-preview-wrap" *ngIf="parsedPreviewRows.length > 0">
+          <div class="md-preview-head">
+            <span>Data Preview (Showing first {{ Math.min(parsedPreviewRows.length, 10) }} of {{ parsedPreviewRows.length }} rows)</span>
+          </div>
+          <div class="md-preview-table-scroll">
+            <table class="md-preview-table">
+              <thead>
+                <tr>
+                  <th style="width: 45px">#</th>
+                  <th>Module</th>
+                  <th>Sub-Module</th>
+                  <th>Screen</th>
+                  <th style="width: 85px">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let row of previewSlice; let i = index">
+                  <td class="md-pt-num">{{ i + 1 }}</td>
+                  <td>
+                    <span class="md-cell-module" *ngIf="row.module">
+                      <mat-icon>folder</mat-icon>
+                      {{ row.module }}
+                    </span>
+                    <span class="md-cell-empty" *ngIf="!row.module">—</span>
+                  </td>
+                  <td>
+                    <span class="md-cell-sub" *ngIf="row.subModule">
+                      <mat-icon>account_tree</mat-icon>
+                      {{ row.subModule }}
+                    </span>
+                    <span class="md-cell-empty" *ngIf="!row.subModule">—</span>
+                  </td>
+                  <td>
+                    <span class="md-cell-screen" *ngIf="row.screen">
+                      <mat-icon>desktop_windows</mat-icon>
+                      {{ row.screen }}
+                    </span>
+                    <span class="md-cell-empty" *ngIf="!row.screen">—</span>
+                  </td>
+                  <td>
+                    <span class="md-status-pill md-status-pill--valid" *ngIf="row.isValid">Ready</span>
+                    <span class="md-status-pill md-status-pill--warn" *ngIf="!row.isValid">Incomplete</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Warning list if any -->
+        <div class="md-import-warnings" *ngIf="importWarnings.length > 0">
+          <h4><mat-icon>warning_amber</mat-icon> Notices ({{ importWarnings.length }})</h4>
+          <ul>
+            <li *ngFor="let warn of importWarnings">{{ warn }}</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="md-modal-foot">
+        <button mat-button type="button" (click)="closeUploadModal()" [disabled]="uploading">
+          Cancel
+        </button>
         <button
           mat-flat-button
           color="primary"
           type="button"
-          [disabled]="!newScreen.trim() || subModuleId === null || saving"
-          (click)="addScreen()">
-          <mat-icon>add</mat-icon>
-          Save
+          class="md-btn-confirm-import"
+          [disabled]="!selectedFile || parsedPreviewRows.length === 0 || uploading"
+          (click)="confirmImport()">
+          <mat-icon *ngIf="!uploading">cloud_upload</mat-icon>
+          <span *ngIf="uploading">Uploading & Saving...</span>
+          <span *ngIf="!uploading">Import & Save to Database</span>
         </button>
       </div>
-    </article>
+    </div>
   </div>
 </section>

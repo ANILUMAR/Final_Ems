@@ -1,7 +1,7 @@
 <div class="ems-page">
   <div class="ems-page-head">
     <div>
-      <h1 class="ems-page-title">Raise a task or a bug</h1>
+      <h1 class="ems-page-title">Raise a ticket or a bug</h1>
       <p class="ems-page-subtitle" *ngIf="!skipsReview">
         Your report is numbered at once, then reviewed by the testing team leader before it reaches development.
       </p>
@@ -42,8 +42,8 @@
         >
           <mat-icon>task_alt</mat-icon>
           <span>
-            <strong>Task</strong>
-            <small>Work the product does not do yet</small>
+            <strong>Ticket</strong>
+            <small>Work or feature request for the product</small>
           </span>
         </button>
         <button
@@ -57,6 +57,19 @@
           <span>
             <strong>Bug</strong>
             <small>Something that works incorrectly</small>
+          </span>
+        </button>
+        <button
+          type="button"
+          class="kind-switch__option"
+          [class.is-active]="kind === 'PRODUCTION_ISSUE'"
+          [class.is-prod]="kind === 'PRODUCTION_ISSUE'"
+          (click)="kind = 'PRODUCTION_ISSUE'"
+        >
+          <mat-icon>warning</mat-icon>
+          <span>
+            <strong>Production Issue</strong>
+            <small>Live production issue / support defect</small>
           </span>
         </button>
       </div>
@@ -120,13 +133,13 @@
       </mat-form-field>
 
       <mat-form-field appearance="outline">
-        <mat-label>{{ kind === 'BUG' ? 'What happened, and what did you expect' : 'What should it do' }}</mat-label>
+        <mat-label>{{ kind === 'BUG' ? 'What happened, and what did you expect' : (kind === 'PRODUCTION_ISSUE' ? 'Production issue description & impact' : 'What should it do') }}</mat-label>
         <textarea matInput rows="6" [(ngModel)]="description" maxlength="500"></textarea>
         <mat-hint align="end">{{ description.length }}/500</mat-hint>
       </mat-form-field>
 
-      <!-- Bug Reproduction Steps & Drag-and-Drop Flow Designer (Requirements 2, 3 & 4) -->
-      <div *ngIf="kind === 'BUG'" class="bug-repro-section">
+      <!-- Bug & Production Issue Reproduction Steps & Drag-and-Drop Flow Designer -->
+      <div *ngIf="kind === 'BUG' || kind === 'PRODUCTION_ISSUE'" class="bug-repro-section">
         <div class="bug-repro-header">
           <div>
             <h3 class="bug-repro-title">
@@ -195,17 +208,21 @@
       </div>
 
       <div class="raise-footer">
-        <p class="raise-hint" *ngIf="!skipsReview">
+        <p class="raise-hint" *ngIf="kind === 'PRODUCTION_ISSUE'">
+          <mat-icon>shield</mat-icon>
+          Production issues are assigned directly to the team member or leader configured for Production Support.
+        </p>
+        <p class="raise-hint" *ngIf="kind !== 'PRODUCTION_ISSUE' && !skipsReview">
           <mat-icon>arrow_forward</mat-icon>
           It goes to the testing team leader. Approving it puts it on the developer team leader's assignment queue.
         </p>
-        <p class="raise-hint" *ngIf="skipsReview">
+        <p class="raise-hint" *ngIf="kind !== 'PRODUCTION_ISSUE' && skipsReview">
           <mat-icon>arrow_forward</mat-icon>
           You approve your own side, so it goes straight to the assignment queue for a developer to pick up.
         </p>
         <button mat-flat-button color="primary" type="button" [disabled]="!canSubmit" (click)="submit()">
           <mat-icon>{{ saving ? 'hourglass_top' : 'send' }}</mat-icon>
-          {{ saving ? 'Sending…' : (skipsReview ? 'Send' : 'Send for review') }}
+          {{ saving ? 'Sending…' : (kind === 'PRODUCTION_ISSUE' || skipsReview ? 'Send' : 'Send for review') }}
         </button>
       </div>
     </section>

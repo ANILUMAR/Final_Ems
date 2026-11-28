@@ -1,69 +1,372 @@
-<div class="ems-page">
+<div class="ems-page tl-fullscreen-page" [class.is-fullscreen-mode]="isFullScreen">
+  <!-- Page Header -->
   <div class="ems-page-head">
     <div>
-      <h1 class="ems-page-title">Task board</h1>
-      <p class="ems-page-subtitle">
-        {{ isManager ? 'Every task across the workspace' : 'Work assigned to you' }} ·
-        {{ tasks.length }} total · {{ overdueCount }} past due
-      </p>
+      <h1 class="ems-page-title">Kanban Board</h1>
+      <div class="tl-header-meta">
+        <span class="tl-stat-badge">
+          <mat-icon>task_alt</mat-icon>
+          <strong *ngIf="!showTeamTickets && selectedUser === 'ME'">{{ myTasksCount }} assigned to you</strong>
+          <strong *ngIf="showTeamTickets || selectedUser !== 'ME'">{{ filteredTasks.length }} tickets shown ({{ totalTicketsCount }} total)</strong>
+        </span>
+        <span class="tl-stat-badge tl-stat-badge--scope" [class.is-team]="showTeamTickets || selectedUser !== 'ME'">
+          <mat-icon>{{ (showTeamTickets || selectedUser !== 'ME') ? 'group' : 'person' }}</mat-icon>
+          <span>{{ selectedUserSummary }}</span>
+        </span>
+        <span class="tl-stat-badge tl-stat-badge--proj" *ngIf="selectedProject !== 'ALL'">
+          <mat-icon>folder</mat-icon>
+          <span>Project: {{ selectedProject }}</span>
+        </span>
+        <span class="tl-stat-badge tl-stat-badge--warn" *ngIf="overdueCount > 0">
+          <mat-icon>warning_amber</mat-icon>
+          <strong>{{ overdueCount }}</strong> past due
+        </span>
+        <span class="tl-stat-badge tl-stat-badge--filter" *ngIf="hasActiveFilters">
+          <mat-icon>filter_list</mat-icon>
+          <strong>{{ filteredTasks.length }}</strong> matching filters
+        </span>
+      </div>
     </div>
 
     <div class="ems-actions">
-      <button mat-stroked-button (click)="taskModelResponse()">
+      <!-- Full-Screen Mode Toggle Button (as placed by user's marker) -->
+      <button
+        type="button"
+        class="tl-fullscreen-btn"
+        [class.is-active]="isFullScreen"
+        (click)="toggleFullScreen()"
+        [matTooltip]="isFullScreen ? 'Exit full-screen mode and return to normal view (Esc)' : 'Expand to Full-Screen (occupy 100% of available display area)'">
+        <mat-icon>{{ isFullScreen ? 'fullscreen_exit' : 'fullscreen' }}</mat-icon>
+        <span>{{ isFullScreen ? 'Exit Full Screen' : 'Full Screen' }}</span>
+      </button>
+
+      <!-- Board / Swimlanes View Mode Switcher -->
+      <div class="tl-view-toggle">
+        <button
+          type="button"
+          class="tl-view-toggle-btn"
+          [class.is-active]="viewMode === 'kanban'"
+          (click)="setViewMode('kanban')"
+          matTooltip="Kanban Board (columns side-by-side)">
+          <mat-icon>view_column</mat-icon>
+          <span>Kanban</span>
+        </button>
+        <button
+          type="button"
+          class="tl-view-toggle-btn"
+          [class.is-active]="viewMode === 'swimlanes'"
+          (click)="setViewMode('swimlanes')"
+          matTooltip="Swimlanes (horizontal status sections)">
+          <mat-icon>view_stream</mat-icon>
+          <span>Swimlanes</span>
+        </button>
+      </div>
+
+      <button mat-stroked-button (click)="taskModelResponse()" matTooltip="Reload ticket list">
         <mat-icon>refresh</mat-icon>
         Refresh
       </button>
+
       <a *ngIf="canRaise" mat-flat-button color="primary" routerLink="/issues/new">
         <mat-icon>add_circle</mat-icon>
-        Raise task / bug
+        Create Issue
       </a>
     </div>
   </div>
 
+  <!-- Interactive Workflow Pipeline -->
+  <app-workflow-pipeline currentStage="board"></app-workflow-pipeline>
+
+  <!-- Error banner -->
   <div class="ems-auth__note ems-auth__note--error" *ngIf="errorMessage">
     <mat-icon>error_outline</mat-icon>
     <span>{{ errorMessage }}</span>
   </div>
 
-  <div class="ems-toolbar">
-    <div class="tl-filters">
-      <div class="ems-chip-row">
-        <button
-          class="ems-chip"
-          *ngFor="let chip of priorityCounts"
-          [class.is-active]="priority === chip.key"
-          (click)="setPriority(chip.key)">
-          {{ chip.label }} ({{ chip.count }})
+  <!-- Unified, Sleek Filter Toolbar -->
+  <div class="tl-filter-toolbar">
+    <!-- 1-Click Quick Views & Team Visibility Row -->
+    <div class="tl-quick-views-row">
+      <div class="tl-qv-pills">
+        <span class="tl-qv-label"><mat-icon>bolt</mat-icon> Quick Views:</span>
+        <button type="button" class="tl-qv-btn" [class.is-active]="quickView === 'ALL'" (click)="setQuickView('ALL')">All</button>
+        <button type="button" class="tl-qv-btn" [class.is-active]="quickView === 'MY_TICKETS'" (click)="setQuickView('MY_TICKETS')">
+          <mat-icon>person</mat-icon> Assigned to Me
+        </button>
+        <button type="button" class="tl-qv-btn" [class.is-active]="quickView === 'REPORTED_BY_ME'" (click)="setQuickView('REPORTED_BY_ME')">
+          <mat-icon>edit_note</mat-icon> Reported by Me
+        </button>
+        <button type="button" class="tl-qv-btn tl-qv-btn--risk" [class.is-active]="quickView === 'SLA_RISK'" (click)="setQuickView('SLA_RISK')">
+          <mat-icon>warning_amber</mat-icon> SLA Risk / Overdue
+        </button>
+        <button type="button" class="tl-qv-btn tl-qv-btn--blocker" [class.is-active]="quickView === 'BLOCKER'" (click)="setQuickView('BLOCKER')">
+          <mat-icon>gpp_maybe</mat-icon> Blocker / P1
         </button>
       </div>
 
-      <!-- Same strip for the lifecycle: pick one state to see that section only. -->
-      <div class="ems-chip-row">
-        <button
-          class="ems-chip"
-          *ngFor="let chip of statusCounts"
-          [class.is-active]="statusFilter === chip.key"
-          (click)="setStatusFilter(chip.key)">
-          {{ chip.label }} ({{ chip.count }})
-        </button>
+      <!-- Team Members Tickets & Bugs Visibility Checkbox -->
+      <div class="tl-team-visibility-control">
+        <label class="tl-team-checkbox" matTooltip="Check to view other team members' tickets and bugs on this board (read-only for non-assignees)">
+          <input
+            type="checkbox"
+            class="tl-team-checkbox__input"
+            [(ngModel)]="showTeamTickets"
+            (change)="onTeamTicketsToggle()" />
+          <span class="tl-team-checkbox__box">
+            <mat-icon class="tl-team-checkbox__icon">{{ showTeamTickets ? 'check_box' : 'check_box_outline_blank' }}</mat-icon>
+            <span class="tl-team-checkbox__text">Show All Team Members</span>
+            <span class="tl-team-checkbox__badge" *ngIf="otherTeamCount > 0">
+              {{ showTeamTickets ? (otherTeamCount + ' team tickets visible') : ('+' + otherTeamCount + ' available') }}
+            </span>
+          </span>
+        </label>
       </div>
     </div>
 
-    <mat-form-field appearance="outline" class="ems-search">
-      <mat-label>Search tasks</mat-label>
-      <input matInput [(ngModel)]="search" (ngModelChange)="onSearchChange()" placeholder="Title, project, owner…" />
-      <mat-icon matPrefix>search</mat-icon>
-    </mat-form-field>
+    <!-- Top Row: Search, Project, Date Range & Reset -->
+    <div class="tl-filter-primary-row">
+      <!-- Search Input -->
+      <div class="tl-search-field">
+        <mat-icon class="tl-search-icon">search</mat-icon>
+        <input
+          type="text"
+          class="tl-search-input"
+          [(ngModel)]="search"
+          (ngModelChange)="onSearchChange()"
+          placeholder="Search tickets by title, code, owner, project..." />
+        <button
+          type="button"
+          class="tl-field-clear-btn"
+          *ngIf="search"
+          (click)="clearSearch()"
+          matTooltip="Clear search text">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+
+      <!-- Project Selection Option -->
+      <div class="tl-filter-control tl-filter-control--project">
+        <span class="tl-control-icon"><mat-icon>folder_open</mat-icon></span>
+        <label class="tl-control-title" for="tlProjectSelect">Project:</label>
+        <select
+          id="tlProjectSelect"
+          class="tl-inline-select"
+          [(ngModel)]="selectedProject"
+          (change)="onProjectFilterChange()"
+          matTooltip="Filter bugs and tickets by project">
+          <option value="ALL">All Projects ({{ totalTicketsCount }})</option>
+          <option *ngFor="let proj of projectList" [value]="proj">
+            {{ proj }} ({{ countByProject(proj) }})
+          </option>
+        </select>
+      </div>
+
+      <!-- User / Member Selection Option -->
+      <div class="tl-filter-control tl-filter-control--user">
+        <span class="tl-control-icon"><mat-icon>person</mat-icon></span>
+        <label class="tl-control-title" for="tlUserSelect">User / Member:</label>
+        <select
+          id="tlUserSelect"
+          class="tl-inline-select"
+          [(ngModel)]="selectedUser"
+          (change)="onUserFilterChange()"
+          matTooltip="Filter bugs and tickets by assigned user">
+          <option value="ALL">All Team Members ({{ countForUserOption('ALL') }})</option>
+          <option value="ME">Assigned to Me ({{ myTasksCount }})</option>
+          <optgroup label="Assigned Team Members" *ngIf="userList.length > 0">
+            <option *ngFor="let u of userList" [value]="u.key">
+              {{ u.label }} ({{ countByUser(u.key) }})
+            </option>
+          </optgroup>
+        </select>
+      </div>
+
+      <!-- Date-wise Filter -->
+      <div class="tl-filter-control tl-filter-control--dates">
+        <span class="tl-control-icon"><mat-icon>date_range</mat-icon></span>
+        <select
+          class="tl-inline-select tl-date-field-select"
+          [(ngModel)]="dateField"
+          (change)="onFilterChange()"
+          matTooltip="Filter by ticket Schedule, Due date, or Start date">
+          <option value="schedule">Schedule</option>
+          <option value="due">Due Date</option>
+          <option value="start">Start Date</option>
+        </select>
+
+        <div class="tl-date-bounds">
+          <input
+            type="date"
+            class="tl-compact-date-input"
+            [(ngModel)]="fromDate"
+            (change)="onFilterChange()"
+            title="Start date" />
+          <span class="tl-date-divider">→</span>
+          <input
+            type="date"
+            class="tl-compact-date-input"
+            [(ngModel)]="toDate"
+            (change)="onFilterChange()"
+            title="End date" />
+          <button
+            type="button"
+            class="tl-field-clear-btn"
+            *ngIf="fromDate || toDate"
+            (click)="clearDates()"
+            matTooltip="Clear date range">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
+        <!-- Presets -->
+        <div class="tl-preset-strip">
+          <button
+            type="button"
+            class="tl-preset-chip"
+            [class.is-active]="activePreset === 'today'"
+            (click)="setDatePreset('today')">
+            Today
+          </button>
+          <button
+            type="button"
+            class="tl-preset-chip"
+            [class.is-active]="activePreset === 'week'"
+            (click)="setDatePreset('week')">
+            This Week
+          </button>
+          <button
+            type="button"
+            class="tl-preset-chip"
+            [class.is-active]="activePreset === 'month'"
+            (click)="setDatePreset('month')">
+            This Month
+          </button>
+        </div>
+      </div>
+
+      <!-- Reset Filters Button -->
+      <button
+        *ngIf="hasActiveFilters"
+        type="button"
+        class="tl-reset-filters-btn"
+        (click)="resetFilters()"
+        matTooltip="Clear all applied filters">
+        <mat-icon>filter_alt_off</mat-icon>
+        <span>Clear Filters</span>
+      </button>
+    </div>
+
+    <!-- Bottom Row: Status and Priority Quick Filter Chips -->
+    <div class="tl-filter-secondary-row">
+      <!-- Status chips -->
+      <div class="tl-chip-section">
+        <span class="tl-section-label">Status:</span>
+        <div class="tl-chip-list">
+          <button
+            type="button"
+            class="tl-filter-chip"
+            *ngFor="let chip of statusCounts"
+            [class.is-active]="statusFilter === chip.key"
+            (click)="setStatusFilter(chip.key)">
+            <span>{{ chip.label }}</span>
+            <span class="tl-chip-num">{{ chip.count }}</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="tl-filter-row-divider"></div>
+
+      <!-- Priority chips -->
+      <div class="tl-chip-section">
+        <span class="tl-section-label">Priority:</span>
+        <div class="tl-chip-list">
+          <button
+            type="button"
+            class="tl-filter-chip"
+            *ngFor="let chip of priorityCounts"
+            [class.is-active]="priority === chip.key"
+            [ngClass]="'tl-priority--' + chip.key.toLowerCase()"
+            (click)="setPriority(chip.key)">
+            <span class="tl-priority-dot" *ngIf="chip.key !== 'ALL'"></span>
+            <span>{{ chip.label }}</span>
+            <span class="tl-chip-num">{{ chip.count }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 
+  <!-- Empty State when filters yield 0 results -->
   <div class="ems-empty" *ngIf="!loading && filteredTasks.length === 0">
-    <mat-icon>inbox</mat-icon>
-    <h3>No tasks match</h3>
-    <p *ngIf="tasks.length === 0">There are no tasks yet — create the first one.</p>
-    <p *ngIf="tasks.length > 0">Try clearing the search, or picking a different priority or state.</p>
+    <mat-icon>filter_alt</mat-icon>
+    <h3 *ngIf="selectedUser !== 'ALL' || selectedProject !== 'ALL'">
+      No tickets or bugs match your selection
+    </h3>
+    <h3 *ngIf="selectedUser === 'ALL' && selectedProject === 'ALL' && !showTeamTickets && otherTeamCount > 0">
+      No tickets currently assigned to you
+    </h3>
+    <h3 *ngIf="selectedUser === 'ALL' && selectedProject === 'ALL' && (showTeamTickets || otherTeamCount === 0)">
+      No tickets match your filters
+    </h3>
+
+    <p *ngIf="selectedUser !== 'ALL' || selectedProject !== 'ALL'">
+      No work found matching
+      <strong *ngIf="selectedProject !== 'ALL'"> Project: {{ selectedProject }}</strong>
+      <span *ngIf="selectedProject !== 'ALL' && selectedUser !== 'ALL'"> and</span>
+      <strong *ngIf="selectedUser !== 'ALL'"> User: {{ selectedUserLabel }}</strong>.
+    </p>
+    <p *ngIf="selectedUser === 'ALL' && selectedProject === 'ALL' && !showTeamTickets && otherTeamCount > 0">
+      You have no assigned tickets matching the current criteria, but there are {{ otherTeamCount }} tickets assigned to other team members.
+    </p>
+    <p *ngIf="tasks.length === 0">There are no tickets in the system yet.</p>
+    <p *ngIf="tasks.length > 0 && selectedUser === 'ALL' && selectedProject === 'ALL' && (showTeamTickets || otherTeamCount === 0)">
+      Try widening the date range, changing priority or status, or resetting filters.
+    </p>
+
+    <div style="display:flex;gap:10px;justify-content:center;margin-top:14px;flex-wrap:wrap">
+      <button *ngIf="!showTeamTickets && otherTeamCount > 0" mat-flat-button color="primary" (click)="showTeamTickets = true; selectedUser = 'ALL'; onTeamTicketsToggle()">
+        <mat-icon>group</mat-icon>
+        Show all team members' tickets
+      </button>
+      <button *ngIf="hasActiveFilters" mat-stroked-button color="primary" (click)="resetFilters()">
+        <mat-icon>filter_alt_off</mat-icon>
+        Reset all filters
+      </button>
+    </div>
   </div>
 
-  <div class="tl-groups" *ngIf="filteredTasks.length > 0">
+  <!-- ==================== VIEW 1: KANBAN BOARD (Columns side-by-side) ==================== -->
+  <div class="tl-kanban-board" *ngIf="viewMode === 'kanban' && filteredTasks.length > 0">
+    <div
+      class="tl-kanban-col"
+      *ngFor="let col of kanbanColumns"
+      [style.--col-accent]="col.color">
+      <!-- Column Header -->
+      <div class="tl-kanban-col-head">
+        <div class="tl-kanban-col-title-group">
+          <span class="tl-kanban-col-indicator"></span>
+          <mat-icon class="tl-kanban-col-icon">{{ col.icon }}</mat-icon>
+          <span class="tl-kanban-col-title">{{ col.label }}</span>
+        </div>
+        <span class="tl-kanban-col-count">{{ col.tasks.length }}</span>
+      </div>
+
+      <!-- Column Task Cards -->
+      <div class="tl-kanban-col-body">
+        <ng-container *ngFor="let task of col.tasks">
+          <ng-container *ngTemplateOutlet="card; context: { $implicit: task }"></ng-container>
+        </ng-container>
+
+        <div class="tl-kanban-empty-col" *ngIf="col.tasks.length === 0">
+          <mat-icon>inbox</mat-icon>
+          <span>No tasks in {{ col.label.toLowerCase() }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== VIEW 2: SWIMLANES (Horizontal sections) ==================== -->
+  <div class="tl-groups" *ngIf="viewMode === 'swimlanes' && filteredTasks.length > 0">
     <ng-container *ngFor="let group of groups">
       <section class="tl-group" *ngIf="group.tasks.length">
         <header class="tl-group__head">
@@ -81,77 +384,139 @@
         </div>
       </section>
     </ng-container>
+
+    <!-- Pager for Swimlanes view -->
+    <app-pager
+      [length]="filteredTasks.length"
+      [(pageIndex)]="pageIndex"
+      [(pageSize)]="pageSize"
+      noun="ticket">
+    </app-pager>
   </div>
 
-  <!-- Five cards a page by default, with the dropdown to change it. -->
-  <app-pager
-    [length]="filteredTasks.length"
-    [(pageIndex)]="pageIndex"
-    [(pageSize)]="pageSize"
-    noun="task">
-  </app-pager>
-
+  <!-- ==================== TASK CARD TEMPLATE ==================== -->
   <ng-template #card let-task>
-    <article class="ems-task-card" [ngClass]="priorityClass(task.priority)">
+    <article
+      class="ems-task-card"
+      [ngClass]="priorityClass(task.priority)"
+      (click)="openTicketDetails(task)"
+      tabindex="0"
+      role="button"
+      [attr.aria-label]="'View details for ' + code(task) + ' ' + task.taskTitle"
+      (keydown.enter)="openTicketDetails(task)">
+      <!-- Top Bar: Task Code, Bug Badge & Priority -->
       <div class="ems-task-card__head">
-        <div>
-          <p class="task-code-row">
-            <span class="task-code">{{ code(task) }}</span>
-            <span class="ems-badge ems-badge--danger" *ngIf="isBug(task)">Bug</span>
-          </p>
-          <h3 class="ems-task-card__title">{{ task.taskTitle }}</h3>
-          <p class="ems-task-card__sub">
-            <mat-icon style="font-size:13px;width:13px;height:13px">folder_open</mat-icon>
-            {{ task.project || 'No project' }}
-          </p>
+        <div class="ems-card-id-row">
+          <span class="task-code tk-clickable" (click)="$event.stopPropagation(); openTicketDetails(task)" matTooltip="Click to open full Task Details">{{ code(task) }}</span>
+          <span class="ems-badge ems-badge--prod ems-badge--sm" *ngIf="isProdIssue(task)">
+            <mat-icon style="font-size:12px;width:12px;height:12px">warning</mat-icon>
+            Prod Issue
+          </span>
+          <span class="ems-badge ems-badge--danger ems-badge--sm" *ngIf="!isProdIssue(task) && isBug(task)">
+            <mat-icon style="font-size:12px;width:12px;height:12px">bug_report</mat-icon>
+            Bug
+          </span>
         </div>
         <span class="ems-badge" [ngClass]="priorityBadge(task.priority)">{{ priorityLabel(task.priority) }}</span>
       </div>
 
-      <p class="ems-task-card__desc">{{ task.description || 'No description provided.' }}</p>
+      <!-- Task Title -->
+      <h3 class="ems-task-card__title tk-clickable-title" (click)="$event.stopPropagation(); openTicketDetails(task)" matTooltip="Click to open full Task Details">{{ task.taskTitle }}</h3>
 
-      <!-- The reason a reopened item is open again, straight from the Done exit. -->
+      <!-- Project & Hierarchy Pill Tags -->
+      <div class="ems-card-tag-row">
+        <span class="ems-card-tag ems-card-tag--proj" *ngIf="task.project" matTooltip="Project">
+          <mat-icon>folder</mat-icon>
+          {{ task.project }}
+        </span>
+        <span class="ems-card-tag" *ngIf="task.module" matTooltip="Module">
+          <mat-icon>widgets</mat-icon>
+          {{ task.module }}
+        </span>
+        <span class="ems-card-tag" *ngIf="task.screen" matTooltip="Screen">
+          <mat-icon>desktop_windows</mat-icon>
+          {{ task.screen }}
+        </span>
+      </div>
+
+      <!-- Description: Render ONLY if distinct from Title -->
+      <p class="ems-task-card__desc" *ngIf="hasDistinctDescription(task)">{{ task.description }}</p>
+
+      <!-- Reopen Notice Banner -->
       <p class="ems-rework" *ngIf="task.reopenCount && task.status !== 'DONE'">
         <mat-icon>restart_alt</mat-icon>
         <span>
-          Came back from Done<ng-container *ngIf="task.reopenCount > 1"> ({{ task.reopenCount }}×)</ng-container
-          ><ng-container *ngIf="task.lastReopenNote"> — “{{ task.lastReopenNote }}”</ng-container>
+          Reopened<ng-container *ngIf="task.reopenCount > 1"> ({{ task.reopenCount }}×)</ng-container>
+          <ng-container *ngIf="task.lastReopenNote">: “{{ task.lastReopenNote }}”</ng-container>
         </span>
       </p>
 
-      <div class="ems-task-meta">
-        <span *ngIf="task.module"><mat-icon>widgets</mat-icon>{{ task.module }}</span>
-        <span *ngIf="task.subModule"><mat-icon>account_tree</mat-icon>{{ task.subModule }}</span>
-        <span *ngIf="task.screen"><mat-icon>desktop_windows</mat-icon>{{ task.screen }}</span>
+      <!-- Date / Overdue Indicator -->
+      <div class="ems-card-date-meta">
+        <span class="ems-card-date-pill" [class.is-overdue]="isOverdue(task)">
+          <mat-icon>{{ isOverdue(task) ? 'warning' : 'calendar_today' }}</mat-icon>
+          <span *ngIf="isOverdue(task)">Overdue: {{ task.endDate | date:'dd MMM yyyy' }}</span>
+          <span *ngIf="!isOverdue(task)">
+            {{ task.startDate ? (task.startDate | date:'dd MMM') + ' → ' : '' }}{{ task.endDate ? (task.endDate | date:'dd MMM yyyy') : 'No due date' }}
+          </span>
+        </span>
+        <span class="tk-card-sla" [ngClass]="slaOf(task).badgeClass">
+          {{ slaOf(task).label }}
+        </span>
       </div>
 
-      <div class="ems-task-meta">
-        <span><mat-icon>play_circle</mat-icon>{{ task.startDate | date:'dd MMM' }}</span>
-        <span><mat-icon>flag</mat-icon>{{ task.endDate | date:'dd MMM yyyy' }}</span>
-      </div>
-
+      <!-- Card Footer: Assignee Avatar + Actions -->
       <div class="ems-task-card__foot">
-        <div class="ems-task-card__owner">
+        <div class="ems-task-card__owner" [title]="task.assignedToName || 'Unassigned'">
           <span class="ems-avatar-sm">{{ initials(task.assignedToName || '') }}</span>
-          <span>{{ task.assignedToName || 'Unassigned' }}</span>
+          <span class="ems-owner-label">{{ task.assignedToName || 'Unassigned' }}</span>
+          <span class="tl-mine-pill" *ngIf="isAssignedToCurrentUser(task)" matTooltip="Assigned to you">You</span>
         </div>
 
-        <div class="ems-actions">
-          <app-task-status
-            entity="assignment"
-            [id]="task.id"
-            [title]="task.taskTitle"
-            [status]="task.status"
-            (changed)="onStatusChanged(task, $event)"
-            (reopened)="onReopened(task, $event)">
-          </app-task-status>
-          <a
+        <div class="ems-card-actions">
+          <!-- View details action button (always visible) -->
+          <button
+            type="button"
+            class="ems-icon-btn ems-icon-btn--view"
+            (click)="$event.stopPropagation(); openTicketDetails(task)"
+            matTooltip="View full Task Details">
+            <mat-icon>visibility</mat-icon>
+          </button>
+
+          <!-- Bug/Prod details dialog button -->
+          <button
+            *ngIf="isBug(task) || isProdIssue(task)"
+            type="button"
+            class="ems-icon-btn ems-icon-btn--bug"
+            (click)="$event.stopPropagation(); openBugDetails(task)"
+            matTooltip="View full Bug/Issue details & steps">
+            <mat-icon>{{ isProdIssue(task) ? 'warning' : 'bug_report' }}</mat-icon>
+          </button>
+
+          <!-- Attachment button -->
+          <button
             *ngIf="task.attachmentPath"
-            mat-icon-button
-            matTooltip="Open attachment"
-            (click)="openFilePopup(task.attachmentPath)">
+            type="button"
+            class="ems-icon-btn"
+            (click)="$event.stopPropagation(); openFilePopup(task.attachmentPath)"
+            matTooltip="Open attachment file">
             <mat-icon>attach_file</mat-icon>
-          </a>
+          </button>
+
+          <!-- Status Selector -->
+          <div (click)="$event.stopPropagation()">
+            <app-task-status
+              entity="assignment"
+              [id]="task.id"
+              [kind]="task.kind || (isBug(task) ? 'BUG' : 'TASK')"
+              [title]="task.taskTitle"
+              [status]="task.status"
+              [editable]="canEditStatus(task)"
+              [readOnlyTooltip]="statusTooltip(task)"
+              (changed)="onStatusChanged(task, $event)"
+              (reopened)="onReopened(task, $event)">
+            </app-task-status>
+          </div>
         </div>
       </div>
     </article>

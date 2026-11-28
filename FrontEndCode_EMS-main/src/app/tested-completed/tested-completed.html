@@ -7,14 +7,14 @@
         <span class="ems-header__sep">/</span>
         <span>QA Verification Complete</span>
       </div>
-      <h1 class="ems-header__title">Tested Completed Tasks</h1>
+      <h1 class="ems-header__title">Tested Completed Tickets</h1>
       <p class="ems-header__subtitle">
-        Review tasks and bugs verified and marked as Done by the Testing Team. Accessible to both Testing and Developer Team Leaders.
+        Review tickets and bugs verified and marked as Done by the Testing Team. Accessible to both Testing and Developer Team Leaders.
       </p>
     </div>
     <div class="ems-header__actions">
       <a mat-stroked-button color="primary" routerLink="/developer-completed">
-        <mat-icon>inventory_2</mat-icon> Developer Completed Tasks
+        <mat-icon>inventory_2</mat-icon> Developer Completed Tickets
       </a>
       <a mat-stroked-button color="accent" routerLink="/testing-lead-dashboard">
         <mat-icon>rule</mat-icon> Testing Lead Dashboard
@@ -24,6 +24,9 @@
       </button>
     </div>
   </header>
+
+  <!-- Interactive Workflow Pipeline -->
+  <app-workflow-pipeline currentStage="tested"></app-workflow-pipeline>
 
   <!-- Banner Alerts -->
   <div *ngIf="successMessage" class="ems-alert ems-alert--success">
@@ -64,14 +67,14 @@
         <mat-icon>task_alt</mat-icon>
       </div>
       <div class="ems-kpi-card__body">
-        <span class="ems-kpi-card__label">Verified Tasks</span>
+        <span class="ems-kpi-card__label">Verified Tickets</span>
         <strong class="ems-kpi-card__value">{{ tasksCount }}</strong>
       </div>
     </article>
   </section>
 
-  <!-- Toolbar: Filter Chips & Search -->
-  <div class="ems-toolbar">
+  <!-- Toolbar: Filter Chips -->
+  <div class="ems-toolbar" style="margin-bottom: 16px;">
     <div class="ems-filter-chips">
       <button
         type="button"
@@ -97,19 +100,8 @@
         (click)="setFilter('TASK')"
       >
         <mat-icon style="font-size:15px;width:15px;height:15px;color:#2563eb;">task_alt</mat-icon>
-        Tasks ({{ tasksCount }})
+        Tickets ({{ tasksCount }})
       </button>
-    </div>
-
-    <div class="ems-search-wrap">
-      <mat-icon>search</mat-icon>
-      <input
-        type="text"
-        placeholder="Search code, title, project, developer, tester..."
-        [(ngModel)]="search"
-        (input)="onSearchChange()"
-      />
-      <button *ngIf="search" class="ems-search-clear" (click)="search = ''; onSearchChange()">&times;</button>
     </div>
   </div>
 
@@ -119,128 +111,128 @@
     <p>Loading tested completed tasks...</p>
   </div>
 
-  <!-- Empty State -->
-  <div *ngIf="!loading && filteredItems.length === 0" class="ems-state ems-state--empty">
-    <mat-icon style="font-size:48px;width:48px;height:48px;color:#94a3b8;">task_alt</mat-icon>
-    <h3>No tested completed tasks found</h3>
-    <p *ngIf="search || filter !== 'ALL'">No work items match your current filter criteria.</p>
-    <p *ngIf="!search && filter === 'ALL'">
-      When a tester marks a task or bug as Done, it will appear here for both Team Leaders to review.
-    </p>
-  </div>
+  <!-- Ticket Register Table Section (Matches All Tickets List layout & design) -->
+  <section class="ems-card" style="margin-top: 16px;">
+    <div class="ems-toolbar">
+      <h2 class="ems-section-title" style="margin: 0">
+        <mat-icon>list_alt</mat-icon>
+        Ticket register
+      </h2>
 
-  <!-- Grid of Cards -->
-  <div *ngIf="!loading && filteredItems.length > 0" class="ems-grid">
-    <article
-      *ngFor="let item of pagedItems"
-      class="ems-card"
-      [class.is-bug]="isBug(item)"
-    >
-      <div class="ems-card__head">
-        <div class="ems-card__id-row">
-          <span class="ems-code">{{ code(item) }}</span>
-          <span class="ems-badge" [ngClass]="kindBadge(item.kind)">{{ kindLabel(item.kind) }}</span>
-          <span class="ems-badge ems-badge--success">
-            <mat-icon style="font-size:12px;width:12px;height:12px;">task_alt</mat-icon> Done / Verified
-          </span>
-        </div>
-        <span class="ems-badge" [ngClass]="priorityBadge(item.priority)">{{ item.priority || 'NORMAL' }}</span>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <!-- Download Option for Ticket Register Records -->
+        <button
+          mat-stroked-button
+          class="ems-btn-download"
+          (click)="downloadCsv()"
+          matTooltip="Download ticket register records as CSV">
+          <mat-icon>download</mat-icon>
+          Download CSV
+        </button>
+
+        <mat-form-field appearance="outline" class="ems-search">
+          <mat-label>Search tickets</mat-label>
+          <input matInput [(ngModel)]="search" (ngModelChange)="onSearchChange()" placeholder="Ticket, project, owner…" />
+          <mat-icon matPrefix>search</mat-icon>
+        </mat-form-field>
       </div>
+    </div>
 
-      <h3 class="ems-card__title">{{ item.taskTitle }}</h3>
-      <p class="ems-card__project">
-        <mat-icon>folder_open</mat-icon>
-        {{ item.project || 'General Project' }}
-        <span *ngIf="item.module"> &bull; {{ item.module }}</span>
-        <span *ngIf="item.screen"> &bull; {{ item.screen }}</span>
-      </p>
+    <!-- Empty State -->
+    <div class="ems-empty" *ngIf="!loading && filteredItems.length === 0">
+      <mat-icon>inbox</mat-icon>
+      <h3>No tickets to show</h3>
+      <p>No tickets match current search criteria.</p>
+    </div>
 
-      <p class="ems-card__desc">{{ item.description || 'No description provided.' }}</p>
+    <!-- Data Table -->
+    <div class="ems-table-wrap" *ngIf="!loading && filteredItems.length > 0">
+      <table>
+        <thead>
+          <tr>
+            <th>Ticket ID</th>
+            <th>Ticket</th>
+            <th>Project</th>
+            <th>Owner</th>
+            <th>Priority</th>
+            <th>Start</th>
+            <th>Due</th>
+            <th class="all-actions-col">Details</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of pagedItems">
+            <td>
+              <span class="task-code tk-clickable" (click)="openTicketDetails(item)" matTooltip="Open 360° Ticket Modal">
+                {{ code(item) }}
+              </span>
+            </td>
+            <td>
+              <div class="ems-rows__main">
+                <strong class="tk-clickable-title" (click)="openTicketDetails(item)" matTooltip="Open 360° Ticket Modal">
+                  {{ item.taskTitle }}
+                </strong>
+                <small>
+                  {{ kindLabel(item) }}<ng-container *ngIf="item.module"> · {{ item.module }}</ng-container><ng-container *ngIf="item.screen"> · {{ item.screen }}</ng-container>
+                </small>
+              </div>
+            </td>
+            <td>{{ item.project || '—' }}</td>
+            <td>
+              <div class="ems-task-card__owner">
+                <span class="ems-avatar-sm">{{ initials(item.assignedToName || item.assignedTesterName || '') }}</span>
+                <div>
+                  <span>{{ item.assignedToName || 'Unassigned' }}</span>
+                  <small *ngIf="item.assignedTesterName" style="display:block;font-size:11px;color:var(--ems-text-3, #64748b);">
+                    Tester: {{ item.assignedTesterName }}
+                  </small>
+                </div>
+              </div>
+            </td>
+            <td>
+              <span class="ems-badge" [ngClass]="priorityBadge(item.priority)">{{ priorityLabel(item.priority) }}</span>
+            </td>
+            <td>{{ item.startDate ? (item.startDate | date:'dd MMM yyyy') : '—' }}</td>
+            <td [class.is-overdue]="isOverdue(item)">{{ item.endDate ? (item.endDate | date:'dd MMM yyyy') : '—' }}</td>
+            <td class="all-actions-col">
+              <button
+                mat-icon-button
+                style="color: #6366f1;"
+                matTooltip="Open 360° Ticket Modal"
+                (click)="openTicketDetails(item)"
+                aria-label="Open Ticket Modal">
+                <mat-icon>open_in_new</mat-icon>
+              </button>
+              <button
+                *ngIf="isBug(item) || isProdIssue(item)"
+                mat-icon-button
+                style="color: #e11d48;"
+                matTooltip="View Details & Steps"
+                (click)="openBugDetails(item)"
+                aria-label="View Bug Details">
+                <mat-icon>{{ isProdIssue(item) ? 'warning' : 'account_tree' }}</mat-icon>
+              </button>
+              <button
+                mat-icon-button
+                color="warn"
+                matTooltip="Reopen and return to developer for rework"
+                (click)="reopenForDev(item)"
+                aria-label="Reopen Rework">
+                <mat-icon>replay</mat-icon>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
-      <!-- Bug Diagram & Reproduction Steps Preview -->
-      <div class="ems-callout ems-callout--bug" *ngIf="isBug(item)" (click)="openBugDetails(item)">
-        <div class="ems-callout__top">
-          <mat-icon>{{ item.reproductionStepsImage ? 'account_tree' : 'format_list_numbered' }}</mat-icon>
-          <strong>Bug Details & Steps to Reproduce</strong>
-          <button mat-button type="button" class="ems-callout__btn" (click)="openBugDetails(item); $event.stopPropagation()">
-            <mat-icon>visibility</mat-icon> View Flow Diagram
-          </button>
-        </div>
-        <p class="ems-callout__text" *ngIf="item.reproductionSteps">{{ item.reproductionSteps }}</p>
-      </div>
-
-      <!-- QA Verification Details -->
-      <div class="ems-callout ems-callout--tester">
-        <div class="ems-callout__top">
-          <mat-icon>verified</mat-icon>
-          <strong>Tester Verification ({{ item.assignedTesterName || item.assignedTesterEmail || 'Tester' }})</strong>
-          <span class="ems-callout__time" *ngIf="item.verifiedAt">
-            {{ item.verifiedAt | date:'dd MMM yyyy, hh:mm a' }}
-          </span>
-        </div>
-        <p class="ems-callout__text">
-          {{ item.verificationNote || 'Verified fix working as expected in QA environment.' }}
-        </p>
-      </div>
-
-      <!-- Dev Lead Release Note -->
-      <div class="ems-callout ems-callout--dev" *ngIf="item.releaseNote">
-        <div class="ems-callout__top">
-          <mat-icon>send</mat-icon>
-          <strong>Dev Release Note ({{ item.releasedByName || 'Dev Lead' }})</strong>
-          <span class="ems-callout__time" *ngIf="item.releasedAt">
-            {{ item.releasedAt | date:'dd MMM, hh:mm a' }}
-          </span>
-        </div>
-        <p class="ems-callout__text">{{ item.releaseNote }}</p>
-      </div>
-
-      <!-- Footer Team Roster & Actions -->
-      <div class="ems-card__foot">
-        <div class="ems-roster-box">
-          <div class="ems-roster-person">
-            <span class="ems-roster-role">Developer</span>
-            <span class="ems-roster-name">{{ item.assignedToName || 'Unassigned' }}</span>
-          </div>
-          <div class="ems-roster-person">
-            <span class="ems-roster-role">Tester</span>
-            <span class="ems-roster-name">{{ item.assignedTesterName || item.assignedTesterEmail || 'Unassigned' }}</span>
-          </div>
-        </div>
-
-        <div class="ems-actions">
-          <!-- Button to inspect bug diagram if bug -->
-          <button
-            *ngIf="isBug(item)"
-            mat-icon-button
-            color="warn"
-            matTooltip="View bug flow diagram"
-            (click)="openBugDetails(item)"
-          >
-            <mat-icon>account_tree</mat-icon>
-          </button>
-
-          <!-- Reopen back to developer if leaders spot rework needed -->
-          <button
-            mat-stroked-button
-            color="warn"
-            class="ems-btn-reopen"
-            matTooltip="Reopen and return to developer for rework"
-            (click)="reopenForDev(item)"
-          >
-            <mat-icon>replay</mat-icon> Reopen Rework
-          </button>
-        </div>
-      </div>
-    </article>
-  </div>
-
-  <!-- Pager -->
-  <app-pager
-    *ngIf="!loading && filteredItems.length > 0"
-    [length]="filteredItems.length"
-    [(pageIndex)]="pageIndex"
-    [(pageSize)]="pageSize"
-    noun="tested task"
-  ></app-pager>
+    <!-- Pager -->
+    <app-pager
+      *ngIf="!loading && filteredItems.length > 0"
+      [length]="filteredItems.length"
+      [(pageIndex)]="pageIndex"
+      [(pageSize)]="pageSize"
+      noun="ticket">
+    </app-pager>
+  </section>
 </div>

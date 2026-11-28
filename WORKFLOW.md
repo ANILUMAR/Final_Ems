@@ -80,7 +80,7 @@ The role is a plain string on `user.role`. Five identities exist, and each one b
 
 Sidebar items and routes follow the same split:
 
-- `SUPER_ADMIN` — Admin Dashboard, Developer Board, Tester Board, Task Board, All Tasks, Development assignment (`/triage`), Testing review (`/approvals`), Master data, Deleted tasks, Project Overview, Create Project, My Projects, Registered Employees, View Timesheets, Update Profile, Settings. No *Raise task / bug* and no *My submissions*: the CEO decides and hands out, it does not file.
+- `SUPER_ADMIN` — Admin Dashboard, Developer Board, Tester Board, Review List Screen (`/review-list`), Team Assignment List (`/team-assignment`), Completed Tasks/Bugs List (`/completed-tasks`), On-Hold Tasks List (`/on-hold-tasks`), Task Board, All Tasks, Master data, Deleted tasks, Project Overview, Create Project, My Projects, Registered Employees, View Timesheets, Update Profile, Settings. No *Raise task / bug* and no *My submissions*: the CEO decides and hands out, it does not file. Testing Lead Board, Testing Review List, Java Team Assignment List, Development Completion List, and On-Hold Release Screen are not used by the Super Admin.
 - `TESTER_LEAD` — Tester Board, My Tasks, Raise task / bug, My submissions, Testing review, Task Board, All Tasks, My Projects, Submit Timesheet, Update Profile, Settings.
 - `DEVELOPER_LEAD` — Developer Board, My Tasks, Development assignment, Task Board, All Tasks, My Projects, Submit Timesheet, Update Profile, Settings (no Raise task / bug or My submissions: the developer side receives work, it never files it).
 - `TESTER` — their own board, My Tasks, Raise task / bug, My submissions, My Projects, Submit Timesheet, Update Profile, Settings — **plus** Task Board and All Tasks once an administrator grants the task-access provision.
@@ -526,6 +526,42 @@ Every screen that renders a list of records pages the same way: one default size
 - **What stays plain.** Master data uses the `compact` strip (no sentence, controls only) and only shows it once a column runs past one small page, because each column is a short vocabulary rather than a register. Dashboard cards and the boards' queue cards are summaries, not lists, so they are unchanged.
 
 `MatPaginatorModule` is imported once, inside `Pager`; a new list gets the whole behaviour from one import and three bindings.
+
+### 5.19 Project Team Hierarchy Creation and CEO/Director Approval Workflow
+
+Project delivery and resource mapping follow a structured governance model where work authorization is tied directly to hierarchy approval:
+
+```mermaid
+sequenceDiagram
+    participant PM as Project Manager
+    participant UI as Team Hierarchy UI (/hierarchy)
+    participant API as TeamHierarchyController
+    participant SVC as TeamHierarchyService
+    participant DB as MongoDB (team_hierarchy & approval)
+    participant CEO as CEO / Director (Super Admin)
+
+    PM->>UI: Configure project team (PM, Java Lead, Testing Lead, Developers, Testers)
+    PM->>UI: Click "Submit to CEO for Approval" (or Save as Draft)
+    UI->>API: POST /api/hierarchy/projects/assign (approvalAction: SUBMIT)
+    API->>SVC: assignProjectTeam(request, pmEmail)
+    SVC->>SVC: submitHierarchyForApproval(projectName, pmEmail, notes)
+    SVC->>DB: Save TeamHierarchy & ProjectHierarchyApproval (status: SUBMITTED, workAuthorized: false)
+    SVC-->>UI: 200 ProjectRosterDto (status: SUBMITTED)
+
+    Note over UI,CEO: CEO/Director views Project Card with notification banner
+    CEO->>UI: Review team assignments & click "Approve & Authorize Work"
+    UI->>API: POST /api/hierarchy/projects/{projectName}/approve
+    API->>SVC: approveHierarchy(projectName, ceoEmail, remarks)
+    SVC->>DB: Update ProjectHierarchyApproval (status: APPROVED, workAuthorized: true)
+    SVC-->>UI: 200 ProjectRosterDto (status: APPROVED)
+    Note over PM,CEO: Project work is officially authorized to begin
+```
+
+**Key Principles & State Machine:**
+1. **DRAFT**: Hierarchy is created or edited by the Project Manager. Work is not authorized.
+2. **SUBMITTED**: The Project Manager submits the hierarchy to the CEO/Director for review. Awaiting approval badge is displayed across boards.
+3. **APPROVED**: Only the CEO/Director (`SUPER_ADMIN` / `ADMIN`) can grant approval. Approval immediately grants **authorization to begin project work** (`workAuthorized = true`), verified by `isProjectWorkAuthorized(projectName)`.
+4. **REJECTED**: The CEO/Director can reject the hierarchy with specific feedback. Status reverts to `REJECTED`, alerting the Project Manager to adjust leadership or member allocations and resubmit.
 
 ---
 

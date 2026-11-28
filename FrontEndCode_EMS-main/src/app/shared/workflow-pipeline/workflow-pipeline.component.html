@@ -1,0 +1,47 @@
+<nav class="pipeline-container" [class.pipeline-container--compact]="compact" aria-label="Workflow Lifecycle Pipeline">
+  <div class="pipeline-header">
+    <div class="pipeline-label-wrap">
+      <mat-icon class="pipeline-icon">linear_scale</mat-icon>
+      <span class="pipeline-title">Delivery Pipeline</span>
+    </div>
+
+    <!-- On-Hold Quick Indicator -->
+    <a
+      routerLink="/on-hold-tasks"
+      class="pipeline-onhold-pill"
+      [class.is-active]="currentStage === 'onhold'"
+      matTooltip="View tasks currently on hold">
+      <mat-icon>pause_circle_outline</mat-icon>
+      <span>On Hold</span>
+      <span class="pipeline-onhold-count" *ngIf="counts['onhold'] > 0">{{ counts['onhold'] }}</span>
+    </a>
+  </div>
+
+  <ol class="pipeline-track">
+    <ng-container *ngFor="let step of steps; let last = last">
+      <li class="pipeline-node" *ngIf="isStepVisible(step)">
+        <a
+          [routerLink]="getStepRoute(step)"
+          class="pipeline-step-btn"
+          [class.is-current]="currentStage === step.id"
+          [matTooltip]="step.description">
+          <span class="pipeline-step-icon">
+            <mat-icon>{{ step.icon }}</mat-icon>
+          </span>
+          <div class="pipeline-step-body">
+            <span class="pipeline-step-name">{{ step.shortLabel }}</span>
+            <span class="pipeline-step-full">{{ step.label }}</span>
+          </div>
+          <span
+            class="pipeline-step-badge"
+            *ngIf="counts[step.id] !== undefined && counts[step.id] > 0">
+            {{ counts[step.id] }}
+          </span>
+        </a>
+
+        <!-- Flow separator arrow -->
+        <mat-icon class="pipeline-arrow" *ngIf="!last" aria-hidden="true">chevron_right</mat-icon>
+      </li>
+    </ng-container>
+  </ol>
+</nav>

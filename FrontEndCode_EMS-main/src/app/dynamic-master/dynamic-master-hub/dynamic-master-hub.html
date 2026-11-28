@@ -1,0 +1,182 @@
+<div class="ems-page dm-hub-page">
+  <!-- Top Header with Eyebrow, Title and Action Buttons -->
+  <header class="dm-hub-header">
+    <div>
+      <div class="dm-hub-eyebrow">
+        <span>Administration</span>
+        <span class="dm-hub-sep">/</span>
+        <span>Master Data Engine</span>
+      </div>
+      <h1 class="dm-hub-title">Dynamic Master Hub</h1>
+      <p class="dm-hub-subtitle">
+        Design, configure, and maintain dynamic master screens, data tables, and validation schemas across all modules.
+      </p>
+    </div>
+
+    <div class="dm-hub-actions">
+      <a mat-stroked-button routerLink="/masters">
+        <mat-icon>account_tree</mat-icon>
+        Module & Screen Hierarchy
+      </a>
+      <button mat-stroked-button (click)="loadSchemas()" [disabled]="loading">
+        <mat-icon>refresh</mat-icon>
+        Refresh
+      </button>
+      <button mat-flat-button color="primary" *ngIf="canEdit" (click)="goToBuilder()">
+        <mat-icon>add</mat-icon>
+        Create Master Screen
+      </button>
+    </div>
+  </header>
+
+  <!-- Metric Badges Row -->
+  <div class="dm-hub-stats">
+    <div class="dm-hub-stat-card">
+      <div class="dm-hub-stat-icon is-blue">
+        <mat-icon>dynamic_form</mat-icon>
+      </div>
+      <div class="dm-hub-stat-body">
+        <strong>{{ schemas.length }}</strong>
+        <span>Master Screens</span>
+      </div>
+    </div>
+
+    <div class="dm-hub-stat-card">
+      <div class="dm-hub-stat-icon is-green">
+        <mat-icon>check_circle</mat-icon>
+      </div>
+      <div class="dm-hub-stat-body">
+        <strong>{{ activeSchemasCount }}</strong>
+        <span>Active Screens</span>
+      </div>
+    </div>
+
+    <div class="dm-hub-stat-card">
+      <div class="dm-hub-stat-icon is-purple">
+        <mat-icon>folder_special</mat-icon>
+      </div>
+      <div class="dm-hub-stat-body">
+        <strong>{{ modulesList.length || 1 }}</strong>
+        <span>Modules Covered</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Search & Filter Toolbar -->
+  <section class="dm-hub-toolbar ems-card">
+    <div class="dm-hub-filters">
+      <button
+        type="button"
+        class="dm-hub-filter-chip"
+        [class.is-active]="selectedModule === 'ALL'"
+        (click)="selectedModule = 'ALL'">
+        All Modules ({{ schemas.length }})
+      </button>
+      <button
+        type="button"
+        class="dm-hub-filter-chip"
+        *ngFor="let m of modulesList"
+        [class.is-active]="selectedModule === m"
+        (click)="selectedModule = m">
+        {{ m }}
+      </button>
+    </div>
+
+    <div class="dm-hub-search-wrap">
+      <mat-icon>search</mat-icon>
+      <input
+        type="text"
+        [(ngModel)]="search"
+        placeholder="Search master screens by name or code…"
+        class="dm-hub-search-input"
+      />
+      <button *ngIf="search" class="dm-hub-search-clear" (click)="search = ''">&times;</button>
+    </div>
+  </section>
+
+  <!-- Loading State -->
+  <div class="dm-hub-loading" *ngIf="loading">
+    <mat-icon class="dm-spin">refresh</mat-icon>
+    <span>Loading master catalog...</span>
+  </div>
+
+  <!-- Empty State -->
+  <div class="ems-card dm-hub-empty" *ngIf="!loading && filteredSchemas.length === 0">
+    <mat-icon class="dm-hub-empty-icon">dynamic_form</mat-icon>
+    <h3>{{ search ? 'No master screens match “' + search + '”' : 'No dynamic master screens configured yet' }}</h3>
+    <p>
+      {{ search
+          ? 'Try adjusting your search query or module filter above.'
+          : 'Use the Visual Form Builder to create your first dynamic master screen with zero boilerplate code.' }}
+    </p>
+    <button mat-flat-button color="primary" *ngIf="canEdit && !search" (click)="goToBuilder()">
+      <mat-icon>add</mat-icon>
+      Design First Master Screen
+    </button>
+  </div>
+
+  <!-- Master Screens Grid -->
+  <div class="dm-hub-grid" *ngIf="!loading && filteredSchemas.length > 0">
+    <div
+      class="dm-hub-card ems-card"
+      *ngFor="let s of filteredSchemas"
+      (click)="openScreen(s.screenCode)">
+      
+      <!-- Card Top: Module / Submodule pill -->
+      <div class="dm-hub-card__head">
+        <span class="dm-hub-module-pill">
+          <mat-icon>folder</mat-icon>
+          {{ s.module || 'General' }}
+          <ng-container *ngIf="s.subModule"> / {{ s.subModule }}</ng-container>
+        </span>
+
+        <span class="ems-badge ems-badge--success" *ngIf="s.active !== false">Active</span>
+        <span class="ems-badge ems-badge--neutral" *ngIf="s.active === false">Inactive</span>
+      </div>
+
+      <!-- Card Title & Code -->
+      <h3 class="dm-hub-card__title">{{ s.screenName }}</h3>
+      <span class="dm-hub-card__code">{{ s.screenCode }}</span>
+
+      <!-- Description -->
+      <p class="dm-hub-card__desc">
+        {{ s.description || 'Dynamic master data screen with configurable fields, validations, and lookups.' }}
+      </p>
+
+      <!-- Meta stats: Field count & Version -->
+      <div class="dm-hub-card__meta">
+        <span class="dm-meta-item">
+          <mat-icon>view_column</mat-icon>
+          <strong>{{ s.fields ? s.fields.length : 0 }}</strong> Fields
+        </span>
+        <span class="dm-meta-item" *ngIf="s.version">
+          <mat-icon>history</mat-icon>
+          v{{ s.version }}
+        </span>
+      </div>
+
+      <!-- Card Actions -->
+      <div class="dm-hub-card__actions" (click)="$event.stopPropagation()">
+        <a mat-stroked-button [routerLink]="['/dynamic-masters/view', s.screenCode]" class="dm-card-btn-open">
+          <mat-icon>table_chart</mat-icon>
+          Data Grid
+        </a>
+
+        <a mat-stroked-button *ngIf="canEdit" [routerLink]="['/dynamic-masters/builder', s.screenCode]" class="dm-card-btn-design">
+          <mat-icon>tune</mat-icon>
+          Form Designer
+        </a>
+
+        <button
+          type="button"
+          mat-icon-button
+          *ngIf="canEdit"
+          (click)="deleteSchema(s, $event)"
+          matTooltip="Delete Master Screen"
+          class="dm-card-btn-delete">
+          <mat-icon>delete_outline</mat-icon>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

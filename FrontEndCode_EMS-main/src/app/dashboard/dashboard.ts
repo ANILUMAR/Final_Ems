@@ -10,9 +10,22 @@ import { Router, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatListModule } from '@angular/material/list';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { catchError, forkJoin, Observable, of } from 'rxjs';
-import { roleLabel } from '../models/role';
+import { roleLabel, isSuperAdminRole } from '../models/role';
+import { RolePermissionService } from '../services/role-permission.service';
 import { QuickActions } from '../quick-actions/quick-actions';
+
+export interface ProjectHealthRow {
+  id: number;
+  name: string;
+  description?: string;
+  taskCount: number;
+  doneCount: number;
+  overdueCount: number;
+  progress: number;
+  health: 'ON_TRACK' | 'AT_RISK' | 'DELAYED';
+}
 
 @Component({
   selector: 'app-dashboard',
@@ -28,6 +41,7 @@ import { QuickActions } from '../quick-actions/quick-actions';
     CommonModule,
     MatDialogModule,
     MatListModule,
+    MatTooltipModule,
     QuickActions
   ],
   templateUrl: './dashboard.html',
@@ -43,13 +57,13 @@ export class Dashboard implements OnInit {
   tasks: any[] = [];
   timesheets: any[] = [];
 
-  userRole = roleLabel(localStorage.getItem('role'));
   today = new Date();
 
   constructor(
     private http: HttpClient,
     private Router: Router,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private rolePermissionService: RolePermissionService
   ) {}
 
   ngOnInit(): void {
@@ -57,8 +71,24 @@ export class Dashboard implements OnInit {
     this.loadWorkspace();
   }
 
+  get rawRole(): string {
+    return (localStorage.getItem('role') || '').trim().toUpperCase();
+  }
+
+  get isProjectManager(): boolean {
+    return this.rawRole === 'PROJECT_MANAGER';
+  }
+
+  get isSuperAdmin(): boolean {
+    return isSuperAdminRole(this.rawRole);
+  }
+
+  get userRole(): string {
+    return roleLabel(this.rawRole);
+  }
+
   get displayName(): string {
-    return this.user?.username || localStorage.getItem('name') || localStorage.getItem('email') || 'there';
+    return this.user?.username || localStorage.getItem('name') || localStorage.getItem('email') || 'User';
   }
 
   get firstName(): string {
@@ -85,39 +115,129 @@ export class Dashboard implements OnInit {
   get doneTaskCount(): number { return this.tasks.filter((t) => t.status === 'DONE').length; }
   get inProgressCount(): number { return this.tasks.filter((t) => t.status === 'IN_PROGRESS').length; }
   get todoCount(): number { return this.tasks.filter((t) => t.status === 'TODO').length; }
+  get inReviewCount(): number {
+    return this.tasks.filter((t) => t.status === 'IN_REVIEW' || t.status === 'QA_READY' || t.status === 'TESTING').length;
+  }
+
   get totalHours(): number {
     return this.timesheets.reduce((sum, entry) => sum + (Number(entry.hours) || 0), 0);
   }
+
   get completionRate(): number {
     return this.tasks.length ? Math.round((this.doneTaskCount / this.tasks.length) * 100) : 0;
   }
 
-  get statusBreakdown() {
-    const total = this.tasks.length || 1;
-    return [
-      { key: 'TODO', label: 'To do', count: this.todoCount, percent: (this.todoCount / total) * 100, tone: 'neutral' },
-      { key: 'IN_PROGRESS', label: 'In progress', count: this.inProgressCount, percent: (this.inProgressCount / total) * 100, tone: 'info' },
-      { key: 'DONE', label: 'Done', count: this.doneTaskCount, percent: (this.doneTaskCount / total) * 100, tone: 'success' }
-    ];
+  get overdueTasks(): any[] {
+    const now = new Date();
+    return this.tasks
+      .filter((t) => {
+        if (t.status === 'DONE') return false;
+        if (!t.dueDate) return false;
+        const d = new Date(t.dueDate);
+        return !isNaN(d.getTime()) && d < now;
+      })
+      .slice(0, 5);
   }
 
-  get projectRows(): any[] {
-    return this.projects.slice(0, 5).map((project) => {
-      const projectTasks = this.tasks.filter((task) => task.project?.id === project.id);
+  get blockedOrCriticalTasks(): any[] {
+    return this.tasks
+      .filter((t) => {
+        if (t.status === 'DONE') return false;
+        return t.status === 'ON_HOLD' || t.priority === 'High' || t.priority === 'Critical';
+      })
+      .slice(0, 5);
+  }
+
+  get pendingTimesheets(): any[] {
+    return this.timesheets
+      .filter((t) => t.status === 'PENDING' || !t.status)
+      .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+  }
+
+  get projectRows(): ProjectHealthRow[] {
+    const now = new Date();
+    return this.projects.map((project) => {
+      const projectTasks = this.tasks.filter(
+        (task) => task.project?.id === project.id || task.projectId === project.id
+      );
       const done = projectTasks.filter((task) => task.status === 'DONE').length;
+      const overdue = projectTasks.filter((task) => {
+        if (task.status === 'DONE') return false;
+        if (!task.dueDate) return false;
+        const d = new Date(task.dueDate);
+        return !isNaN(d.getTime()) && d < now;
+      }).length;
+      const progress = projectTasks.length ? Math.round((done / projectTasks.length) * 100) : 0;
+
+      let health: 'ON_TRACK' | 'AT_RISK' | 'DELAYED' = 'ON_TRACK';
+      if (overdue > 0) {
+        health = 'DELAYED';
+      } else if (progress < 25 && projectTasks.length > 3) {
+        health = 'AT_RISK';
+      }
+
       return {
         ...project,
         taskCount: projectTasks.length,
         doneCount: done,
-        progress: projectTasks.length ? Math.round((done / projectTasks.length) * 100) : 0
+        overdueCount: overdue,
+        progress,
+        health
       };
     });
+  }
+
+  get healthSummary() {
+    const rows = this.projectRows;
+    return {
+      onTrack: rows.filter((r) => r.health === 'ON_TRACK').length,
+      atRisk: rows.filter((r) => r.health === 'AT_RISK').length,
+      delayed: rows.filter((r) => r.health === 'DELAYED').length
+    };
+  }
+
+  get workflowStages() {
+    const total = this.tasks.length || 1;
+    return [
+      {
+        key: 'TODO',
+        label: 'Intake & Backlog',
+        count: this.todoCount,
+        percent: Math.round((this.todoCount / total) * 100),
+        color: '#64748b',
+        icon: 'pending_actions'
+      },
+      {
+        key: 'IN_PROGRESS',
+        label: 'In Development',
+        count: this.inProgressCount,
+        percent: Math.round((this.inProgressCount / total) * 100),
+        color: '#3b82f6',
+        icon: 'code'
+      },
+      {
+        key: 'IN_REVIEW',
+        label: 'QA Verification',
+        count: this.inReviewCount,
+        percent: Math.round((this.inReviewCount / total) * 100),
+        color: '#f59e0b',
+        icon: 'bug_report'
+      },
+      {
+        key: 'DONE',
+        label: 'Released & Done',
+        count: this.doneTaskCount,
+        percent: Math.round((this.doneTaskCount / total) * 100),
+        color: '#10b981',
+        icon: 'check_circle'
+      }
+    ];
   }
 
   get recentTimesheets(): any[] {
     return [...this.timesheets]
       .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
-      .slice(0, 5);
+      .slice(0, 6);
   }
 
   openHelpDialog(templateRef: any) {
@@ -148,8 +268,6 @@ export class Dashboard implements OnInit {
     this.errorMessage = '';
     let degraded = false;
 
-    // Each source degrades on its own so one failing endpoint never blanks the
-    // whole board (previously a single error zeroed every counter).
     const guarded = <T>(source: Observable<T>, fallback: T, label: string): Observable<T> =>
       source.pipe(
         catchError((err: any) => {
@@ -170,7 +288,7 @@ export class Dashboard implements OnInit {
         this.projects = projects || [];
         this.tasks = tasks || [];
         this.timesheets = timesheets || [];
-        this.errorMessage = degraded ? 'Some dashboard data could not be loaded. Check that the API is running.' : '';
+        this.errorMessage = degraded ? 'Some dashboard metrics could not be loaded. Please ensure services are active.' : '';
         this.loading = false;
       },
       error: (err) => {
@@ -182,11 +300,15 @@ export class Dashboard implements OnInit {
   }
 
   onLogout(): void {
+    this.rolePermissionService.clearPermissions();
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('email');
     localStorage.removeItem('role');
     localStorage.removeItem('name');
+    localStorage.removeItem('taskManager');
+    localStorage.removeItem('ems_role_permissions');
+    localStorage.removeItem('ems_role_permissions_role');
     this.Router.navigate(['/login']);
   }
 }

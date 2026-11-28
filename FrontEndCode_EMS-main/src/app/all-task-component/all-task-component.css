@@ -2,18 +2,451 @@
   display: block;
 }
 
-/* The register's last column holds two icon buttons. The header above it is
-   empty, so an auto-laid-out table handed the column one button's width and
-   the trash wrapped onto a second line under the pencil. Reserving the width
-   and refusing the wrap keeps the pair on one line, right-aligned, the way the
-   Registered Employees actions column already reads. */
+/* Actions / Details Column */
 .all-actions-col {
-  /* 16px padding either side plus the two 40px touch targets. */
-  width: 112px;
+  width: 90px;
   text-align: right;
   white-space: nowrap;
 }
 
 .all-actions-col .mat-mdc-icon-button {
   vertical-align: middle;
+}
+
+/* Alert close button */
+.ems-alert-close {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 18px;
+  cursor: pointer;
+  margin-left: auto;
+  line-height: 1;
+}
+
+/* Activity Monitor Pill */
+.ems-monitor-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: rgba(99, 102, 241, 0.12);
+  color: #818cf8;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.ems-monitor-pill mat-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+}
+
+/* Super Admin Section Cards */
+.ems-stat--interactive {
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  user-select: none;
+}
+
+.ems-stat--interactive:hover {
+  transform: translateY(-2px);
+  border-color: var(--ems-primary, #6366f1);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+}
+
+.ems-stat--interactive.is-active {
+  border-color: var(--ems-primary, #6366f1);
+  background: rgba(99, 102, 241, 0.08);
+  box-shadow: 0 0 0 1.5px var(--ems-primary, #6366f1);
+}
+
+.ems-stat--interactive.is-active::after {
+  background: var(--ems-primary, #6366f1);
+  height: 3px;
+}
+
+.ems-stat-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.ems-stat-card-head mat-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+
+/* Section Tabs */
+.ems-section-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 20px 0 16px;
+  padding: 6px;
+  background: var(--ems-surface, #1e2230);
+  border: 1px solid var(--ems-border, #2a2f42);
+  border-radius: var(--ems-radius, 10px);
+}
+
+.ems-section-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ems-text-2, #94a3b8);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ems-section-tab mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+.ems-section-tab:hover {
+  color: var(--ems-text, #f8fafc);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.ems-section-tab.is-active {
+  color: #fff;
+  background: var(--ems-primary, #6366f1);
+  border-color: var(--ems-primary, #6366f1);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
+}
+
+.ems-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(0, 0, 0, 0.3);
+  color: inherit;
+}
+
+.ems-section-tab.is-active .ems-tab-badge {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
+/* Sub-View Selector (Testing Lead vs Dev Lead / Dev Team vs QA Team) */
+.ems-sub-toggle-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 4px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+  border: 1px solid var(--ems-border, #2a2f42);
+  width: fit-content;
+  flex-wrap: wrap;
+}
+
+.ems-sub-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ems-text-2, #94a3b8);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ems-sub-toggle-btn mat-icon {
+  font-size: 17px;
+  width: 17px;
+  height: 17px;
+}
+
+.ems-sub-toggle-btn:hover {
+  color: var(--ems-text, #f8fafc);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.ems-sub-toggle-btn.is-active {
+  background: var(--ems-surface, #1e2230);
+  color: var(--ems-primary, #6366f1);
+  border-color: rgba(99, 102, 241, 0.4);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
+}
+
+.ems-sub-toggle-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
+}
+
+.ems-sub-toggle-btn.is-active .ems-sub-toggle-badge {
+  background: rgba(99, 102, 241, 0.25);
+  color: #818cf8;
+}
+
+/* Download Records Button */
+.ems-btn-download {
+  border-color: rgba(99, 102, 241, 0.4) !important;
+  color: #818cf8 !important;
+  background: rgba(99, 102, 241, 0.08) !important;
+  font-weight: 500 !important;
+  transition: all 0.2s ease !important;
+  white-space: nowrap !important;
+}
+
+.ems-btn-download:hover {
+  background: rgba(99, 102, 241, 0.18) !important;
+  border-color: #6366f1 !important;
+  color: #fff !important;
+}
+
+.ems-btn-download mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  margin-right: 4px;
+}
+
+/* Toolbar & Filter Chips */
+.ems-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.ems-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ems-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 12.5px;
+  font-weight: 500;
+  background: var(--ems-surface-2, #242938);
+  color: var(--ems-text-2, #94a3b8);
+  border: 1px solid var(--ems-border, #33394d);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ems-chip:hover {
+  color: var(--ems-text, #f8fafc);
+  border-color: var(--ems-border-strong, #4a526b);
+}
+
+.ems-chip.is-active {
+  background: rgba(99, 102, 241, 0.16);
+  color: #818cf8;
+  border-color: #6366f1;
+  font-weight: 600;
+}
+
+.ems-chip-count {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ems-chip.is-active .ems-chip-count {
+  background: #6366f1;
+  color: #fff;
+}
+
+/* Team Badges (Java Dev vs QA Testing) */
+.ems-team-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ems-team-badge mat-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+}
+
+.ems-team-badge--dev {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.ems-team-badge--qa {
+  background: rgba(236, 72, 153, 0.15);
+  color: #f472b6;
+  border: 1px solid rgba(236, 72, 153, 0.3);
+}
+
+.ems-lead-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12.5px;
+  color: var(--ems-text-2, #94a3b8);
+}
+
+/* Hold Reason Cell */
+.ems-hold-reason-cell {
+  display: inline-block;
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #fbbf24;
+  font-size: 12.5px;
+  cursor: help;
+}
+
+/* ==========================================================================
+   EXPLICIT LIGHT THEME OVERRIDES (Component Scoped)
+   ========================================================================== */
+:host-context(html[data-theme="light"]) {
+  .ems-stat--interactive {
+    background: #ffffff !important;
+    border-color: #d6dded !important;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05) !important;
+  }
+  .ems-stat--interactive:hover {
+    background: #f8faff !important;
+    border-color: #3d5bd9 !important;
+  }
+  .ems-stat--interactive.is-active {
+    background: #eef2ff !important;
+    border-color: #4f46e5 !important;
+  }
+
+  .ems-section-tabs {
+    background: #f1f4fb !important;
+    border-color: #d6dded !important;
+  }
+  .ems-section-tab {
+    color: #4d5b78 !important;
+  }
+  .ems-section-tab:hover {
+    color: #101a31 !important;
+    background: rgba(61, 91, 217, 0.06) !important;
+  }
+  .ems-section-tab.is-active {
+    background: #3d5bd9 !important;
+    color: #ffffff !important;
+    border-color: #3d5bd9 !important;
+  }
+
+  .ems-sub-toggle-bar {
+    background: #f1f4fb !important;
+    border-color: #d6dded !important;
+  }
+  .ems-sub-toggle-btn {
+    color: #4d5b78 !important;
+  }
+  .ems-sub-toggle-btn:hover {
+    color: #101a31 !important;
+    background: rgba(61, 91, 217, 0.06) !important;
+  }
+  .ems-sub-toggle-btn.is-active {
+    background: #ffffff !important;
+    color: #2563eb !important;
+    border-color: #d6dded !important;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08) !important;
+  }
+
+  .ems-btn-download {
+    background: #eef2ff !important;
+    border-color: #c7d2fe !important;
+    color: #4338ca !important;
+  }
+  .ems-btn-download:hover {
+    background: #e0e7ff !important;
+    border-color: #6366f1 !important;
+    color: #312e81 !important;
+  }
+
+  .ems-chip {
+    background: #ffffff !important;
+    border-color: #d6dded !important;
+    color: #4d5b78 !important;
+  }
+  .ems-chip:hover {
+    background: #f1f4fb !important;
+    color: #16203a !important;
+    border-color: #b7c2d9 !important;
+  }
+  .ems-chip.is-active {
+    background: #eef2ff !important;
+    color: #312e81 !important;
+    border-color: #6366f1 !important;
+  }
+  .ems-chip-count {
+    background: rgba(15, 23, 42, 0.08) !important;
+    color: #475569 !important;
+  }
+  .ems-chip.is-active .ems-chip-count {
+    background: #4f46e5 !important;
+    color: #ffffff !important;
+  }
+
+  .ems-card {
+    background: #ffffff !important;
+    border-color: #d6dded !important;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05) !important;
+  }
+
+  .ems-table-wrap {
+    background: #ffffff !important;
+    border-color: #d6dded !important;
+  }
+  .ems-table-wrap thead th {
+    background: #f8faff !important;
+    color: #475569 !important;
+    border-bottom: 1px solid #d6dded !important;
+  }
+  .ems-table-wrap tbody td {
+    color: #16203a !important;
+    border-bottom: 1px solid #eef2fa !important;
+  }
+  .ems-table-wrap tbody tr:hover {
+    background: #f8faff !important;
+  }
+
+  .task-code {
+    background: #f1f4fb !important;
+    border-color: #d6dded !important;
+    color: #3d5bd9 !important;
+  }
 }

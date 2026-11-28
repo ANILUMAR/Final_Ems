@@ -151,3 +151,125 @@
   .po-layout { grid-template-columns: 1fr; }
   .po-list { max-height: none; }
 }
+
+/* ---------- Create Project Modal ---------- */
+.po-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 14, 23, 0.72);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+  animation: poFadeIn 0.18s ease-out;
+}
+
+@keyframes poFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.po-modal-dialog {
+  background: var(--ems-card, #131b2b);
+  border: 1px solid var(--ems-border, #26314c);
+  border-radius: var(--ems-radius, 14px);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+  width: 100%;
+  max-width: 520px;
+  overflow: hidden;
+  animation: poScaleUp 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes poScaleUp {
+  from { transform: scale(0.96); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.po-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--ems-border, #26314c);
+  background: var(--ems-surface-2, #182135);
+}
+
+.po-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.po-modal-icon {
+  color: var(--ems-primary, #7b9cff);
+}
+
+.po-modal-head h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--ems-headline, #f2f5ff);
+}
+
+.po-modal-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.po-modal-hint {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--ems-text-2, #a8b4cd);
+  line-height: 1.45;
+}
+
+.po-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.po-form-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ems-text, #e9eefb);
+}
+
+.po-input,
+.po-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--ems-surface, #131b2b);
+  border: 1px solid var(--ems-border, #26314c);
+  border-radius: var(--ems-radius-sm, 8px);
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 0.92rem;
+  color: var(--ems-text, #e9eefb);
+  transition: border-color 0.16s ease;
+}
+
+.po-input:focus,
+.po-textarea:focus {
+  outline: none;
+  border-color: var(--ems-primary, #7b9cff);
+}
+
+.po-form-subtext {
+  font-size: 0.78rem;
+  color: var(--ems-text-3, #6c7a99);
+}
+
+.po-modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--ems-border, #26314c);
+  background: var(--ems-surface-2, #182135);
+}

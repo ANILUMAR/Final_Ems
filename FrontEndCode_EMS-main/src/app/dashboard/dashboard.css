@@ -1,3 +1,455 @@
 :host {
   display: block;
 }
+
+/* Eyebrow Header */
+.ems-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ems-text-3);
+  margin-bottom: 2px;
+}
+
+.ems-eyebrow__sep {
+  opacity: 0.4;
+}
+
+/* Alert Shelf for Overdue / Blockers */
+.ems-alert-shelf {
+  background: linear-gradient(135deg, rgba(244, 63, 94, 0.08) 0%, rgba(245, 158, 11, 0.05) 100%);
+  border: 1px solid rgba(244, 63, 94, 0.25);
+  padding: 16px 20px;
+  margin-bottom: 20px;
+}
+
+.ems-alert-shelf__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.ems-alert-shelf__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #f43f5e;
+  font-size: 13.5px;
+}
+
+.ems-alert-shelf__title mat-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+  color: #f43f5e;
+}
+
+.ems-alert-shelf__link {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #f43f5e !important;
+}
+
+.ems-alert-shelf__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.ems-alert-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--ems-radius-sm);
+  background: var(--ems-surface-2);
+  border: 1px solid var(--ems-border);
+}
+
+.ems-alert-item__badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 3px 6px;
+  border-radius: 4px;
+}
+
+.ems-alert-item__badge.is-overdue {
+  background: rgba(244, 63, 94, 0.15);
+  color: #f43f5e;
+  border: 1px solid rgba(244, 63, 94, 0.3);
+}
+
+.ems-alert-item__badge.is-critical {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.ems-alert-item__body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ems-alert-item__body strong {
+  font-size: 12.5px;
+  color: var(--ems-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ems-alert-item__body small {
+  font-size: 11px;
+  color: var(--ems-text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Stat Card Accents */
+.ems-stat--accent-blue {
+  border-left: 3.5px solid #3b82f6 !important;
+}
+
+.ems-stat--accent-indigo {
+  border-left: 3.5px solid #6366f1 !important;
+}
+
+.ems-stat--accent-amber {
+  border-left: 3.5px solid #f59e0b !important;
+}
+
+.ems-stat--accent-green {
+  border-left: 3.5px solid #10b981 !important;
+}
+
+.ems-stat--accent-rose {
+  border-left: 3.5px solid #f43f5e !important;
+}
+
+.ems-text-danger {
+  color: #f43f5e !important;
+}
+
+/* 2-Column Responsive Layout */
+.ems-dash-split {
+  display: grid;
+  grid-template-columns: 1.25fr 0.75fr;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .ems-dash-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ems-dash-col-main,
+.ems-dash-col-side {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.ems-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.ems-card-head__link {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ems-primary);
+  text-decoration: none;
+}
+
+.ems-card-head__link:hover {
+  text-decoration: underline;
+}
+
+/* Cross-Department Workflow Pipeline */
+.ems-workflow-pipeline {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ems-workflow-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ems-workflow-stage__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ems-workflow-stage__icon mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+.ems-workflow-stage__info {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.ems-workflow-stage__info strong {
+  font-size: 13px;
+  color: var(--ems-text);
+}
+
+.ems-workflow-stage__info small {
+  font-size: 11.5px;
+  color: var(--ems-text-3);
+}
+
+.ems-workflow-stage__pct {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ems-text-2);
+}
+
+.ems-workflow-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--ems-surface-3);
+  overflow: hidden;
+}
+
+.ems-workflow-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Project Health Portfolio */
+.ems-health-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ems-health-pill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.ems-health-pill.is-on-track {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.ems-health-pill.is-at-risk {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.25);
+}
+
+.ems-health-pill.is-delayed {
+  background: rgba(244, 63, 94, 0.12);
+  color: #f43f5e;
+  border-color: rgba(244, 63, 94, 0.25);
+}
+
+.ems-project-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ems-project-item {
+  padding: 12px 14px;
+  border-radius: var(--ems-radius-md);
+  background: var(--ems-surface-2);
+  border: 1px solid var(--ems-border-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 0.16s ease;
+}
+
+.ems-project-item:hover {
+  border-color: var(--ems-border-strong);
+}
+
+.ems-project-item__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ems-project-item__title {
+  display: flex;
+  flex-direction: column;
+}
+
+.ems-project-item__title strong {
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--ems-text);
+}
+
+.ems-project-item__title small {
+  font-size: 11.5px;
+  color: var(--ems-text-3);
+}
+
+.ems-health-tag {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  letter-spacing: 0.04em;
+}
+
+.ems-health-tag.is-on-track {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.ems-health-tag.is-at-risk {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.ems-health-tag.is-delayed {
+  background: rgba(244, 63, 94, 0.15);
+  color: #f43f5e;
+}
+
+.ems-project-item__progress {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ems-project-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--ems-surface-3);
+  overflow: hidden;
+}
+
+.ems-project-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+.ems-project-fill.is-green { background: #10b981; }
+.ems-project-fill.is-amber { background: #f59e0b; }
+.ems-project-fill.is-rose { background: #f43f5e; }
+
+.ems-project-metrics {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--ems-text-3);
+}
+
+.ems-project-metrics strong {
+  color: var(--ems-text);
+}
+
+/* Timesheet Submissions List */
+.ems-timesheet-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ems-timesheet-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--ems-border-soft);
+}
+
+.ems-timesheet-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.ems-timesheet-item:first-child {
+  padding-top: 0;
+}
+
+.ems-timesheet-item__avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--ems-primary-soft);
+  color: var(--ems-primary);
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+  border: 1px solid var(--ems-primary-line-soft);
+}
+
+.ems-timesheet-item__details {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ems-timesheet-item__details strong {
+  font-size: 13px;
+  color: var(--ems-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ems-timesheet-item__details small {
+  font-size: 11.5px;
+  color: var(--ems-text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ems-timesheet-item__badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ems-timesheet-hours {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ems-text);
+  min-width: 24px;
+  text-align: right;
+}

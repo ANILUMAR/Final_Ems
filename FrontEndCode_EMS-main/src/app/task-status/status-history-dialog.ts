@@ -12,8 +12,16 @@ export interface StatusMeta {
   badge: string;
 }
 
-/** Single source of truth for how each lifecycle state renders. */
-export const STATUS_META: StatusMeta[] = [];
+export const DEFAULT_STATUS_LIST: StatusMeta[] = [
+  { value: 'TODO', label: 'To Do', icon: 'radio_button_unchecked', badge: 'ems-badge--neutral' },
+  { value: 'ASSIGNED', label: 'Assigned', icon: 'assignment_ind', badge: 'ems-badge--info' },
+  { value: 'IN_PROGRESS', label: 'In Progress', icon: 'timelapse', badge: 'ems-badge--warning' },
+  { value: 'IN_REVIEW', label: 'In Review', icon: 'rate_review', badge: 'ems-badge--info' },
+  { value: 'DONE', label: 'Done', icon: 'check_circle', badge: 'ems-badge--success' }
+];
+
+/** Single source of truth for how each lifecycle state renders. Initialized with standard defaults. */
+export const STATUS_META: StatusMeta[] = [...DEFAULT_STATUS_LIST];
 
 /**
  * Filled from the WORK_STATUS rows of `app_lookup` by ReferenceService. The

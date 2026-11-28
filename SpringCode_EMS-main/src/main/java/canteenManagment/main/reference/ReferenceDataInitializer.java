@@ -34,16 +34,18 @@ public class ReferenceDataInitializer implements ApplicationRunner {
             // still resolve - it is not offered when a role is picked.
             new LookupItem(ReferenceService.ROLE, "SUPER_ADMIN", "Super Admin", "workspace_premium", "warning", 5),
             new LookupItem(ReferenceService.ROLE, "ADMIN", "Admin", "shield_person", "info", 10),
-            new LookupItem(ReferenceService.ROLE, "DEVELOPER_LEAD", "Java Team Leader", "groups", "info", 15),
-            new LookupItem(ReferenceService.ROLE, "EMPLOYEE", "Java Developer", "code", "neutral", 20),
-            new LookupItem(ReferenceService.ROLE, "TESTER_LEAD", "Tester Team Leader", "groups", "info", 25),
-            new LookupItem(ReferenceService.ROLE, "TESTER", "Tester", "bug_report", "neutral", 30),
+            new LookupItem(ReferenceService.ROLE, "PROJECT_MANAGER", "Project Manager", "engineering", "info", 12),
+            new LookupItem(ReferenceService.ROLE, "TEAM_LEAD", "Team Leader", "groups", "info", 14),
+            decision(ReferenceService.ROLE, "DEVELOPER_LEAD", "Team Leader", "groups", "info", 15),
+            new LookupItem(ReferenceService.ROLE, "EMPLOYEE", "Software Developer", "code", "neutral", 20),
+            new LookupItem(ReferenceService.ROLE, "TESTER_LEAD", "QA Team Lead", "groups", "info", 25),
+            new LookupItem(ReferenceService.ROLE, "TESTER", "QA Engineer", "bug_report", "neutral", 30),
 
             // --- Lifecycle shared by tasks and assignments.
-            new LookupItem(ReferenceService.WORK_STATUS, "TODO", "To do", "radio_button_unchecked", "neutral", 10),
+            new LookupItem(ReferenceService.WORK_STATUS, "TODO", "To Do", "radio_button_unchecked", "neutral", 10),
             new LookupItem(ReferenceService.WORK_STATUS, "ASSIGNED", "Assigned", "assignment_ind", "info", 15),
-            new LookupItem(ReferenceService.WORK_STATUS, "IN_PROGRESS", "In progress", "timelapse", "info", 20),
-            new LookupItem(ReferenceService.WORK_STATUS, "IN_REVIEW", "In review", "rate_review", "warning", 30),
+            new LookupItem(ReferenceService.WORK_STATUS, "IN_PROGRESS", "In Progress", "timelapse", "info", 20),
+            new LookupItem(ReferenceService.WORK_STATUS, "IN_REVIEW", "In Review", "rate_review", "warning", 30),
             new LookupItem(ReferenceService.WORK_STATUS, "DONE", "Done", "task_alt", "success", 40),
 
             // --- Priority: stored upper-case, shown title-case.
@@ -54,8 +56,10 @@ public class ReferenceDataInitializer implements ApplicationRunner {
             // --- Timesheet approval states. Approved and rejected are outcomes,
             // so they render on the list but are never offered as a choice when
             // somebody books hours.
-            new LookupItem(ReferenceService.TIMESHEET_STATUS, "PENDING", "Pending approval", "hourglass_top", "warning", 10),
-            new LookupItem(ReferenceService.TIMESHEET_STATUS, "DRAFT", "Draft", "edit_note", "neutral", 20),
+            new LookupItem(ReferenceService.TIMESHEET_STATUS, "DRAFT", "Draft", "edit_note", "neutral", 10),
+            new LookupItem(ReferenceService.TIMESHEET_STATUS, "SUBMITTED", "Submitted", "send", "info", 15),
+            new LookupItem(ReferenceService.TIMESHEET_STATUS, "PENDING", "Pending approval", "hourglass_top", "warning", 20),
+            new LookupItem(ReferenceService.TIMESHEET_STATUS, "UNDER_REVIEW", "Under review", "rate_review", "warning", 25),
             decision(ReferenceService.TIMESHEET_STATUS, "APPROVED", "Approved", "verified", "success", 30),
             decision(ReferenceService.TIMESHEET_STATUS, "REJECTED", "Rejected", "block", "danger", 40),
 
@@ -98,7 +102,7 @@ public class ReferenceDataInitializer implements ApplicationRunner {
                 stored.setSelectable(item.getSelectable());
                 changed = true;
             }
-            if (ReferenceService.ROLE.equals(item.getCategory()) && !Objects.equals(stored.getLabel(), item.getLabel())) {
+            if ((ReferenceService.ROLE.equals(item.getCategory()) || ReferenceService.WORK_STATUS.equals(item.getCategory())) && !Objects.equals(stored.getLabel(), item.getLabel())) {
                 stored.setLabel(item.getLabel());
                 changed = true;
             }
@@ -107,6 +111,10 @@ public class ReferenceDataInitializer implements ApplicationRunner {
                 migrated++;
             }
         }
+        repository.findById("ROLE:DEVELOPER_LEAD").ifPresent(item -> {
+            item.setSelectable(Boolean.FALSE);
+            repository.save(item);
+        });
         long total = repository.count();
         if (created > 0 || migrated > 0) {
             log.info("Reference data: added {}, migrated {}; app_lookup now holds {}.", created, migrated, total);

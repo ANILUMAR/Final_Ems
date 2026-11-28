@@ -1,32 +1,106 @@
 <div class="ems-page">
+  <!-- Page Header -->
   <div class="ems-page-head">
     <div>
-      <h1 class="ems-page-title">All tasks</h1>
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+        <h1 class="ems-page-title" style="margin: 0">{{ isSuperAdmin ? 'Ticket Hub' : 'All Tickets Registry' }}</h1>
+        <span class="ems-monitor-pill" *ngIf="isSuperAdmin">
+          <mat-icon>visibility</mat-icon>
+          Activity Monitor
+        </span>
+      </div>
       <p class="ems-page-subtitle">
-        {{ tasks.length }} task(s) across {{ projectCount }} project(s) · {{ overdueCount }} past due
+        {{ isSuperAdmin ? 'Screen-wise monitoring console: View review queues for Testing & Developer Leads, Team Assignments made by leads, Completed Tickets/Bugs, and On-Hold items.' : (tasks.length + ' ticket(s) across ' + projectCount + ' project(s) · ' + overdueCount + ' past due') }}
       </p>
     </div>
 
     <div class="ems-actions">
-      <button mat-stroked-button (click)="load()">
+      <button mat-stroked-button (click)="refreshAll()">
         <mat-icon>refresh</mat-icon>
         Refresh
       </button>
-      <a *ngIf="canRaise" mat-stroked-button routerLink="/issues/new">
-        <mat-icon>add_circle</mat-icon>
-        Raise task / bug
-      </a>
     </div>
   </div>
 
+  <!-- Banners / Alerts -->
+  <div class="ems-auth__note ems-auth__note--success" *ngIf="successMessage">
+    <mat-icon>check_circle</mat-icon>
+    <span>{{ successMessage }}</span>
+    <button class="ems-alert-close" (click)="successMessage = ''">&times;</button>
+  </div>
   <div class="ems-auth__note ems-auth__note--error" *ngIf="errorMessage">
     <mat-icon>error_outline</mat-icon>
     <span>{{ errorMessage }}</span>
+    <button class="ems-alert-close" (click)="errorMessage = ''">&times;</button>
   </div>
 
-  <div class="ems-stat-grid">
+  <!-- Super Admin Summary Cards (Clickable shortcuts) -->
+  <div class="ems-stat-grid ems-section-cards" *ngIf="isSuperAdmin">
+    <article
+      class="ems-stat ems-stat--interactive"
+      [class.is-active]="activeSection === 'review'"
+      (click)="selectSection('review')"
+    >
+      <div class="ems-stat-card-head">
+        <mat-icon style="color:#6366f1;">approval</mat-icon>
+        <span class="ems-stat__label">QA Triage Queue</span>
+      </div>
+      <strong class="ems-stat__value">{{ pendingReviewCount + devLeadAwaitingReviewCount }}</strong>
+      <span class="ems-stat__hint">
+        {{ pendingReviewCount }} QA waiting · {{ devLeadAwaitingReviewCount }} Dev awaiting
+      </span>
+    </article>
+
+    <article
+      class="ems-stat ems-stat--interactive"
+      [class.is-active]="activeSection === 'assignment'"
+      (click)="selectSection('assignment')"
+    >
+      <div class="ems-stat-card-head">
+        <mat-icon style="color:#3b82f6;">assignment_ind</mat-icon>
+        <span class="ems-stat__label">Work Allocation</span>
+      </div>
+      <strong class="ems-stat__value">{{ allAssignmentsList.length }}</strong>
+      <span class="ems-stat__hint">
+        {{ assignedToTeamCount }} Dev assigned · {{ qaAssignedCount }} QA assigned
+      </span>
+    </article>
+
+    <article
+      class="ems-stat ems-stat--interactive"
+      [class.is-active]="activeSection === 'completed'"
+      (click)="selectSection('completed')"
+    >
+      <div class="ems-stat-card-head">
+        <mat-icon style="color:#10b981;">inventory_2</mat-icon>
+        <span class="ems-stat__label">Completed Work Items</span>
+      </div>
+      <strong class="ems-stat__value">{{ completedCount }}</strong>
+      <span class="ems-stat__hint">
+        {{ completedReleasedCount }} in QA · {{ completedCount - completedReleasedCount }} dev completed
+      </span>
+    </article>
+
+    <article
+      class="ems-stat ems-stat--interactive"
+      [class.is-active]="activeSection === 'onhold'"
+      (click)="selectSection('onhold')"
+    >
+      <div class="ems-stat-card-head">
+        <mat-icon style="color:#f59e0b;">pause_circle_outline</mat-icon>
+        <span class="ems-stat__label">On-Hold Tickets</span>
+      </div>
+      <strong class="ems-stat__value">{{ onHoldCount }}</strong>
+      <span class="ems-stat__hint">
+        {{ onHoldCount > 0 ? onHoldCount + ' tickets on hold' : 'No tickets on hold' }}
+      </span>
+    </article>
+  </div>
+
+  <!-- Non-Super Admin: Original Stat Cards -->
+  <div class="ems-stat-grid" *ngIf="!isSuperAdmin">
     <article class="ems-stat">
-      <span class="ems-stat__label">Total tasks</span>
+      <span class="ems-stat__label">Total tickets</span>
       <strong class="ems-stat__value">{{ tasks.length }}</strong>
       <span class="ems-stat__hint">Across all projects</span>
     </article>
@@ -47,47 +121,896 @@
     </article>
   </div>
 
-  <section class="ems-card" style="margin-top: 16px">
+  <!-- Super Admin Section Switcher Tabs -->
+  <div class="ems-section-tabs" *ngIf="isSuperAdmin">
+    <button
+      type="button"
+      class="ems-section-tab"
+      [class.is-active]="activeSection === 'review'"
+      (click)="selectSection('review')"
+    >
+      <mat-icon>approval</mat-icon>
+      <span>Review List Screen</span>
+      <span class="ems-tab-badge">{{ pendingReviewCount + devLeadAwaitingReviewCount }}</span>
+    </button>
+    <button
+      type="button"
+      class="ems-section-tab"
+      [class.is-active]="activeSection === 'assignment'"
+      (click)="selectSection('assignment')"
+    >
+      <mat-icon>assignment_ind</mat-icon>
+      <span>Team Assignment List</span>
+      <span class="ems-tab-badge">{{ allAssignmentsList.length }}</span>
+    </button>
+    <button
+      type="button"
+      class="ems-section-tab"
+      [class.is-active]="activeSection === 'completed'"
+      (click)="selectSection('completed')"
+    >
+      <mat-icon>inventory_2</mat-icon>
+      <span>Completed Ticket/Bug List</span>
+      <span class="ems-tab-badge" *ngIf="completedCount">{{ completedCount }}</span>
+    </button>
+    <button
+      type="button"
+      class="ems-section-tab"
+      [class.is-active]="activeSection === 'onhold'"
+      (click)="selectSection('onhold')"
+    >
+      <mat-icon>pause_circle_outline</mat-icon>
+      <span>On-Hold Tickets List</span>
+      <span class="ems-tab-badge" *ngIf="onHoldCount">{{ onHoldCount }}</span>
+    </button>
+    <button
+      type="button"
+      class="ems-section-tab"
+      [class.is-active]="activeSection === 'register'"
+      (click)="selectSection('register')"
+    >
+      <mat-icon>list_alt</mat-icon>
+      <span>Ticket Register</span>
+      <span class="ems-tab-badge">{{ tasks.length }}</span>
+    </button>
+  </div>
+
+  <!-- =========================================================================
+       TAB 1: REVIEW LIST SCREEN (Testing Lead & Developer Lead Reviews - Monitor & Download)
+       ========================================================================= -->
+  <section class="ems-card" style="margin-top: 16px" *ngIf="isSuperAdmin && activeSection === 'review'">
+    <!-- Sub-View Selector: Testing Lead Review vs Developer Lead Review -->
+    <div class="ems-sub-toggle-bar">
+      <button
+        type="button"
+        class="ems-sub-toggle-btn"
+        [class.is-active]="reviewSubTab === 'testing'"
+        (click)="reviewSubTab = 'testing'; reviewPageIndex = 0">
+        <mat-icon>rule</mat-icon>
+        Testing Team Leader Review
+        <span class="ems-sub-toggle-badge">{{ pendingReviewCount }} waiting</span>
+      </button>
+      <button
+        type="button"
+        class="ems-sub-toggle-btn"
+        [class.is-active]="reviewSubTab === 'developer'"
+        (click)="reviewSubTab = 'developer'; devReviewPageIndex = 0">
+        <mat-icon>rate_review</mat-icon>
+        Developer Team Leader Review
+        <span class="ems-sub-toggle-badge">{{ devLeadAwaitingReviewCount }} awaiting</span>
+      </button>
+    </div>
+
+    <!-- 1A: Testing Team Leader Review Table -->
+    <div *ngIf="reviewSubTab === 'testing'">
+      <div class="ems-toolbar">
+        <div class="ems-toolbar-left">
+          <h2 class="ems-section-title" style="margin: 0">
+            <mat-icon style="color:#6366f1;">rule</mat-icon>
+            Testing Team Leader Review List
+          </h2>
+          <div class="ems-chips">
+            <button type="button" class="ems-chip" [class.is-active]="reviewFilter === 'PENDING'" (click)="reviewFilter = 'PENDING'; reviewPageIndex = 0">
+              Waiting <span class="ems-chip-count">{{ pendingReviewCount }}</span>
+            </button>
+            <button type="button" class="ems-chip" [class.is-active]="reviewFilter === 'APPROVED'" (click)="reviewFilter = 'APPROVED'; reviewPageIndex = 0">
+              Approved <span class="ems-chip-count">{{ approvedReviewCount }}</span>
+            </button>
+            <button type="button" class="ems-chip" [class.is-active]="reviewFilter === 'REJECTED'" (click)="reviewFilter = 'REJECTED'; reviewPageIndex = 0">
+              Sent back <span class="ems-chip-count">{{ rejectedReviewCount }}</span>
+            </button>
+            <button type="button" class="ems-chip" [class.is-active]="reviewFilter === 'ALL'" (click)="reviewFilter = 'ALL'; reviewPageIndex = 0">
+              All <span class="ems-chip-count">{{ reviewCount }}</span>
+            </button>
+          </div>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:10px;">
+          <!-- Download Option for Testing Lead Review Records -->
+          <button
+            *ngIf="canExport"
+            mat-stroked-button
+            class="ems-btn-download"
+            (click)="downloadReviewRecords()"
+            matTooltip="Download Testing Team Leader review records as CSV">
+            <mat-icon>download</mat-icon>
+            Download CSV
+          </button>
+
+          <mat-form-field appearance="outline" class="ems-search">
+            <mat-label>Search reviews</mat-label>
+            <input matInput [(ngModel)]="reviewSearch" (ngModelChange)="reviewPageIndex = 0" placeholder="Code, title, reporter, project…" />
+            <mat-icon matPrefix>search</mat-icon>
+          </mat-form-field>
+        </div>
+      </div>
+
+      <div class="ems-empty" *ngIf="filteredReviewItems.length === 0">
+        <mat-icon>done_all</mat-icon>
+        <h3>Nothing waiting in review</h3>
+        <p>No submissions match current filter or search criteria.</p>
+      </div>
+
+      <div class="ems-table-wrap" *ngIf="filteredReviewItems.length > 0">
+        <table>
+          <thead>
+            <tr>
+              <th>Ticket ID</th>
+              <th>Ticket / Bug</th>
+              <th>Project</th>
+              <th>Reporter</th>
+              <th>Priority</th>
+              <th>Submitted</th>
+              <th>Review Status</th>
+              <th class="all-actions-col">Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of pagedReviewItems">
+              <td><span class="task-code tk-clickable" (click)="openTicketDetails(item)" matTooltip="Open 360° Ticket Modal">{{ code(item) }}</span></td>
+              <td>
+                <div class="ems-rows__main">
+                  <strong class="tk-clickable-title" (click)="openTicketDetails(item)" matTooltip="Open 360° Ticket Modal">{{ item.taskTitle }}</strong>
+                  <small>
+                    {{ kindLabel(item) }}<ng-container *ngIf="item.module"> · {{ item.module }}</ng-container
+                    >{{ item.screen ? ' · ' + item.screen : '' }}
+                  </small>
+                </div>
+              </td>
+              <td>{{ item.project || '—' }}</td>
+              <td>
+                <div class="ems-task-card__owner">
+                  <span class="ems-avatar-sm">{{ initials(item.createdByName || item.createdBy) }}</span>
+                  <span>{{ item.createdByName || item.createdBy || 'Tester' }}</span>
+                </div>
+              </td>
+              <td>
+                <span class="ems-badge" [ngClass]="priorityBadge(item.priority)">{{ priorityLabel(item.priority) }}</span>
+              </td>
+              <td>{{ item.createdAt | date:'dd MMM yyyy' }}</td>
+              <td>
+                <span
+                  class="ems-badge"
+                  [ngClass]="{
+                    'ems-badge--warning': (item.approvalState || 'PENDING') === 'PENDING',
+                    'ems-badge--success': item.approvalState === 'APPROVED',
+                    'ems-badge--danger': item.approvalState === 'REJECTED'
+                  }"
+                >
+                  {{ item.approvalState === 'PENDING' ? 'Waiting Review' : (item.approvalState === 'APPROVED' ? 'Approved' : 'Sent Back') }}
+                </span>
+              </td>
+              <td class="all-actions-col">
+                <button
+                  mat-icon-button
+                  style="color: #6366f1;"
+                  matTooltip="Open 360° Ticket Modal"
+                  (click)="openTicketDetails(item)"
+                  aria-label="Open Ticket Modal">
+                  <mat-icon>open_in_new</mat-icon>
+                </button>
+                <button
+                  *ngIf="isBug(item) || isProdIssue(item)"
+                  mat-icon-button
+                  style="color: #e11d48;"
+                  matTooltip="View Bug Details & Reproduction Steps"
+                  (click)="openBugDetails(item)"
+                  aria-label="View Bug Details">
+                  <mat-icon>account_tree</mat-icon>
+                </button>
+                <a
+                  *ngIf="item.attachmentPath"
+                  mat-icon-button
+                  [href]="attachmentUrl(item.attachmentPath)"
+                  target="_blank"
+                  rel="noopener"
+                  matTooltip="View Attachment">
+                  <mat-icon>attachment</mat-icon>
+                </a>
+                <button
+                  *ngIf="item.approvalState === 'REJECTED' && item.reviewNote"
+                  mat-icon-button
+                  [matTooltip]="'Sent back note: ' + item.reviewNote"
+                  style="color: #f59e0b;"
+                  aria-label="Note">
+                  <mat-icon>chat_bubble_outline</mat-icon>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <app-pager
+        [length]="filteredReviewItems.length"
+        [(pageIndex)]="reviewPageIndex"
+        [(pageSize)]="reviewPageSize"
+        noun="submission">
+      </app-pager>
+    </div>
+
+    <!-- 1B: Developer Team Leader Review Table -->
+    <div *ngIf="reviewSubTab === 'developer'">
+      <div class="ems-toolbar">
+        <div class="ems-toolbar-left">
+          <h2 class="ems-section-title" style="margin: 0">
+            <mat-icon style="color:#3b82f6;">rate_review</mat-icon>
+            Developer Team Leader Review List
+          </h2>
+          <div class="ems-chips">
+            <button type="button" class="ems-chip" [class.is-active]="devReviewFilter === 'ALL'" (click)="devReviewFilter = 'ALL'; devReviewPageIndex = 0">
+              All <span class="ems-chip-count">{{ devLeadReviewItems.length }}</span>
+            </button>
+            <button type="button" class="ems-chip" [class.is-active]="devReviewFilter === 'AWAITING'" (click)="devReviewFilter = 'AWAITING'; devReviewPageIndex = 0">
+              Awaiting Lead Review <span class="ems-chip-count">{{ devLeadAwaitingReviewCount }}</span>
+            </button>
+            <button type="button" class="ems-chip" [class.is-active]="devReviewFilter === 'APPROVED'" (click)="devReviewFilter = 'APPROVED'; devReviewPageIndex = 0">
+              Approved for Release <span class="ems-chip-count">{{ devLeadApprovedCount }}</span>
+            </button>
+            <button type="button" class="ems-chip" [class.is-active]="devReviewFilter === 'ON_HOLD'" (click)="devReviewFilter = 'ON_HOLD'; devReviewPageIndex = 0">
+              On Hold <span class="ems-chip-count">{{ devLeadOnHoldCount }}</span>
+            </button>
+          </div>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:10px;">
+          <!-- Download Option for Developer Lead Review Records -->
+          <button
+            *ngIf="canExport"
+            mat-stroked-button
+            class="ems-btn-download"
+            (click)="downloadReviewRecords()"
+            matTooltip="Download Developer Team Leader review records as CSV">
+            <mat-icon>download</mat-icon>
+            Download CSV
+          </button>
+
+          <mat-form-field appearance="outline" class="ems-search">
+            <mat-label>Search reviews</mat-label>
+            <input matInput [(ngModel)]="devReviewSearch" (ngModelChange)="devReviewPageIndex = 0" placeholder="Code, title, developer, project…" />
+            <mat-icon matPrefix>search</mat-icon>
+          </mat-form-field>
+        </div>
+      </div>
+
+      <div class="ems-empty" *ngIf="filteredDevReviewItems.length === 0">
+        <mat-icon>task_alt</mat-icon>
+        <h3>No tasks in developer lead review</h3>
+        <p>No completed tasks match current filter.</p>
+      </div>
+
+      <div class="ems-table-wrap" *ngIf="filteredDevReviewItems.length > 0">
+        <table>
+          <thead>
+            <tr>
+              <th>Ticket ID</th>
+              <th>Ticket / Bug</th>
+              <th>Project</th>
+              <th>Developer</th>
+              <th>Priority</th>
+              <th>Completed Date</th>
+              <th>Lead Review Status</th>
+              <th class="all-actions-col">Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of pagedDevReviewItems">
+              <td><span class="task-code tk-clickable" (click)="openTicketDetails(item)" matTooltip="Open 360° Ticket Modal">{{ code(item) }}</span></td>
+              <td>
+                <div class="ems-rows__main">
+                  <strong class="tk-clickable-title" (click)="openTicketDetails(item)" matTooltip="Open 360° Ticket Modal">{{ item.taskTitle }}</strong>
+                  <small>
+                    {{ kindLabel(item) }}<ng-container *ngIf="item.module"> · {{ item.module }}</ng-container
+                    >{{ item.screen ? ' · ' + item.screen : '' }}
+                  </small>
+                </div>
+              </td>
+              <td>{{ item.project || '—' }}</td>
+              <td>
+                <div class="ems-task-card__owner">
+                  <span class="ems-avatar-sm">{{ initials(item.assignedToName || 'Dev') }}</span>
+                  <span>{{ item.assignedToName || 'Developer' }}</span>
+                </div>
+              </td>
+              <td>
+                <span class="ems-badge" [ngClass]="priorityBadge(item.priority)">{{ priorityLabel(item.priority) }}</span>
+              </td>
+              <td>{{ (item.heldAt || item.reviewedAt || item.createdAt) | date:'dd MMM yyyy' }}</td>
+              <td>
+                <span
+                  class="ems-badge"
+                  [ngClass]="{
+                    'ems-badge--warning': !item.releasedForTesting && item.leadReviewStatus !== 'APPROVED' && item.leadReviewStatus !== 'ON_HOLD',
+                    'ems-badge--success': !item.releasedForTesting && item.leadReviewStatus === 'APPROVED',
+                    'ems-badge--danger': item.leadReviewStatus === 'ON_HOLD',
+                    'ems-badge--neutral': item.releasedForTesting
+                  }"
+                >
+                  {{ item.releasedForTesting ? 'Released to QA' : (item.leadReviewStatus === 'APPROVED' ? 'Approved for QA' : (item.leadReviewStatus === 'ON_HOLD' ? 'On Hold' : 'Awaiting Review')) }}
+                </span>
+              </td>
+              <td class="all-actions-col">
+                <button
+                  mat-icon-button
+                  style="color: #6366f1;"
+                  matTooltip="Open 360° Ticket Modal"
+                  (click)="openTicketDetails(item)"
+                  aria-label="Open Ticket Modal">
+                  <mat-icon>open_in_new</mat-icon>
+                </button>
+                <button
+                  *ngIf="isBug(item) || isProdIssue(item)"
+                  mat-icon-button
+                  style="color: #e11d48;"
+                  matTooltip="View Bug Details & Steps"
+                  (click)="openBugDetails(item)"
+                  aria-label="View Bug Details">
+                  <mat-icon>account_tree</mat-icon>
+                </button>
+                <a
+                  *ngIf="item.attachmentPath"
+                  mat-icon-button
+                  [href]="attachmentUrl(item.attachmentPath)"
+                  target="_blank"
+                  rel="noopener"
+                  matTooltip="View Attachment">
+                  <mat-icon>attachment</mat-icon>
+                </a>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <app-pager
+        [length]="filteredDevReviewItems.length"
+        [(pageIndex)]="devReviewPageIndex"
+        [(pageSize)]="devReviewPageSize"
+        noun="ticket">
+      </app-pager>
+    </div>
+  </section>
+
+  <!-- =========================================================================
+       TAB 2: TEAM ASSIGNMENT LIST (Assignments made by Team Leads - Monitor & Download)
+       ========================================================================= -->
+  <section class="ems-card" style="margin-top: 16px" *ngIf="isSuperAdmin && activeSection === 'assignment'">
+    <!-- Sub-View Selector: All Assignments vs Developer Team vs Testing Team -->
+    <div class="ems-sub-toggle-bar">
+      <button
+        type="button"
+        class="ems-sub-toggle-btn"
+        [class.is-active]="assignmentSubTab === 'all'"
+        (click)="assignmentSubTab = 'all'; assignmentPageIndex = 0">
+        <mat-icon>group</mat-icon>
+        All Lead Assignments
+        <span class="ems-sub-toggle-badge">{{ allAssignmentsList.length }}</span>
+      </button>
+      <button
+        type="button"
+        class="ems-sub-toggle-btn"
+        [class.is-active]="assignmentSubTab === 'developer'"
+        (click)="assignmentSubTab = 'developer'; assignmentPageIndex = 0">
+        <mat-icon>code</mat-icon>
+        Developer Team Assignments (by Dev Lead)
+        <span class="ems-sub-toggle-badge">{{ assignedToTeamCount }} assigned</span>
+      </button>
+      <button
+        type="button"
+        class="ems-sub-toggle-btn"
+        [class.is-active]="assignmentSubTab === 'testing'"
+        (click)="assignmentSubTab = 'testing'; assignmentPageIndex = 0">
+        <mat-icon>bug_report</mat-icon>
+        Testing Team Assignments (by QA Lead)
+        <span class="ems-sub-toggle-badge">{{ qaAssignedCount }} assigned</span>
+      </button>
+    </div>
+
+    <div class="ems-toolbar">
+      <div class="ems-toolbar-left">
+        <h2 class="ems-section-title" style="margin: 0">
+          <mat-icon style="color:#3b82f6;">assignment_ind</mat-icon>
+          Team Assignment List
+        </h2>
+        <div class="ems-chips">
+          <button type="button" class="ems-chip" [class.is-active]="assignmentFilter === 'ALL'" (click)="assignmentFilter = 'ALL'; assignmentPageIndex = 0">
+            All <span class="ems-chip-count">{{ allAssignmentsList.length }}</span>
+          </button>
+          <button type="button" class="ems-chip" [class.is-active]="assignmentFilter === 'ASSIGNED'" (click)="assignmentFilter = 'ASSIGNED'; assignmentPageIndex = 0">
+            Assigned to Members <span class="ems-chip-count">{{ assignedToTeamCount + qaAssignedCount }}</span>
+          </button>
+          <button type="button" class="ems-chip" [class.is-active]="assignmentFilter === 'AWAITING'" (click)="assignmentFilter = 'AWAITING'; assignmentPageIndex = 0">
+            Awaiting Assignment <span class="ems-chip-count">{{ awaitingAssignmentCount + qaAwaitingCount }}</span>
+          </button>
+        </div>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:10px;">
+        <!-- Download Option for Team Assignment Records -->
+        <button
+          *ngIf="canExport"
+          mat-stroked-button
+          class="ems-btn-download"
+          (click)="downloadAssignmentRecords()"
+          matTooltip="Download team assignment records as CSV">
+          <mat-icon>download</mat-icon>
+          Download CSV
+        </button>
+
+        <mat-form-field appearance="outline" class="ems-search">
+          <mat-label>Search assignments</mat-label>
+          <input matInput [(ngModel)]="assignmentSearch" (ngModelChange)="assignmentPageIndex = 0" placeholder="Code, title, lead, member, project…" />
+          <mat-icon matPrefix>search</mat-icon>
+        </mat-form-field>
+      </div>
+    </div>
+
+    <div class="ems-empty" *ngIf="filteredAssignmentItems.length === 0">
+      <mat-icon>engineering</mat-icon>
+      <h3>No assignment records found</h3>
+      <p>No tasks match current filter or search criteria.</p>
+    </div>
+
+    <div class="ems-table-wrap" *ngIf="filteredAssignmentItems.length > 0">
+      <table>
+        <thead>
+          <tr>
+            <th>Ticket ID</th>
+            <th>Ticket / Bug</th>
+            <th>Project</th>
+            <th>Team</th>
+            <th>Assigned By (Lead)</th>
+            <th>Assigned Member</th>
+            <th>Priority</th>
+            <th>Assigned / Start</th>
+            <th>Status</th>
+            <th class="all-actions-col">Details</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of pagedAssignmentItems">
+            <td><span class="task-code tk-clickable" (click)="openTicketDetails(item)" matTooltip="Open 360° Ticket Modal">{{ code(item) }}</span></td>
+            <td>
+              <div class="ems-rows__main">
+                <strong class="tk-clickable-title" (click)="openTicketDetails(item)" matTooltip="Open 360° Ticket Modal">{{ item.taskTitle }}</strong>
+                <small>
+                  {{ kindLabel(item) }}<ng-container *ngIf="item.module"> · {{ item.module }}</ng-container
+                  >{{ item.screen ? ' · ' + item.screen : '' }}
+                </small>
+              </div>
+            </td>
+            <td>{{ item.project || '—' }}</td>
+            <td>
+              <span class="ems-team-badge" [ngClass]="item.teamType === 'DEVELOPER' ? 'ems-team-badge--dev' : 'ems-team-badge--qa'">
+                <mat-icon>{{ item.teamType === 'DEVELOPER' ? 'code' : 'bug_report' }}</mat-icon>
+                {{ item.teamType === 'DEVELOPER' ? 'Java Dev' : 'QA Testing' }}
+              </span>
+            </td>
+            <td>
+              <div class="ems-lead-cell">
+                <mat-icon style="font-size:16px;width:16px;height:16px;color:#94a3b8;">verified_user</mat-icon>
+                <span>{{ (item.teamType === 'DEVELOPER' ? item.assignedBy : item.assignedTesterBy) || 'Team Lead' }}</span>
+              </div>
+            </td>
+            <td>
+              <div class="ems-task-card__owner">
+                <span class="ems-avatar-sm">{{ initials(item.teamType === 'DEVELOPER' ? (item.assignedToName || 'Unassigned') : (item.assignedTesterName || 'Unassigned')) }}</span>
+                <span [style.color]="(item.teamType === 'DEVELOPER' ? item.assignedToName : item.assignedTesterName) ? 'inherit' : 'var(--ems-warning, #f59e0b)'">
+                  {{ (item.teamType === 'DEVELOPER' ? item.assignedToName : item.assignedTesterName) || 'Awaiting Assignment' }}
+                </span>
+              </div>
+            </td>
+            <td>
+              <span class="ems-badge" [ngClass]="priorityBadge(item.priority)">{{ priorityLabel(item.priority) }}</span>
+            </td>
+            <td>{{ (item.teamType === 'DEVELOPER' ? (item.assignedAt || item.startDate) : (item.assignedTesterAt || item.releasedAt)) | date:'dd MMM yyyy' }}</td>
+            <td>
+              <span
+                class="ems-badge"
+                [ngClass]="(item.teamType === 'DEVELOPER' ? !!item.assignedToName : !!item.assignedTesterName) ? 'ems-badge--success' : 'ems-badge--warning'">
+                {{ (item.teamType === 'DEVELOPER' ? !!item.assignedToName : !!item.assignedTesterName) ? 'Assigned' : 'Awaiting Dev/QA' }}
+              </span>
+            </td>
+            <td class="all-actions-col">
+              <button
+                mat-icon-button
+                style="color: #6366f1;"
+                matTooltip="Open 360° Ticket Modal"
+                (click)="openTicketDetails(item)"
+                aria-label="Open Ticket Modal">
+                <mat-icon>open_in_new</mat-icon>
+              </button>
+              <button
+                *ngIf="isBug(item) || isProdIssue(item)"
+                mat-icon-button
+                style="color: #e11d48;"
+                matTooltip="View Bug Details & Steps"
+                (click)="openBugDetails(item)"
+                aria-label="View Bug Details">
+                <mat-icon>account_tree</mat-icon>
+              </button>
+              <a
+                *ngIf="item.attachmentPath"
+                mat-icon-button
+                [href]="attachmentUrl(item.attachmentPath)"
+                target="_blank"
+                rel="noopener"
+                matTooltip="View Attachment">
+                <mat-icon>attachment</mat-icon>
+              </a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <app-pager
+      [length]="filteredAssignmentItems.length"
+      [(pageIndex)]="assignmentPageIndex"
+      [(pageSize)]="assignmentPageSize"
+      noun="assignment">
+    </app-pager>
+  </section>
+
+  <!-- =========================================================================
+       TAB 3: COMPLETED TASKS/BUGS LIST (Monitor & Download)
+       ========================================================================= -->
+  <section class="ems-card" style="margin-top: 16px" *ngIf="isSuperAdmin && activeSection === 'completed'">
+    <div class="ems-toolbar">
+      <div class="ems-toolbar-left">
+        <h2 class="ems-section-title" style="margin: 0">
+          <mat-icon style="color:#10b981;">inventory_2</mat-icon>
+          Completed Task/Bug List
+        </h2>
+        <div class="ems-chips">
+          <button type="button" class="ems-chip" [class.is-active]="completedFilter === 'ALL'" (click)="completedFilter = 'ALL'; completedPageIndex = 0">
+            All <span class="ems-chip-count">{{ completedCount }}</span>
+          </button>
+          <button type="button" class="ems-chip" [class.is-active]="completedFilter === 'AWAITING'" (click)="completedFilter = 'AWAITING'; completedPageIndex = 0">
+            Awaiting Review <span class="ems-chip-count">{{ completedAwaitingReviewCount }}</span>
+          </button>
+          <button type="button" class="ems-chip" [class.is-active]="completedFilter === 'APPROVED'" (click)="completedFilter = 'APPROVED'; completedPageIndex = 0">
+            Approved for QA <span class="ems-chip-count">{{ completedApprovedCount }}</span>
+          </button>
+          <button type="button" class="ems-chip" [class.is-active]="completedFilter === 'RELEASED'" (click)="completedFilter = 'RELEASED'; completedPageIndex = 0">
+            Released to QA <span class="ems-chip-count">{{ completedReleasedCount }}</span>
+          </button>
+        </div>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:10px;">
+        <!-- Download Option for Completed Tasks/Bugs Records -->
+        <button
+          *ngIf="canExport"
+          mat-stroked-button
+          class="ems-btn-download"
+          (click)="downloadCompletedRecords()"
+          matTooltip="Download completed task & bug records as CSV">
+          <mat-icon>download</mat-icon>
+          Download CSV
+        </button>
+
+        <mat-form-field appearance="outline" class="ems-search">
+          <mat-label>Search completed</mat-label>
+          <input matInput [(ngModel)]="completedSearch" (ngModelChange)="completedPageIndex = 0" placeholder="Code, title, developer, project…" />
+          <mat-icon matPrefix>search</mat-icon>
+        </mat-form-field>
+      </div>
+    </div>
+
+    <div class="ems-empty" *ngIf="filteredCompletedItems.length === 0">
+      <mat-icon>task_alt</mat-icon>
+      <h3>No completed tasks found</h3>
+      <p>No completed tasks match current filter.</p>
+    </div>
+
+    <div class="ems-table-wrap" *ngIf="filteredCompletedItems.length > 0">
+      <table>
+        <thead>
+          <tr>
+            <th>Ticket ID</th>
+            <th>Ticket / Bug</th>
+            <th>Project</th>
+            <th>Completed By</th>
+            <th>Priority</th>
+            <th>Completed Date</th>
+            <th>Review Status</th>
+            <th class="all-actions-col">Details</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of pagedCompletedItems">
+            <td><span class="task-code tk-clickable" (click)="openTicketDetails(item)" matTooltip="Open 360° Ticket Modal">{{ code(item) }}</span></td>
+            <td>
+              <div class="ems-rows__main">
+                <strong class="tk-clickable-title" (click)="openTicketDetails(item)" matTooltip="Open 360° Ticket Modal">{{ item.taskTitle }}</strong>
+                <small>
+                  {{ kindLabel(item) }}<ng-container *ngIf="item.module"> · {{ item.module }}</ng-container
+                  >{{ item.screen ? ' · ' + item.screen : '' }}
+                </small>
+              </div>
+            </td>
+            <td>{{ item.project || '—' }}</td>
+            <td>
+              <div class="ems-task-card__owner">
+                <span class="ems-avatar-sm">{{ initials(item.assignedToName || 'Dev') }}</span>
+                <span>{{ item.assignedToName || 'Developer' }}</span>
+              </div>
+            </td>
+            <td>
+              <span class="ems-badge" [ngClass]="priorityBadge(item.priority)">{{ priorityLabel(item.priority) }}</span>
+            </td>
+            <td>{{ (item.heldAt || item.reviewedAt || item.createdAt) | date:'dd MMM yyyy' }}</td>
+            <td>
+              <span
+                class="ems-badge"
+                [ngClass]="{
+                  'ems-badge--warning': !item.releasedForTesting && item.leadReviewStatus !== 'APPROVED',
+                  'ems-badge--success': !item.releasedForTesting && item.leadReviewStatus === 'APPROVED',
+                  'ems-badge--neutral': item.releasedForTesting
+                }"
+              >
+                {{ item.releasedForTesting ? 'Released to QA' : (item.leadReviewStatus === 'APPROVED' ? 'Approved for QA' : 'Awaiting Review') }}
+              </span>
+            </td>
+            <td class="all-actions-col">
+              <button
+                mat-icon-button
+                style="color: #6366f1;"
+                matTooltip="Open 360° Ticket Modal"
+                (click)="openTicketDetails(item)"
+                aria-label="Open Ticket Modal">
+                <mat-icon>open_in_new</mat-icon>
+              </button>
+              <button
+                *ngIf="isBug(item) || isProdIssue(item)"
+                mat-icon-button
+                style="color: #e11d48;"
+                matTooltip="View Bug Details & Steps"
+                (click)="openBugDetails(item)"
+                aria-label="View Bug Details">
+                <mat-icon>account_tree</mat-icon>
+              </button>
+              <a
+                *ngIf="item.attachmentPath"
+                mat-icon-button
+                [href]="attachmentUrl(item.attachmentPath)"
+                target="_blank"
+                rel="noopener"
+                matTooltip="View Attachment">
+                <mat-icon>attachment</mat-icon>
+              </a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <app-pager
+      [length]="filteredCompletedItems.length"
+      [(pageIndex)]="completedPageIndex"
+      [(pageSize)]="completedPageSize"
+      noun="ticket">
+    </app-pager>
+  </section>
+
+  <!-- =========================================================================
+       TAB 4: ON-HOLD TASKS LIST (Monitor & Download)
+       ========================================================================= -->
+  <section class="ems-card" style="margin-top: 16px" *ngIf="isSuperAdmin && activeSection === 'onhold'">
+    <div class="ems-toolbar">
+      <div class="ems-toolbar-left">
+        <h2 class="ems-section-title" style="margin: 0">
+          <mat-icon style="color:#f59e0b;">pause_circle_outline</mat-icon>
+          On-Hold Tasks List
+        </h2>
+        <div class="ems-chips">
+          <button type="button" class="ems-chip" [class.is-active]="onHoldFilter === 'ALL'" (click)="onHoldFilter = 'ALL'; onHoldPageIndex = 0">
+            All <span class="ems-chip-count">{{ onHoldCount }}</span>
+          </button>
+          <button type="button" class="ems-chip" [class.is-active]="onHoldFilter === 'TASK'" (click)="onHoldFilter = 'TASK'; onHoldPageIndex = 0">
+            Tasks <span class="ems-chip-count">{{ onHoldTasksCount }}</span>
+          </button>
+          <button type="button" class="ems-chip" [class.is-active]="onHoldFilter === 'BUG'" (click)="onHoldFilter = 'BUG'; onHoldPageIndex = 0">
+            Bugs <span class="ems-chip-count">{{ onHoldBugsCount }}</span>
+          </button>
+        </div>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:10px;">
+        <!-- Download Option for On-Hold Records -->
+        <button
+          *ngIf="canExport"
+          mat-stroked-button
+          class="ems-btn-download"
+          (click)="downloadOnHoldRecords()"
+          matTooltip="Download on-hold records as CSV">
+          <mat-icon>download</mat-icon>
+          Download CSV
+        </button>
+
+        <mat-form-field appearance="outline" class="ems-search">
+          <mat-label>Search on-hold tasks</mat-label>
+          <input matInput [(ngModel)]="onHoldSearch" (ngModelChange)="onHoldPageIndex = 0" placeholder="Code, title, developer, reason…" />
+          <mat-icon matPrefix>search</mat-icon>
+        </mat-form-field>
+      </div>
+    </div>
+
+    <div class="ems-empty" *ngIf="filteredOnHoldItems.length === 0">
+      <mat-icon>check_circle</mat-icon>
+      <h3>No tasks on hold</h3>
+      <p>All completed tasks have been released or are active.</p>
+    </div>
+
+    <div class="ems-table-wrap" *ngIf="filteredOnHoldItems.length > 0">
+      <table>
+        <thead>
+          <tr>
+            <th>Ticket ID</th>
+            <th>Ticket / Bug</th>
+            <th>Project</th>
+            <th>Developer</th>
+            <th>Held By (Lead)</th>
+            <th>Hold Reason</th>
+            <th>Held Date</th>
+            <th>Status</th>
+            <th class="all-actions-col">Details</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of pagedOnHoldItems">
+            <td><span class="task-code tk-clickable" (click)="openTicketDetails(item)" matTooltip="Open 360° Ticket Modal">{{ code(item) }}</span></td>
+            <td>
+              <div class="ems-rows__main">
+                <strong class="tk-clickable-title" (click)="openTicketDetails(item)" matTooltip="Open 360° Ticket Modal">{{ item.taskTitle }}</strong>
+                <small>
+                  {{ kindLabel(item) }}<ng-container *ngIf="item.module"> · {{ item.module }}</ng-container
+                  >{{ item.screen ? ' · ' + item.screen : '' }}
+                </small>
+              </div>
+            </td>
+            <td>{{ item.project || '—' }}</td>
+            <td>
+              <div class="ems-task-card__owner">
+                <span class="ems-avatar-sm">{{ initials(item.assignedToName || 'Dev') }}</span>
+                <span>{{ item.assignedToName || 'Developer' }}</span>
+              </div>
+            </td>
+            <td>
+              <div class="ems-lead-cell">
+                <mat-icon style="font-size:16px;width:16px;height:16px;color:#f59e0b;">pause_circle</mat-icon>
+                <span>{{ item.heldByName || item.heldBy || 'Team Lead' }}</span>
+              </div>
+            </td>
+            <td>
+              <span class="ems-hold-reason-cell" [matTooltip]="item.holdReason || 'No reason specified'">
+                {{ item.holdReason || 'No reason specified' }}
+              </span>
+            </td>
+            <td>{{ (item.heldAt || item.reviewedAt || item.createdAt) | date:'dd MMM yyyy' }}</td>
+            <td>
+              <span class="ems-badge ems-badge--warning">On Hold</span>
+            </td>
+            <td class="all-actions-col">
+              <button
+                mat-icon-button
+                style="color: #6366f1;"
+                matTooltip="Open 360° Ticket Modal"
+                (click)="openTicketDetails(item)"
+                aria-label="Open Ticket Modal">
+                <mat-icon>open_in_new</mat-icon>
+              </button>
+              <button
+                *ngIf="isBug(item) || isProdIssue(item)"
+                mat-icon-button
+                style="color: #e11d48;"
+                matTooltip="View Bug Details & Steps"
+                (click)="openBugDetails(item)"
+                aria-label="View Bug Details">
+                <mat-icon>account_tree</mat-icon>
+              </button>
+              <a
+                *ngIf="item.attachmentPath"
+                mat-icon-button
+                [href]="attachmentUrl(item.attachmentPath)"
+                target="_blank"
+                rel="noopener"
+                matTooltip="View Attachment">
+                <mat-icon>attachment</mat-icon>
+              </a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <app-pager
+      [length]="filteredOnHoldItems.length"
+      [(pageIndex)]="onHoldPageIndex"
+      [(pageSize)]="onHoldPageSize"
+      noun="ticket">
+    </app-pager>
+  </section>
+
+  <!-- =========================================================================
+       TAB 5: TASK REGISTER (Monitor & Download)
+       ========================================================================= -->
+  <section class="ems-card" style="margin-top: 16px" *ngIf="!isSuperAdmin || activeSection === 'register'">
     <div class="ems-toolbar">
       <h2 class="ems-section-title" style="margin: 0">
         <mat-icon>list_alt</mat-icon>
-        Task register
+        Ticket register
       </h2>
-      <mat-form-field appearance="outline" class="ems-search">
-        <mat-label>Search</mat-label>
-        <input matInput [(ngModel)]="search" (ngModelChange)="onSearchChange()" placeholder="Task, project, owner…" />
-        <mat-icon matPrefix>search</mat-icon>
-      </mat-form-field>
+
+      <div style="display:flex; align-items:center; gap:10px;">
+        <!-- Download Option for Ticket Register Records -->
+        <button
+          *ngIf="canExport"
+          mat-stroked-button
+          class="ems-btn-download"
+          (click)="downloadRegisterRecords()"
+          matTooltip="Download ticket register records as CSV">
+          <mat-icon>download</mat-icon>
+          Download CSV
+        </button>
+
+        <mat-form-field appearance="outline" class="ems-search">
+          <mat-label>Search tickets</mat-label>
+          <input matInput [(ngModel)]="search" (ngModelChange)="onSearchChange()" placeholder="Ticket, project, owner…" />
+          <mat-icon matPrefix>search</mat-icon>
+        </mat-form-field>
+      </div>
     </div>
 
     <div class="ems-empty" *ngIf="!loading && filteredTasks.length === 0">
       <mat-icon>inbox</mat-icon>
-      <h3>No tasks to show</h3>
-      <p>Create a task, or clear the search to see everything again.</p>
+      <h3>No tickets to show</h3>
+      <p>No tickets match current search criteria.</p>
     </div>
 
     <div class="ems-table-wrap" *ngIf="filteredTasks.length > 0">
       <table>
         <thead>
           <tr>
-            <th>Task ID</th>
-            <th>Task</th>
+            <th>Ticket ID</th>
+            <th>Ticket</th>
             <th>Project</th>
             <th>Owner</th>
             <th>Priority</th>
             <th>Start</th>
             <th>Due</th>
-            <th class="all-actions-col"></th>
+            <th class="all-actions-col">Details</th>
           </tr>
         </thead>
         <tbody>
           <tr *ngFor="let task of pagedTasks">
-            <td><span class="task-code">{{ code(task) }}</span></td>
+            <td><span class="task-code tk-clickable" (click)="openTicketDetails(task)" matTooltip="Open 360° Ticket Modal">{{ code(task) }}</span></td>
             <td>
               <div class="ems-rows__main">
-                <strong>{{ task.taskTitle }}</strong>
+                <strong class="tk-clickable-title" (click)="openTicketDetails(task)" matTooltip="Open 360° Ticket Modal">{{ task.taskTitle }}</strong>
                 <small>
-                  {{ isBug(task) ? 'Bug' : 'Task' }}<ng-container *ngIf="task.module"> · {{ task.module }}</ng-container
+                  {{ kindLabel(task) }}<ng-container *ngIf="task.module"> · {{ task.module }}</ng-container
                   >{{ task.subModule ? ' · ' + task.subModule : '' }}
                 </small>
               </div>
@@ -106,19 +1029,21 @@
             <td [class.is-overdue]="isOverdue(task)">{{ task.endDate | date:'dd MMM yyyy' }}</td>
             <td class="all-actions-col">
               <button
-                *ngIf="isBug(task)"
+                mat-icon-button
+                style="color: #6366f1;"
+                matTooltip="Open 360° Ticket Modal"
+                (click)="openTicketDetails(task)"
+                aria-label="Open Ticket Modal">
+                <mat-icon>open_in_new</mat-icon>
+              </button>
+              <button
+                *ngIf="isBug(task) || isProdIssue(task)"
                 mat-icon-button
                 style="color: #e11d48;"
-                matTooltip="View Bug Reproduction Diagram & Steps"
+                matTooltip="View Bug Details & Steps"
                 (click)="openBugDetails(task)"
                 aria-label="View Bug Details">
                 <mat-icon>account_tree</mat-icon>
-              </button>
-              <button mat-icon-button matTooltip="Edit task" (click)="edit(task)" aria-label="Edit task">
-                <mat-icon>edit</mat-icon>
-              </button>
-              <button mat-icon-button matTooltip="Delete task" (click)="close(task)" aria-label="Delete task">
-                <mat-icon>delete_outline</mat-icon>
               </button>
             </td>
           </tr>
@@ -126,13 +1051,11 @@
       </table>
     </div>
 
-    <!-- Outside the table wrapper so it never scrolls sideways with the table.
-         Five records a page by default, with the dropdown to change it. -->
     <app-pager
       [length]="filteredTasks.length"
       [(pageIndex)]="pageIndex"
       [(pageSize)]="pageSize"
-      noun="task">
+      noun="ticket">
     </app-pager>
   </section>
 </div>

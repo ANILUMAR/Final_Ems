@@ -88,6 +88,7 @@ export interface TesterLoad {
   role: string;
   active: boolean;
   openTestingTasks: number;
+  assignedProjects?: string[];
 }
 
 export interface TestingQueue {
@@ -119,6 +120,8 @@ export interface DeveloperLoad {
   role: string;
   active: boolean;
   openTasks: number;
+  assignedProjects?: string[];
+  productionSupport?: boolean;
 }
 
 export interface DevQueue {
@@ -136,7 +139,8 @@ export function codeFor(kind: string | null | undefined, id: number | null | und
   if (typeof id !== 'number' || isNaN(id)) {
     return '';
   }
-  return `${isBug(kind) ? 'BUG' : 'TASK'}-${String(id).padStart(5, '0')}`;
+  const prefix = isProdIssue(kind) ? 'PROD' : (isBug(kind) ? 'BUG' : 'TASK');
+  return `${prefix}-${String(id).padStart(3, '0')}`;
 }
 
 /** The code on screen, with a fallback for a row that arrived without one. */
@@ -154,11 +158,18 @@ export function isBug(kind?: string | null): boolean {
   return (kind || '').trim().toUpperCase() === 'BUG';
 }
 
+export function isProdIssue(kind?: string | null): boolean {
+  const k = (kind || '').trim().toUpperCase();
+  return k === 'PRODUCTION_ISSUE' || k === 'PROD_ISSUE' || k === 'PROD';
+}
+
 export function kindLabel(kind?: string | null): string {
-  return isBug(kind) ? 'Bug' : 'Task';
+  if (isProdIssue(kind)) return 'Production Issue';
+  return isBug(kind) ? 'Bug' : 'Ticket';
 }
 
 export function kindBadge(kind?: string | null): string {
+  if (isProdIssue(kind)) return 'ems-badge--prod';
   return isBug(kind) ? 'ems-badge--danger' : 'ems-badge--info';
 }
 

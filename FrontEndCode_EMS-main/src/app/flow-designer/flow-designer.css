@@ -490,3 +490,74 @@
   color: #38bdf8;
   font-style: normal;
 }
+
+/* ==========================================================================
+   EXPLICIT LIGHT THEME OVERRIDES (Component Scoped)
+   ========================================================================== */
+:host-context(html[data-theme="light"]) {
+  .flow-designer-dialog {
+    background: #ffffff !important;
+    color: #16203a !important;
+    box-shadow: 0 25px 50px rgba(15, 23, 42, 0.2) !important;
+    border: 1px solid #d6dded !important;
+  }
+  .designer-header {
+    background: #f8faff !important;
+    border-bottom: 1px solid #d6dded !important;
+  }
+  .designer-header__title h2 { color: #101a31 !important; }
+  .subtitle { color: #4d5b78 !important; }
+
+  .designer-toolbar {
+    background: #ffffff !important;
+    border-bottom: 1px solid #d6dded !important;
+  }
+  .group-label { color: #4d5b78 !important; }
+  .tool-btn {
+    background: #f1f4fb !important;
+    color: #16203a !important;
+    border-color: #d6dded !important;
+  }
+  .tool-btn:hover { background: #e2e8f0 !important; }
+  .toolbar-divider { background: #d6dded !important; }
+
+  .action-btn {
+    border-color: #d6dded !important;
+    color: #4d5b78 !important;
+  }
+  .action-btn:hover {
+    background: #f1f4fb !important;
+    color: #101a31 !important;
+  }
+
+  .designer-canvas-wrap {
+    background-color: #f3f6fc !important;
+    background-image: radial-gradient(rgba(0, 0, 0, 0.08) 1px, transparent 1px) !important;
+  }
+
+  .flow-node-card {
+    background: #ffffff !important;
+    border-color: #d6dded !important;
+    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.1) !important;
+  }
+  .node-desc-input {
+    background: #f8fafc !important;
+    border-color: #d6dded !important;
+    color: #16203a !important;
+  }
+  .node-desc-text { color: #4d5b78 !important; }
+  .node-meta {
+    background: #f8fafc !important;
+    border-top: 1px solid #eef2fa !important;
+  }
+  .node-actor { color: #64748b !important; }
+
+  .designer-footer {
+    background: #f8faff !important;
+    border-top: 1px solid #d6dded !important;
+  }
+  .tip-row { color: #4d5b78 !important; }
+  .tip-row strong { color: #101a31 !important; }
+  .tip-row em { color: #0284c7 !important; }
+}
+

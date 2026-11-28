@@ -1,14 +1,18 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatOptionModule } from '@angular/material/core';
 import { MatSelectModule } from '@angular/material/select';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { TicketDetailDialog } from '../ticket-detail-dialog/ticket-detail-dialog';
 import { ReferenceService } from '../services/reference.service';
 import { WorkflowService } from '../services/workflow.service';
+import { isSuperAdminRole } from '../models/role';
 import {
   DeveloperLoad,
   DevQueue,
@@ -19,6 +23,7 @@ import {
 } from '../models/work-item';
 import { Pager } from '../shared/pager';
 import { DEFAULT_PAGE_SIZE, lastPageOf, pageSlice } from '../shared/pagination';
+import { WorkflowPipelineComponent } from '../shared/workflow-pipeline/workflow-pipeline.component';
 
 /**
  * The developer team leader's screen.
@@ -41,12 +46,15 @@ import { DEFAULT_PAGE_SIZE, lastPageOf, pageSlice } from '../shared/pagination';
     MatInputModule,
     MatOptionModule,
     MatSelectModule,
-    Pager
+    MatDialogModule,
+    Pager,
+    WorkflowPipelineComponent
   ],
   templateUrl: './assignment-queue.html',
   styleUrl: './assignment-queue.css'
 })
 export class AssignmentQueue implements OnInit {
+  isSuperAdmin = isSuperAdminRole(localStorage.getItem('role') || '');
   queue: DevQueue = { items: [], developers: [], awaiting: 0, assigned: 0 };
   loading = true;
   errorMessage = '';
@@ -68,10 +76,38 @@ export class AssignmentQueue implements OnInit {
   note = '';
   assigning = false;
 
-  constructor(private workflow: WorkflowService, private reference: ReferenceService) { }
+  projectFilter = '';
+
+  constructor(
+    private workflow: WorkflowService,
+    private reference: ReferenceService,
+    private dialog: MatDialog,
+    private route: ActivatedRoute
+  ) { }
+
+  openTicketDetails(item: WorkItem): void {
+    const ref = this.dialog.open(TicketDetailDialog, {
+      data: { item },
+      width: '92vw',
+      maxWidth: '1150px',
+      maxHeight: '92vh'
+    });
+    ref.afterClosed().subscribe(() => {
+      this.load();
+    });
+  }
 
   ngOnInit(): void {
+    this.route.queryParams.subscribe((params) => {
+      if (params['project']) {
+        this.projectFilter = params['project'];
+      }
+    });
     this.load();
+  }
+
+  clearProjectFilter(): void {
+    this.projectFilter = '';
   }
 
   load(): void {
@@ -102,11 +138,15 @@ export class AssignmentQueue implements OnInit {
   }
 
   get awaiting(): WorkItem[] {
-    return this.queue.items.filter((item) => !item.assignedToName);
+    const list = this.queue.items.filter((item) => !item.assignedToName);
+    if (!this.projectFilter) return list;
+    return list.filter((item) => (item.project || '').toLowerCase().includes(this.projectFilter.toLowerCase()));
   }
 
   get assigned(): WorkItem[] {
-    return this.queue.items.filter((item) => !!item.assignedToName);
+    const list = this.queue.items.filter((item) => !!item.assignedToName);
+    if (!this.projectFilter) return list;
+    return list.filter((item) => (item.project || '').toLowerCase().includes(this.projectFilter.toLowerCase()));
   }
 
   /** The rows the open tab renders for the current page. */
@@ -127,9 +167,48 @@ export class AssignmentQueue implements OnInit {
     return this.reference.items('PRIORITY');
   }
 
+  /**
+   * Only developers assigned to the target project's team hierarchy are available for assignment.
+   * If the selected item is a Production Issue, only members configured for Production Support can be assigned.
+   */
+  get assignableDevelopers(): DeveloperLoad[] {
+    const targetProject = this.selected?.project || this.projectFilter || '';
+    let pool = this.queue.developers;
+    if (targetProject && targetProject.trim()) {
+      pool = pool.filter((dev) => {
+        if (!dev.assignedProjects || dev.assignedProjects.length === 0) {
+          return false;
+        }
+        return dev.assignedProjects.some((p) => this.projectMatches(p, targetProject));
+      });
+    }
+    const isProd = this.selected?.kind?.toUpperCase() === 'PRODUCTION_ISSUE' ||
+                   this.selected?.kind?.toUpperCase() === 'PROD_ISSUE' ||
+                   this.selected?.kind?.toUpperCase() === 'PROD';
+    if (isProd) {
+      const prodOnly = pool.filter((dev) => dev.productionSupport);
+      if (prodOnly.length > 0) {
+        return prodOnly;
+      }
+    }
+    return pool;
+  }
+
+  projectMatches(p1?: string | null, p2?: string | null): boolean {
+    if (!p1 || !p2) return false;
+    const s1 = p1.trim().toLowerCase();
+    const s2 = p2.trim().toLowerCase();
+    if (s1 === s2) return true;
+    const n1 = s1.replace(/[\s_\-]+/g, '');
+    const n2 = s2.replace(/[\s_\-]+/g, '');
+    if (n1 === n2) return true;
+    return n1.length >= 5 && n2.length >= 5 && (n1.includes(n2) || n2.includes(n1));
+  }
+
   /** Developers with nothing in their hands are called out in the panel. */
   get freeDevelopers(): number {
-    return this.queue.developers.filter((developer) => developer.active && developer.openTasks === 0).length;
+    const pool = (this.selected?.project || this.projectFilter) ? this.assignableDevelopers : this.queue.developers;
+    return pool.filter((developer) => developer.active && developer.openTasks === 0).length;
   }
 
   setTab(tab: 'awaiting' | 'assigned'): void {
@@ -158,7 +237,7 @@ export class AssignmentQueue implements OnInit {
   }
 
   get canAssign(): boolean {
-    return !!this.selected && this.developerId !== null && !this.assigning;
+    return !!this.selected && this.developerId !== null && !this.assigning && this.assignableDevelopers.some(d => d.id === this.developerId);
   }
 
   assign(): void {

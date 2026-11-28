@@ -1,0 +1,392 @@
+<div class="tk-modal-shell">
+  <!-- Top Bar / Header -->
+  <header class="tk-modal-head">
+    <div class="tk-head-left">
+      <div class="tk-badges-row">
+        <!-- Ticket Code -->
+        <span class="tk-code-badge" [class.is-bug]="isBug" [class.is-prod]="isProd">
+          <mat-icon>{{ isProd ? 'warning' : (isBug ? 'bug_report' : 'task_alt') }}</mat-icon>
+          {{ ticketCode }}
+        </span>
+
+        <!-- Type Badge -->
+        <span class="tk-type-badge" [class.is-bug]="isBug" [class.is-prod]="isProd">
+          {{ isProd ? 'Production Issue' : (isBug ? 'Bug' : 'Task') }}
+        </span>
+
+        <!-- Priority Pill -->
+        <span class="tk-pri-badge" [ngClass]="priorityMeta.badgeClass">
+          {{ priorityMeta.label }}
+        </span>
+
+        <!-- SLA Timeliness Pill -->
+        <span class="tk-sla-badge" [ngClass]="sla.badgeClass">
+          <mat-icon *ngIf="sla.state === 'BREACHED'">error</mat-icon>
+          <mat-icon *ngIf="sla.state === 'DUE_SOON'">warning</mat-icon>
+          <mat-icon *ngIf="sla.state === 'ON_TRACK'">schedule</mat-icon>
+          <mat-icon *ngIf="sla.state === 'RESOLVED'">check_circle</mat-icon>
+          {{ sla.label }}
+        </span>
+      </div>
+
+      <h1 class="tk-title">{{ ticket.taskTitle || ticket.title || 'Untitled Ticket' }}</h1>
+    </div>
+
+    <div class="tk-head-actions">
+      <!-- Print/Export Summary -->
+      <button
+        type="button"
+        class="tk-icon-btn"
+        (click)="printTicket()"
+        matTooltip="Print or Export Ticket Summary">
+        <mat-icon>print</mat-icon>
+      </button>
+
+      <!-- Close dialog -->
+      <button
+        type="button"
+        class="tk-icon-btn tk-close-btn"
+        (click)="close()"
+        matTooltip="Close (Esc)">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Body Grid: 2 Columns -->
+  <div class="tk-modal-body">
+    <!-- Left Column: Context, Description & Activity -->
+    <div class="tk-content-main">
+      <!-- Location Hierarchy Path -->
+      <div class="tk-hierarchy-bar" *ngIf="ticket.project || ticket.module || ticket.screen">
+        <span class="tk-path-item tk-path-proj">
+          <mat-icon>folder</mat-icon>
+          {{ ticket.project || 'No Project' }}
+        </span>
+        <mat-icon class="tk-path-sep" *ngIf="ticket.module">chevron_right</mat-icon>
+        <span class="tk-path-item" *ngIf="ticket.module">
+          <mat-icon>widgets</mat-icon>
+          {{ ticket.module }}
+        </span>
+        <mat-icon class="tk-path-sep" *ngIf="ticket.subModule">chevron_right</mat-icon>
+        <span class="tk-path-item" *ngIf="ticket.subModule">
+          <mat-icon>account_tree</mat-icon>
+          {{ ticket.subModule }}
+        </span>
+        <mat-icon class="tk-path-sep" *ngIf="ticket.screen">chevron_right</mat-icon>
+        <span class="tk-path-item" *ngIf="ticket.screen">
+          <mat-icon>desktop_windows</mat-icon>
+          {{ ticket.screen }}
+        </span>
+      </div>
+
+      <!-- Reopen Notice Alert -->
+      <div class="tk-alert-banner tk-alert--reopen" *ngIf="ticket.reopenCount && ticket.status !== 'DONE'">
+        <mat-icon>restart_alt</mat-icon>
+        <div>
+          <strong>Reopened Work ({{ ticket.reopenCount }}×)</strong>
+          <p *ngIf="ticket.lastReopenNote">QA Rework Reason: “{{ ticket.lastReopenNote }}”</p>
+        </div>
+      </div>
+
+      <!-- On-Hold Alert Banner -->
+      <div class="tk-alert-banner tk-alert--hold" *ngIf="ticket.status === 'ON_HOLD' || ticket.holdReason">
+        <mat-icon>pause_circle_outline</mat-icon>
+        <div>
+          <strong>Ticket is On Hold</strong>
+          <p *ngIf="ticket.holdReason">Hold Reason: “{{ ticket.holdReason }}”</p>
+        </div>
+      </div>
+
+      <!-- Description Section -->
+      <section class="tk-section">
+        <h3 class="tk-section-title">
+          <mat-icon>notes</mat-icon> Description
+        </h3>
+        <div class="tk-desc-box">
+          <p *ngIf="ticket.description" class="tk-desc-text">{{ ticket.description }}</p>
+          <p *ngIf="!ticket.description" class="tk-desc-empty">No detailed description provided.</p>
+        </div>
+      </section>
+
+      <!-- Bug Details (if Bug) -->
+      <section class="tk-section" *ngIf="isBug">
+        <h3 class="tk-section-title">
+          <mat-icon>bug_report</mat-icon> Reproduction Steps & Details
+        </h3>
+        <div class="tk-bug-box">
+          <div *ngIf="ticket.reproductionSteps" class="tk-bug-field">
+            <span class="tk-bug-label">Steps to Reproduce:</span>
+            <div class="tk-bug-val">{{ ticket.reproductionSteps }}</div>
+          </div>
+          <div *ngIf="ticket.reproductionFlow" class="tk-bug-flow-action">
+            <button mat-stroked-button color="primary" (click)="openFlowDesigner()">
+              <mat-icon>schema</mat-icon> View Visual Flowchart Diagram
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Attachment Preview / Download -->
+      <section class="tk-section" *ngIf="ticket.attachmentPath">
+        <h3 class="tk-section-title">
+          <mat-icon>attach_file</mat-icon> Attachment
+        </h3>
+        <div class="tk-attachment-box">
+          <div class="tk-attachment-file">
+            <mat-icon>insert_drive_file</mat-icon>
+            <span class="tk-attachment-name">{{ ticket.attachmentPath }}</span>
+          </div>
+          <button
+            mat-stroked-button
+            color="primary"
+            (click)="openAttachment(ticket.attachmentPath)">
+            <mat-icon>open_in_new</mat-icon> View / Download
+          </button>
+        </div>
+      </section>
+
+      <!-- Tabbed Activity & Collaboration Section -->
+      <section class="tk-activity-container">
+        <nav class="tk-tab-nav">
+          <button
+            type="button"
+            class="tk-tab-btn"
+            [class.is-active]="activeTab === 'discussion'"
+            (click)="activeTab = 'discussion'">
+            <mat-icon>forum</mat-icon>
+            Discussion & Notes ({{ comments.length }})
+          </button>
+          <button
+            type="button"
+            class="tk-tab-btn"
+            [class.is-active]="activeTab === 'history'"
+            (click)="activeTab = 'history'">
+            <mat-icon>history</mat-icon>
+            Audit History ({{ history.length }})
+          </button>
+          <button
+            type="button"
+            class="tk-tab-btn"
+            [class.is-active]="activeTab === 'resolution'"
+            (click)="activeTab = 'resolution'">
+            <mat-icon>verified</mat-icon>
+            Resolution
+          </button>
+        </nav>
+
+        <!-- Tab 1: Discussion & Work Notes -->
+        <div class="tk-tab-panel" *ngIf="activeTab === 'discussion'">
+          <!-- Comments List -->
+          <div class="tk-comments-list" *ngIf="comments.length > 0">
+            <article class="tk-comment-card" *ngFor="let comment of comments">
+              <div class="tk-comment-head">
+                <span class="tk-avatar">{{ initials(comment.authorName) }}</span>
+                <div class="tk-comment-author-info">
+                  <strong>{{ comment.authorName }}</strong>
+                  <span class="tk-role-chip">{{ comment.authorRole }}</span>
+                  <span class="tk-comment-date">{{ comment.createdAt | date:'dd MMM yyyy, HH:mm' }}</span>
+                </div>
+                <button
+                  type="button"
+                  class="tk-comment-delete"
+                  *ngIf="comment.authorEmail === currentUserEmail || isSuperAdmin"
+                  (click)="deleteComment(comment)"
+                  matTooltip="Delete comment">
+                  <mat-icon>delete_outline</mat-icon>
+                </button>
+              </div>
+              <p class="tk-comment-body">{{ comment.content }}</p>
+              <div class="tk-comment-resolution" *ngIf="comment.resolutionReason">
+                <mat-icon>verified</mat-icon>
+                <span>Status set to <strong>{{ comment.resolutionReason }}</strong></span>
+              </div>
+            </article>
+          </div>
+
+          <div class="tk-empty-tab" *ngIf="comments.length === 0 && !loadingComments">
+            <mat-icon>chat_bubble_outline</mat-icon>
+            <p>No discussion notes yet on this ticket.</p>
+          </div>
+
+          <!-- Add Comment Input Box -->
+          <div class="tk-add-comment-box">
+            <span class="tk-avatar tk-avatar--self">{{ initials(currentUserName) }}</span>
+            <div class="tk-comment-input-wrap">
+              <textarea
+                class="tk-comment-textarea"
+                rows="3"
+                placeholder="Leave an internal work note or status update on this ticket..."
+                [(ngModel)]="newCommentText"
+                (keydown.control.enter)="postComment()"></textarea>
+              <div class="tk-comment-submit-bar">
+                <small class="tk-hint">Ctrl + Enter to send</small>
+                <button
+                  type="button"
+                  class="tk-btn-submit-comment"
+                  [disabled]="!newCommentText.trim() || submittingComment"
+                  (click)="postComment()">
+                  <mat-icon>send</mat-icon>
+                  <span>Post Note</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Audit History / Status Timeline -->
+        <div class="tk-tab-panel" *ngIf="activeTab === 'history'">
+          <div class="tk-history-timeline" *ngIf="history.length > 0">
+            <div class="tk-history-item" *ngFor="let h of history">
+              <div class="tk-history-dot"></div>
+              <div class="tk-history-body">
+                <div class="tk-history-meta">
+                  <strong>{{ h.actorName || h.actorEmail || 'System' }}</strong>
+                  <span class="tk-history-date">{{ (h.changedAt || h.createdAt) | date:'dd MMM yyyy, HH:mm' }}</span>
+                </div>
+                <div class="tk-history-transition">
+                  Changed status from <span class="tk-status-badge">{{ h.fromStatus || 'INIT' }}</span> to
+                  <span class="tk-status-badge tk-status-badge--to">{{ h.toStatus || h.status }}</span>
+                </div>
+                <p class="tk-history-note" *ngIf="h.note">“{{ h.note }}”</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="tk-empty-tab" *ngIf="history.length === 0 && !loadingHistory">
+            <mat-icon>history</mat-icon>
+            <p>No status transition records logged yet.</p>
+          </div>
+        </div>
+
+        <!-- Tab 3: Resolution Categorization -->
+        <div class="tk-tab-panel" *ngIf="activeTab === 'resolution'">
+          <div class="tk-resolution-form">
+            <p class="tk-res-lead">
+              Categorize the outcome of this ticket for quality tracking and SLA metrics.
+            </p>
+            <div class="tk-res-field">
+              <label class="tk-res-label">Resolution Reason:</label>
+              <select class="tk-res-select" [(ngModel)]="selectedResolution">
+                <option *ngFor="let reason of resolutionReasons" [value]="reason">{{ reason }}</option>
+              </select>
+            </div>
+            <div class="tk-res-field">
+              <label class="tk-res-label">Resolution Summary / Note:</label>
+              <textarea
+                class="tk-res-textarea"
+                rows="3"
+                placeholder="Explain the solution, root cause fix, or why this was closed..."
+                [(ngModel)]="resolutionNote"></textarea>
+            </div>
+            <button
+              mat-flat-button
+              color="primary"
+              class="tk-btn-save-res"
+              [disabled]="savingResolution || !canEditStatus"
+              [matTooltip]="!canEditStatus ? 'Only the assigned owner can resolve this ticket' : 'Save resolution'"
+              (click)="saveResolution()">
+              <mat-icon>save</mat-icon>
+              Save Resolution Details
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Right Column: Metadata Sidebar -->
+    <aside class="tk-sidebar">
+      <!-- Quick Status Changer -->
+      <div class="tk-side-card tk-side-card--status">
+        <label class="tk-side-label">Workflow Status</label>
+        <app-task-status
+          entity="assignment"
+          [id]="ticket.id"
+          [kind]="ticket.kind || (isBug ? 'BUG' : 'TASK')"
+          [title]="ticket.taskTitle || ticket.title"
+          [status]="ticket.status"
+          [editable]="canEditStatus"
+          [readOnlyTooltip]="statusTooltip"
+          (changed)="onStatusChanged($event)">
+        </app-task-status>
+      </div>
+
+      <!-- Assignee & Reporter -->
+      <div class="tk-side-card">
+        <label class="tk-side-label">Ownership</label>
+        <div class="tk-side-row">
+          <span class="tk-side-field-title">Assignee:</span>
+          <div class="tk-user-info">
+            <span class="tk-avatar tk-avatar--sm">{{ initials(ticket.assignedToName || 'Unassigned') }}</span>
+            <span class="tk-user-name">{{ ticket.assignedToName || 'Unassigned' }}</span>
+          </div>
+        </div>
+
+        <div class="tk-side-row">
+          <span class="tk-side-field-title">Reporter:</span>
+          <div class="tk-user-info">
+            <span class="tk-avatar tk-avatar--sm">{{ initials(ticket.createdByName || ticket.createdBy || 'Unknown') }}</span>
+            <span class="tk-user-name">{{ ticket.createdByName || ticket.createdBy || 'Unknown' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Schedule & SLA Health -->
+      <div class="tk-side-card">
+        <label class="tk-side-label">Schedule & SLA</label>
+        <div class="tk-side-row">
+          <span class="tk-side-field-title">Target Due:</span>
+          <span class="tk-side-date">
+            <mat-icon>event</mat-icon>
+            {{ ticket.endDate ? (ticket.endDate | date:'dd MMM yyyy') : 'No due date' }}
+          </span>
+        </div>
+
+        <div class="tk-side-row" *ngIf="ticket.startDate">
+          <span class="tk-side-field-title">Started:</span>
+          <span class="tk-side-date">
+            <mat-icon>play_circle</mat-icon>
+            {{ ticket.startDate | date:'dd MMM yyyy' }}
+          </span>
+        </div>
+
+        <!-- SLA Status summary card -->
+        <div class="tk-sla-card" [ngClass]="sla.badgeClass">
+          <div class="tk-sla-card-head">
+            <mat-icon>timer</mat-icon>
+            <strong>{{ sla.label }}</strong>
+          </div>
+          <p class="tk-sla-card-sub" *ngIf="sla.state === 'BREACHED'">
+            Target resolution date has lapsed by {{ sla.daysOverdue }} day(s).
+          </p>
+          <p class="tk-sla-card-sub" *ngIf="sla.state === 'DUE_SOON'">
+            Target resolution is approaching within 24 hours.
+          </p>
+          <p class="tk-sla-card-sub" *ngIf="sla.state === 'ON_TRACK'">
+            Ticket delivery is currently on schedule.
+          </p>
+          <p class="tk-sla-card-sub" *ngIf="sla.state === 'RESOLVED'">
+            Ticket was resolved and accepted.
+          </p>
+        </div>
+      </div>
+
+      <!-- Additional Details -->
+      <div class="tk-side-card">
+        <label class="tk-side-label">Delivery Context</label>
+        <div class="tk-side-row" *ngIf="ticket.leadReviewStatus">
+          <span class="tk-side-field-title">Lead Review:</span>
+          <span class="tk-badge-sub">{{ ticket.leadReviewStatus }}</span>
+        </div>
+        <div class="tk-side-row" *ngIf="ticket.releasedForTesting">
+          <span class="tk-side-field-title">QA Release:</span>
+          <span class="tk-badge-sub is-released">Released to QA</span>
+        </div>
+        <div class="tk-side-row" *ngIf="ticket.resolutionReason">
+          <span class="tk-side-field-title">Resolution:</span>
+          <span class="tk-badge-sub is-resolved">{{ ticket.resolutionReason }}</span>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>

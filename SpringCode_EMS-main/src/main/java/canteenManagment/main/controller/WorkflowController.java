@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.LinkedHashMap;
@@ -84,6 +85,9 @@ public class WorkflowController {
     private final ReferenceService referenceService;
     private final ProjectSequenceService projectSequenceService;
 
+    @Autowired(required = false)
+    private canteenManagment.main.hierarchy.TeamHierarchyService hierarchyService;
+
     /** Attachments land where the create-task form puts them. */
     @Value("${file.upload-dir}")
     private String pathDirectory;
@@ -130,6 +134,7 @@ public class WorkflowController {
             UserEntity author = caller(authentication);
             String k = kind(submission.getKind());
             boolean isBug = WorkItemRows.KIND_BUG.equalsIgnoreCase(k);
+            boolean isProd = WorkItemRows.KIND_PRODUCTION_ISSUE.equalsIgnoreCase(k);
             AssignTask task = isBug ? new canteenManagment.main.UserEntity.AssignBug() : new AssignTask();
             task.setKind(k);
             task.setProject(required(submission.getProject(), "Choose the project this belongs to.")
@@ -148,23 +153,44 @@ public class WorkflowController {
             task.setCreatedByName(author.getName());
             task.setCreatedAt(new Date());
 
-            // If it's a bug, capture reproduction flow and steps
-            if (isBug) {
+            // If it's a bug or a production issue, capture reproduction flow and steps
+            if (isBug || isProd) {
                 task.setReproductionSteps(trim(submission.getReproductionSteps()));
                 task.setReproductionFlow(trim(submission.getReproductionFlow()));
                 if (submission.getReproductionFlowImage() != null && !submission.getReproductionFlowImage().isEmpty()) {
                     task.setReproductionStepsImage(storeAttachment(submission.getReproductionFlowImage()));
                 } else if (submission.getReproductionFlowImageBase64() != null && !submission.getReproductionFlowImageBase64().trim().isEmpty()) {
-                    task.setReproductionStepsImage(storeBase64Image(submission.getReproductionFlowImageBase64(), "bug_flow"));
+                    task.setReproductionStepsImage(storeBase64Image(submission.getReproductionFlowImageBase64(), isProd ? "prod_flow" : "bug_flow"));
                 }
             }
 
             boolean raisedByApprover = isTestingLead(authentication);
-            task.setApprovalState(raisedByApprover ? ApprovalState.APPROVED : ApprovalState.PENDING);
-            if (raisedByApprover) {
-                task.setReviewedBy(task.getCreatedBy());
-                task.setReviewedAt(new Date());
-                task.setReviewNote(approverNote());
+            if (isProd) {
+                // Requirement 3: Automatic Assignment for Production Issues:
+                // When a production issue is raised for a particular project, it should be assigned
+                // only to the employees or Team Leaders who have been configured for Production Support
+                // in that project's team hierarchy.
+                List<UserEntity> prodUsers = hierarchyService != null ?
+                        hierarchyService.getProductionSupportUsers(task.getProject()) : Collections.emptyList();
+                if (!prodUsers.isEmpty()) {
+                    UserEntity autoAssignee = pickBestProductionSupportAssignee(prodUsers);
+                    task.setAssignedTo(autoAssignee);
+                    task.setAssignedToId(autoAssignee.getId());
+                    task.setAssignedToName(autoAssignee.getName());
+                    task.setAssignedAt(new Date());
+                    task.setAssignedBy("System (Production Support Auto-Assignment)");
+                    task.setApprovalState(ApprovalState.APPROVED);
+                    task.setStatus(WorkStatus.TODO);
+                } else {
+                    task.setApprovalState(ApprovalState.APPROVED);
+                }
+            } else {
+                task.setApprovalState(raisedByApprover ? ApprovalState.APPROVED : ApprovalState.PENDING);
+                if (raisedByApprover) {
+                    task.setReviewedBy(task.getCreatedBy());
+                    task.setReviewedAt(new Date());
+                    task.setReviewNote(approverNote());
+                }
             }
 
             // A plan is not known yet; the developer leader sets the real window
@@ -344,7 +370,7 @@ public class WorkflowController {
      * open load, which is how the leader picks who takes the next one.
      */
     @GetMapping("/dev-queue")
-    public ResponseEntity<?> devQueue(Authentication authentication) {
+    public ResponseEntity<?> devQueue(@RequestParam(required = false) String project, Authentication authentication) {
         if (!isDeveloperLead(authentication)) {
             return forbidden("Only the developer team leader assigns approved work.");
         }
@@ -360,7 +386,7 @@ public class WorkflowController {
         long awaiting = approved.stream().filter((task) -> task.getAssignedToName() == null).count();
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("items", approved);
-        body.put("developers", developers(all));
+        body.put("developers", developers(all, project));
         body.put("awaiting", awaiting);
         body.put("assigned", approved.size() - awaiting);
         return ResponseEntity.ok(body);
@@ -397,6 +423,23 @@ public class WorkflowController {
             }
             if (Boolean.FALSE.equals(developer.getActive())) {
                 throw new IllegalArgumentException(nullSafe(developer.getName()) + " is not active.");
+            }
+
+            // Verify developer is configured in the Team Hierarchy for this project
+            if (hierarchyService != null && task.getProject() != null && !task.getProject().trim().isEmpty()) {
+                if (!hierarchyService.isDeveloperAssignedToProject(task.getProject(), developer.getId(), developer.getEmail())) {
+                    throw new IllegalArgumentException("Developer '" + developer.getName() + "' is not assigned to project '" + task.getProject() + "' in the Team Hierarchy. Only assigned project members can receive work.");
+                }
+                // If it's a production issue, verify developer is configured for Production Support for this project
+                if (WorkItemRows.KIND_PRODUCTION_ISSUE.equalsIgnoreCase(task.getKind())) {
+                    List<UserEntity> prodUsers = hierarchyService.getProductionSupportUsers(task.getProject());
+                    if (!prodUsers.isEmpty()) {
+                        boolean isConfigured = prodUsers.stream().anyMatch(u -> Objects.equals(u.getId(), developer.getId()));
+                        if (!isConfigured) {
+                            throw new IllegalArgumentException("'" + developer.getName() + "' is not configured for Production Support for project '" + task.getProject() + "'. Production issues can only be assigned to configured Production Support team members or leaders.");
+                        }
+                    }
+                }
             }
 
             task.setAssignedTo(developer);
@@ -436,6 +479,7 @@ public class WorkflowController {
     public ResponseEntity<?> completedTasks(Authentication authentication) {
         if (!AuthContext.hasRole(authentication, AuthContext.ROLE_EMPLOYEE)
                 && !AuthContext.hasRole(authentication, AuthContext.ROLE_DEVELOPER_LEAD)
+                && !AuthContext.hasRole(authentication, AuthContext.ROLE_TEAM_LEAD)
                 && !AuthContext.isAdmin(authentication)) {
             return forbidden("Only developers and team leaders view completed developer tasks.");
         }
@@ -629,6 +673,7 @@ public class WorkflowController {
     public ResponseEntity<?> onHoldTasks(Authentication authentication) {
         if (!AuthContext.hasRole(authentication, AuthContext.ROLE_EMPLOYEE)
                 && !AuthContext.hasRole(authentication, AuthContext.ROLE_DEVELOPER_LEAD)
+                && !AuthContext.hasRole(authentication, AuthContext.ROLE_TEAM_LEAD)
                 && !AuthContext.isAdmin(authentication)) {
             return forbidden("Access denied to on-hold tasks.");
         }
@@ -793,6 +838,10 @@ public class WorkflowController {
             if (!Roles.FAMILY_TESTER.equals(Roles.family(user.getRole()))) {
                 continue;
             }
+            java.util.Set<String> assignedProjects = hierarchyService != null ?
+                    hierarchyService.getAssignedProjectNamesForUser(user.getEmail()) :
+                    java.util.Collections.emptySet();
+
             long openTesting = all.stream()
                     .filter(t -> Boolean.TRUE.equals(t.getReleasedForTesting())
                             && t.getAssignedTester() != null
@@ -806,6 +855,7 @@ public class WorkflowController {
             row.put("role", user.getRole());
             row.put("active", !Boolean.FALSE.equals(user.getActive()));
             row.put("openTestingTasks", openTesting);
+            row.put("assignedProjects", assignedProjects);
             testers.add(row);
         }
         testers.sort((a, b) -> String.valueOf(a.get("name")).compareToIgnoreCase(String.valueOf(b.get("name"))));
@@ -849,6 +899,13 @@ public class WorkflowController {
             }
             if (Boolean.FALSE.equals(tester.getActive())) {
                 throw new IllegalArgumentException(tester.getName() + " is currently deactivated.");
+            }
+
+            // Verify tester is configured in the Team Hierarchy for this project
+            if (hierarchyService != null && task.getProject() != null && !task.getProject().trim().isEmpty()) {
+                if (!hierarchyService.isTesterAssignedToProject(task.getProject(), tester.getId(), tester.getEmail())) {
+                    throw new IllegalArgumentException("Tester '" + tester.getName() + "' is not assigned to project '" + task.getProject() + "' in the Team Hierarchy. Only testers configured for this project can be assigned verification work.");
+                }
             }
 
             UserEntity leader = caller(authentication);
@@ -951,6 +1008,10 @@ public class WorkflowController {
             history.setChangedAt(new Date());
             statusChangeRepository.save(history);
 
+            if ("PASSED".equals(result)) {
+                taskMailService.notifyTestingTaskCompleted(saved, actor.getEmail());
+            }
+
             return ResponseEntity.ok(WorkItemRows.of(saved));
         } catch (RuntimeException e) {
             return failure(e);
@@ -1051,12 +1112,14 @@ public class WorkflowController {
     /** The person who approves; the CEO may step in as everywhere else. */
     private boolean isTestingLead(Authentication authentication) {
         return AuthContext.hasRole(authentication, AuthContext.ROLE_TESTER_LEAD)
+                || AuthContext.hasRole(authentication, AuthContext.ROLE_TEAM_LEAD)
                 || AuthContext.isAdmin(authentication);
     }
 
     /** The person who hands approved work to the developers. */
     private boolean isDeveloperLead(Authentication authentication) {
         return AuthContext.hasRole(authentication, AuthContext.ROLE_DEVELOPER_LEAD)
+                || AuthContext.hasRole(authentication, AuthContext.ROLE_TEAM_LEAD)
                 || AuthContext.isAdmin(authentication);
     }
 
@@ -1088,7 +1151,7 @@ public class WorkflowController {
         if ("BUG".equalsIgnoreCase(kind)) {
             AssignTask b = assignBugRepository.findById(id).orElse(null);
             if (b != null) return b;
-        } else if ("TASK".equalsIgnoreCase(kind)) {
+        } else if ("TASK".equalsIgnoreCase(kind) || "PRODUCTION_ISSUE".equalsIgnoreCase(kind)) {
             AssignTask t = assignTaskRepository.findById(id).orElse(null);
             if (t != null) return t;
         }
@@ -1132,18 +1195,38 @@ public class WorkflowController {
                 .thenComparing(AssignTask::getId);
     }
 
-    /** Each developer and the work already in their hands. */
-    private List<Map<String, Object>> developers(List<AssignTask> all) {
+    /** Each developer and the work already in their hands, with assigned projects from team hierarchy. */
+    private List<Map<String, Object>> developers(List<AssignTask> all, String project) {
         List<Map<String, Object>> rows = new ArrayList<>();
         for (UserEntity user : userRepository.findAll()) {
             if (!Roles.FAMILY_DEVELOPER.equals(Roles.family(user.getRole()))) {
                 continue;
             }
+            java.util.Set<String> assignedProjects = hierarchyService != null ?
+                    hierarchyService.getAssignedProjectNamesForUser(user.getEmail()) :
+                    java.util.Collections.emptySet();
+
+            if (project != null && !project.trim().isEmpty() && hierarchyService != null) {
+                boolean assignedToThisProject = assignedProjects.stream()
+                        .anyMatch(p -> canteenManagment.main.hierarchy.TeamHierarchyService.projectMatches(p, project));
+                if (!assignedToThisProject) {
+                    continue;
+                }
+            }
+
             long open = all.stream()
                     .filter((task) -> task.getAssignedTo() != null
                             && Objects.equals(task.getAssignedTo().getId(), user.getId())
                             && WorkStatus.orDefault(task.getStatus()) != WorkStatus.DONE)
                     .count();
+            boolean isProd = false;
+            if (hierarchyService != null) {
+                if (project != null && !project.trim().isEmpty()) {
+                    isProd = hierarchyService.isUserConfiguredForProductionSupport(user.getEmail(), project);
+                } else {
+                    isProd = hierarchyService.isUserConfiguredForProductionSupportAnyProject(user.getEmail());
+                }
+            }
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("id", user.getId());
             row.put("name", user.getName());
@@ -1151,6 +1234,8 @@ public class WorkflowController {
             row.put("role", user.getRole());
             row.put("active", !Boolean.FALSE.equals(user.getActive()));
             row.put("openTasks", open);
+            row.put("assignedProjects", assignedProjects);
+            row.put("productionSupport", isProd);
             rows.add(row);
         }
         rows.sort((left, right) -> String.valueOf(left.get("name"))
@@ -1158,16 +1243,45 @@ public class WorkflowController {
         return rows;
     }
 
-    /** TASK or BUG; anything else is a correctable input error. */
+    private UserEntity pickBestProductionSupportAssignee(List<UserEntity> candidates) {
+        if (candidates == null || candidates.isEmpty()) {
+            return null;
+        }
+        if (candidates.size() == 1) {
+            return candidates.get(0);
+        }
+        List<AssignTask> allTasks = new ArrayList<>();
+        allTasks.addAll(assignTaskRepository.findAll());
+        allTasks.addAll(assignBugRepository.findAll());
+
+        UserEntity best = candidates.get(0);
+        long minLoad = Long.MAX_VALUE;
+        for (UserEntity u : candidates) {
+            long open = allTasks.stream()
+                    .filter(t -> t.getAssignedTo() != null && Objects.equals(t.getAssignedTo().getId(), u.getId())
+                            && WorkStatus.orDefault(t.getStatus()) != WorkStatus.DONE)
+                    .count();
+            if (open < minLoad) {
+                minLoad = open;
+                best = u;
+            }
+        }
+        return best;
+    }
+
+    /** TASK, BUG, or PRODUCTION_ISSUE; anything else is a correctable input error. */
     private String kind(String value) {
         String trimmed = upper(value);
         if (WorkItemRows.KIND_BUG.equals(trimmed)) {
             return WorkItemRows.KIND_BUG;
         }
+        if (WorkItemRows.KIND_PRODUCTION_ISSUE.equals(trimmed) || "PROD_ISSUE".equals(trimmed) || "PROD".equals(trimmed)) {
+            return WorkItemRows.KIND_PRODUCTION_ISSUE;
+        }
         if (trimmed.isEmpty() || WorkItemRows.KIND_TASK.equals(trimmed)) {
             return WorkItemRows.KIND_TASK;
         }
-        throw new IllegalArgumentException("A submission is either a TASK or a BUG.");
+        throw new IllegalArgumentException("A submission is a TASK, a BUG, or a PRODUCTION_ISSUE.");
     }
 
     private boolean approve(String decision) {

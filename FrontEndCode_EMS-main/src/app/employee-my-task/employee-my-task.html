@@ -1,9 +1,9 @@
 <div class="ems-page">
   <div class="ems-page-head">
     <div>
-      <h1 class="ems-page-title">My tasks</h1>
+      <h1 class="ems-page-title">My tickets</h1>
       <p class="ems-page-subtitle">
-        {{ tasks.length }} assignment(s) · {{ dueSoonCount }} due within a week
+        {{ tasks.length }} ticket(s) assigned · {{ dueSoonCount }} due within a week
       </p>
     </div>
 
@@ -24,196 +24,136 @@
     <span>{{ errorMessage }}</span>
   </div>
 
-  <div class="ems-toolbar">
+  <div class="ems-toolbar" style="margin-bottom: 16px;">
     <div class="ems-chip-row">
-      <button
-        class="ems-chip"
-        *ngFor="let chip of priorityCounts"
-        [class.is-active]="priority === chip.key"
+      <button class="ems-chip" *ngFor="let chip of priorityCounts" [class.is-active]="priority === chip.key"
         (click)="setPriority(chip.key)">
         {{ chip.label }} ({{ chip.count }})
       </button>
     </div>
-
-    <mat-form-field appearance="outline" class="ems-search">
-      <mat-label>Search my tasks</mat-label>
-      <input matInput [(ngModel)]="search" (ngModelChange)="onSearchChange()" placeholder="Title, project, module…" />
-      <mat-icon matPrefix>search</mat-icon>
-    </mat-form-field>
   </div>
 
-  <div class="ems-empty" *ngIf="!loading && filteredTasks.length === 0">
-    <mat-icon>task_alt</mat-icon>
-    <h3>{{ tasks.length === 0 ? 'Nothing assigned to you' : 'No tasks match' }}</h3>
-    <p *ngIf="tasks.length === 0">You are all clear. New work will appear here when assigned.</p>
-    <p *ngIf="tasks.length > 0">Try clearing the search or choosing another priority.</p>
-  </div>
+  <!-- Ticket Register Table Section (Matches All Tickets List layout & design) -->
+  <section class="ems-card" style="margin-top: 16px;">
+    <div class="ems-toolbar">
+      <h2 class="ems-section-title" style="margin: 0">
+        <mat-icon>list_alt</mat-icon>
+        Ticket register
+      </h2>
 
-  <div class="ems-task-grid" *ngIf="filteredTasks.length > 0">
-    <article class="ems-task-card" *ngFor="let task of pagedTasks" [ngClass]="priorityClass(task.priority)">
-      <div class="ems-task-card__head">
-        <div>
-          <p class="task-code-row">
-            <span class="task-code">{{ code(task) }}</span>
-            <span class="ems-badge ems-badge--danger" *ngIf="isBug(task)">Bug</span>
-            <span class="ems-badge ems-badge--info" *ngIf="isTestingAssignment(task) && task.status === 'ASSIGNED'">
-              <mat-icon style="font-size:12px;width:12px;height:12px;">assignment_ind</mat-icon> Assigned
-            </span>
-            <span class="ems-badge ems-badge--success" *ngIf="isTestingAssignment(task) && task.status === 'DONE'">
-              <mat-icon style="font-size:12px;width:12px;height:12px;">task_alt</mat-icon> Done
-            </span>
-            <span class="ems-badge" [ngClass]="testingBadge(task.testingStatus)" *ngIf="isTestingAssignment(task) && task.status !== 'ASSIGNED' && task.status !== 'DONE'">
-              <mat-icon style="font-size:12px;width:12px;height:12px;">science</mat-icon>
-              {{ testingLabel(task.testingStatus) }}
-            </span>
-          </p>
-          <h3 class="ems-task-card__title">{{ task.taskTitle }}</h3>
-          <p class="ems-task-card__sub">
-            <mat-icon style="font-size:13px;width:13px;height:13px">folder_open</mat-icon>
-            {{ task.project || 'No project' }}
-          </p>
-        </div>
-        <span class="ems-badge" [ngClass]="priorityBadge(task.priority)">{{ priorityLabel(task.priority) }}</span>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <!-- Download Option for Ticket Register Records -->
+        <button
+          mat-stroked-button
+          class="ems-btn-download"
+          (click)="downloadCsv()"
+          matTooltip="Download ticket register records as CSV">
+          <mat-icon>download</mat-icon>
+          Download CSV
+        </button>
+
+        <mat-form-field appearance="outline" class="ems-search">
+          <mat-label>Search tickets</mat-label>
+          <input matInput [(ngModel)]="search" (ngModelChange)="onSearchChange()" placeholder="Ticket, project, module…" />
+          <mat-icon matPrefix>search</mat-icon>
+        </mat-form-field>
       </div>
+    </div>
 
-      <p class="ems-task-card__desc">{{ task.description || 'No description provided.' }}</p>
+    <!-- Empty State -->
+    <div class="ems-empty" *ngIf="!loading && filteredTasks.length === 0">
+      <mat-icon>inbox</mat-icon>
+      <h3>{{ tasks.length === 0 ? 'Nothing assigned to you' : 'No tickets match' }}</h3>
+      <p *ngIf="tasks.length === 0">You are all clear. New tickets will appear here when assigned.</p>
+      <p *ngIf="tasks.length > 0">Try clearing the search or choosing another priority.</p>
+    </div>
 
-      <!-- Bug Reproduction Steps & Flow Diagram preview for developers (Requirement 5) -->
-      <div class="ems-bug-callout" *ngIf="isBug(task)" (click)="openBugDetails(task)">
-        <div class="ems-bug-callout__top">
-          <span class="ems-bug-callout__badge">
-            <mat-icon>{{ task.reproductionStepsImage ? 'account_tree' : 'format_list_numbered' }}</mat-icon>
-            {{ task.reproductionStepsImage ? 'Flow Diagram & Steps' : 'Reproduction Steps' }}
-          </span>
-          <button mat-button type="button" class="ems-bug-callout__btn" (click)="openBugDetails(task); $event.stopPropagation()">
-            <mat-icon>visibility</mat-icon> View Diagram
-          </button>
-        </div>
-        <p class="ems-bug-callout__preview" *ngIf="task.reproductionSteps">
-          {{ task.reproductionSteps }}
-        </p>
-      </div>
+    <!-- Data Table -->
+    <div class="ems-table-wrap" *ngIf="!loading && filteredTasks.length > 0">
+      <table>
+        <thead>
+          <tr>
+            <th>Ticket ID</th>
+            <th>Ticket</th>
+            <th>Project</th>
+            <th>Status</th>
+            <th>Priority</th>
+            <th>Start</th>
+            <th>Due</th>
+            <th class="all-actions-col">Details</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let task of pagedTasks">
+            <td>
+              <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-start;">
+                <span class="task-code tk-clickable" (click)="openTicketDetails(task)" matTooltip="Open Ticket 360° View">
+                  {{ code(task) }}
+                </span>
+                <span class="ems-sla-pill" [ngClass]="slaOf(task).badgeClass">{{ slaOf(task).label }}</span>
+                <span class="ems-badge" [ngClass]="kindBadge(task)" *ngIf="isBug(task) || isProdIssue(task)">{{ kindLabel(task) }}</span>
+              </div>
+            </td>
+            <td>
+              <div class="ems-rows__main">
+                <strong class="tk-clickable-title" (click)="openTicketDetails(task)" matTooltip="Open Ticket 360° View">
+                  {{ task.taskTitle }}
+                </strong>
+                <small>
+                  {{ kindLabel(task) }}<ng-container *ngIf="task.module"> · {{ task.module }}</ng-container><ng-container *ngIf="task.subModule"> · {{ task.subModule }}</ng-container><ng-container *ngIf="task.screen"> · {{ task.screen }}</ng-container>
+                </small>
+                <small *ngIf="task.testingInstructions" style="display:block;font-size:11px;color:#38bdf8;">
+                  QA Note: {{ task.testingInstructions }}
+                </small>
+                <small *ngIf="task.releaseNote" style="display:block;font-size:11px;color:#c084fc;">
+                  Release: {{ task.releaseNote }}
+                </small>
+              </div>
+            </td>
+            <td>{{ task.project || '—' }}</td>
+            <td>
+              <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                <!-- Status Options (To Do, In Progress, In Review, Done) -->
+                <app-task-status entity="assignment" [id]="task.id" [kind]="task.kind"
+                  [title]="task.taskTitle" [status]="task.status" (changed)="onStatusChanged(task, $event)"
+                  (reopened)="onReopened(task, $event)">
+                </app-task-status>
 
-      <!-- QA Testing Instructions Callout -->
-      <div class="ems-qa-instruction-callout" *ngIf="task.testingInstructions">
-        <div class="ems-qa-instruction-callout__top">
-          <mat-icon>assignment</mat-icon>
-          <strong>QA Instructions from Testing Lead:</strong>
-        </div>
-        <p class="ems-qa-instruction-callout__desc">{{ task.testingInstructions }}</p>
-      </div>
+                <!-- Reopen button for QA testing assignment when defect persists -->
+                <button *ngIf="isTestingAssignment(task) && isTesterUser && task.status !== 'DONE' && task.testingStatus !== 'VERIFIED'"
+                  mat-stroked-button color="warn" class="ems-btn-fail-qa"
+                  matTooltip="Report defect persists and reopen for developer"
+                  (click)="verifyFix(task, 'FAILED')">
+                  <mat-icon>replay</mat-icon> Reopen
+                </button>
+              </div>
+            </td>
+            <td>
+              <span class="ems-badge" [ngClass]="priorityBadge(task.priority)">{{ priorityLabel(task.priority) }}</span>
+            </td>
+            <td>{{ task.startDate ? (task.startDate | date:'dd MMM yyyy') : '—' }}</td>
+            <td [class.is-overdue]="isOverdue(task)">{{ task.endDate ? (task.endDate | date:'dd MMM yyyy') : '—' }}</td>
+            <td class="all-actions-col">
+              <button mat-icon-button style="color:#6366f1;" matTooltip="Open Ticket 360° View"
+                (click)="openTicketDetails(task)" aria-label="Open Ticket Modal">
+                <mat-icon>open_in_new</mat-icon>
+              </button>
+              <button *ngIf="isBug(task) || isProdIssue(task)" mat-icon-button style="color:#e11d48;"
+                matTooltip="View Bug/Issue Details" (click)="openBugDetails(task)" aria-label="View Details">
+                <mat-icon>account_tree</mat-icon>
+              </button>
+              <a *ngIf="task.attachmentPath" mat-icon-button matTooltip="Open attachment"
+                (click)="openFilePopup(task.attachmentPath)" aria-label="Open attachment">
+                <mat-icon>attach_file</mat-icon>
+              </a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
-      <!-- Developer Lead Release Note Callout -->
-      <div class="ems-qa-release-callout" *ngIf="task.releaseNote">
-        <div class="ems-qa-release-callout__top">
-          <mat-icon>send</mat-icon>
-          <strong>Developer Lead Release Note:</strong>
-        </div>
-        <p class="ems-qa-release-callout__desc">{{ task.releaseNote }}</p>
-      </div>
-
-      <!-- The reason a reopened item is open again, straight from the Done exit. -->
-      <p class="ems-rework" *ngIf="task.reopenCount && task.status !== 'DONE'">
-        <mat-icon>restart_alt</mat-icon>
-        <span>
-          Came back from Done<ng-container *ngIf="task.reopenCount > 1"> ({{ task.reopenCount }}×)</ng-container
-          ><ng-container *ngIf="task.lastReopenNote"> — “{{ task.lastReopenNote }}”</ng-container>
-        </span>
-      </p>
-
-      <div class="ems-task-meta">
-        <span *ngIf="task.module"><mat-icon>widgets</mat-icon>{{ task.module }}</span>
-        <span *ngIf="task.subModule"><mat-icon>account_tree</mat-icon>{{ task.subModule }}</span>
-        <span *ngIf="task.screen"><mat-icon>desktop_windows</mat-icon>{{ task.screen }}</span>
-      </div>
-
-      <div class="ems-task-meta">
-        <span><mat-icon>play_circle</mat-icon>{{ task.startDate | date:'dd MMM' }}</span>
-        <span [class.is-overdue]="isOverdue(task)">
-          <mat-icon>flag</mat-icon>{{ task.endDate | date:'dd MMM yyyy' }}
-          <ng-container *ngIf="isOverdue(task)">· overdue</ng-container>
-        </span>
-      </div>
-
-      <div class="ems-task-card__foot">
-        <div class="ems-task-card__owner">
-          <span class="ems-avatar-sm" [matTooltip]="isTestingAssignment(task) ? ('Assigned Tester: ' + (task.assignedTesterName || 'Me')) : ('Assignee: ' + (task.assignedToName || 'Me'))">
-            {{ initials(isTestingAssignment(task) ? (task.assignedTesterName || 'Me') : (task.assignedToName || '')) }}
-          </span>
-          <div class="ems-owner-wrap">
-            <span *ngIf="isTestingAssignment(task)" class="ems-owner-role">
-              Tester: <strong>{{ task.assignedTesterName || 'Me' }}</strong>
-              <small class="ems-owner-sub">Dev: {{ task.assignedToName || 'Dev' }}</small>
-            </span>
-            <span *ngIf="!isTestingAssignment(task)">
-              {{ task.assignedToName || 'Me' }}
-            </span>
-          </div>
-        </div>
-
-        <div class="ems-actions">
-          <!-- Tester Actions if QA task and user is tester -->
-          <div class="ems-qa-action-buttons" *ngIf="isTestingAssignment(task) && isTesterUser">
-            <button
-              *ngIf="task.status !== 'DONE' && task.testingStatus !== 'VERIFIED'"
-              mat-flat-button
-              color="primary"
-              class="ems-btn-pass-qa"
-              matTooltip="Complete testing and mark this task as Done"
-              (click)="markAsDone(task)"
-            >
-              <mat-icon>check_circle</mat-icon> Mark as Done
-            </button>
-            <button
-              *ngIf="task.status !== 'DONE' && task.testingStatus !== 'VERIFIED'"
-              mat-stroked-button
-              color="warn"
-              class="ems-btn-fail-qa"
-              matTooltip="Report defect persists and reopen for developer"
-              (click)="verifyFix(task, 'FAILED')"
-            >
-              <mat-icon>replay</mat-icon> Reopen
-            </button>
-            <span *ngIf="task.status === 'DONE' || task.testingStatus === 'VERIFIED'" class="ems-badge ems-badge--success">
-              <mat-icon style="font-size:13px;width:13px;height:13px;">verified</mat-icon> Done
-            </span>
-          </div>
-
-          <!-- Developer lifecycle status changer -->
-          <app-task-status
-            *ngIf="!isTestingAssignment(task) || !isTesterUser"
-            entity="assignment"
-            [id]="task.id"
-            [title]="task.taskTitle"
-            [status]="task.status"
-            (changed)="onStatusChanged(task, $event)"
-            (reopened)="onReopened(task, $event)">
-          </app-task-status>
-          <button
-            *ngIf="isBug(task)"
-            mat-icon-button
-            style="color:#e11d48;"
-            matTooltip="View Bug Reproduction Diagram & Steps"
-            (click)="openBugDetails(task)">
-            <mat-icon>account_tree</mat-icon>
-          </button>
-          <a
-            *ngIf="task.attachmentPath"
-            mat-icon-button
-            matTooltip="Open attachment"
-            (click)="openFilePopup(task.attachmentPath)">
-            <mat-icon>attach_file</mat-icon>
-          </a>
-        </div>
-      </div>
-    </article>
-  </div>
-
-  <!-- Five cards a page by default, with the dropdown to change it. -->
-  <app-pager
-    [length]="filteredTasks.length"
-    [(pageIndex)]="pageIndex"
-    [(pageSize)]="pageSize"
-    noun="assignment">
-  </app-pager>
+    <!-- Five cards a page by default, with the dropdown to change it. -->
+    <app-pager *ngIf="!loading && filteredTasks.length > 0" [length]="filteredTasks.length" [(pageIndex)]="pageIndex" [(pageSize)]="pageSize" noun="ticket">
+    </app-pager>
+  </section>
 </div>

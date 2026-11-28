@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <linearGradient id="bg-lead" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1d4ed8"/>
+      <stop offset="100%" stop-color="#1e3a8a"/>
+    </linearGradient>
+    <linearGradient id="lead-body" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#93c5fd"/>
+      <stop offset="100%" stop-color="#3b82f6"/>
+    </linearGradient>
+  </defs>
+  <rect width="100" height="100" rx="50" fill="url(#bg-lead)"/>
+  <circle cx="50" cy="50" r="47" fill="none" stroke="#60a5fa" stroke-width="2.5"/>
+  <circle cx="50" cy="38" r="17" fill="url(#lead-body)"/>
+  <path d="M 23 84 C 23 63, 36 60, 50 60 C 64 60, 77 63, 77 84 Z" fill="url(#lead-body)"/>
+  <!-- Star badge for lead -->
+  <circle cx="75" cy="30" r="11" fill="#3b82f6"/>
+  <polygon points="75,23 77.5,28 83,28.8 79,32.7 80,38 75,35.4 70,38 71,32.7 67,28.8 72.5,28" fill="#fde047"/>
+</svg>

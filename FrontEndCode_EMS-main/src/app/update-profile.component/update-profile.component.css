@@ -85,6 +85,19 @@
 
 .up-role { max-width: 240px; }
 
+.up-role--readonly input[readonly] {
+  cursor: default;
+  color: var(--ems-text);
+  font-weight: 500;
+}
+
+.up-hint--locked {
+  display: flex;
+  align-items: center;
+  color: var(--ems-text-3, #94a3b8);
+  font-size: 11.5px;
+}
+
 .ems-form-actions mat-icon {
   font-size: 17px;
   width: 17px;
@@ -96,4 +109,14 @@
   .up-layout { grid-template-columns: 1fr; }
   .up-identity { align-items: flex-start; text-align: left; }
   .up-strength, .up-hint { text-align: left; }
+}
+
+.up-role-icon {
+  font-size: 18px !important;
+  width: 18px !important;
+  height: 18px !important;
+  line-height: 18px !important;
+  margin-right: 8px;
+  vertical-align: middle;
+  color: var(--ems-primary);
 }

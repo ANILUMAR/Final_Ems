@@ -1,0 +1,550 @@
+<div class="ems-page role-access-page">
+  <!-- Page Header -->
+  <header class="role-access-header">
+    <div class="role-access-header__main">
+      <div class="role-access-header__meta">
+        <span class="ems-badge ems-badge--warning">
+          <mat-icon class="ems-icon-inline">admin_panel_settings</mat-icon>
+          Centralized Access Control
+        </span>
+        <span class="role-access-header__crumb">Workspace / Administration / Role Permissions (RBAC)</span>
+      </div>
+      <h1 class="role-access-header__title">Role-Based Access Control (RBAC) Matrix</h1>
+      <p class="role-access-header__desc">
+        Centrally assign or restrict screens and configure granular permissions (View, Edit, Delete, Export) dynamically for each user role in the system.
+      </p>
+    </div>
+
+    <div class="role-access-header__actions">
+      <button
+        type="button"
+        class="ems-btn ems-btn--outline"
+        (click)="resetToDefaults()"
+        [disabled]="isLoading || isSaving"
+        matTooltip="Reset permissions for this role to default matrix">
+        <mat-icon>restart_alt</mat-icon>
+        <span>Reset to Defaults</span>
+      </button>
+
+      <button
+        type="button"
+        class="ems-btn ems-btn--primary"
+        [class.has-changes]="hasUnsavedChanges"
+        (click)="savePermissions()"
+        [disabled]="isLoading || isSaving">
+        <mat-icon>{{ isSaving ? 'sync' : 'save' }}</mat-icon>
+        <span>{{ isSaving ? 'Saving...' : (hasUnsavedChanges ? 'Save Changes *' : 'Save Permissions') }}</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Metric Overview Cards -->
+  <section class="role-access-stats">
+    <div class="stat-card">
+      <div class="stat-card__icon stat-card__icon--info">
+        <mat-icon>space_dashboard</mat-icon>
+      </div>
+      <div class="stat-card__content">
+        <span class="stat-card__label">Total System Screens</span>
+        <strong class="stat-card__value">{{ totalScreens }}</strong>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-card__icon stat-card__icon--success">
+        <mat-icon>check_circle</mat-icon>
+      </div>
+      <div class="stat-card__content">
+        <span class="stat-card__label">Assigned Screens</span>
+        <strong class="stat-card__value stat-card__value--success">{{ assignedScreens }}</strong>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-card__icon stat-card__icon--danger">
+        <mat-icon>block</mat-icon>
+      </div>
+      <div class="stat-card__content">
+        <span class="stat-card__label">Restricted Screens</span>
+        <strong class="stat-card__value stat-card__value--danger">{{ restrictedScreens }}</strong>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-card__icon stat-card__icon--warning">
+        <mat-icon>edit_note</mat-icon>
+      </div>
+      <div class="stat-card__content">
+        <span class="stat-card__label">Edit Rights Granted</span>
+        <strong class="stat-card__value stat-card__value--warning">{{ editCount }}</strong>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-card__icon stat-card__icon--accent">
+        <mat-icon>file_download</mat-icon>
+      </div>
+      <div class="stat-card__content">
+        <span class="stat-card__label">Export Rights Granted</span>
+        <strong class="stat-card__value stat-card__value--accent">{{ exportCount }}</strong>
+      </div>
+    </div>
+  </section>
+
+  <!-- Role & User Selection Section -->
+  <section class="role-selection-section">
+    <div class="role-selection-header-row">
+      <div class="section-heading">
+        <h2 class="section-title">
+          <mat-icon>badge</mat-icon>
+          Select Target Role
+        </h2>
+        <span class="section-hint">Choose a role below or select a specific user to view and configure role screen accessibility</span>
+      </div>
+
+      <!-- Quick User Selector Dropdown -->
+      <div class="quick-user-selector">
+        <label class="quick-user-selector__label">
+          <mat-icon>person_search</mat-icon>
+          <span>Select by User:</span>
+        </label>
+        <div class="quick-user-selector__box">
+          <select
+            class="quick-user-select-control"
+            [(ngModel)]="selectedUserId"
+            (change)="onUserDropdownChange()"
+            title="Filter and configure permissions based on a specific user's assigned role">
+            <option value="">-- View all users / Select individual user --</option>
+            <optgroup
+              *ngFor="let role of roles"
+              [label]="role.label + ' (' + getUsersForRole(role.code).length + ' users)'">
+              <option *ngFor="let u of getUsersForRole(role.code)" [value]="u.id">
+                {{ u.name }} &bull; {{ role.label }} ({{ u.email }})
+              </option>
+            </optgroup>
+          </select>
+          <button
+            *ngIf="selectedUser"
+            type="button"
+            class="clear-user-btn"
+            (click)="clearSelectedUser()"
+            matTooltip="Clear individual user selection">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Role Cards Grid -->
+    <div class="role-selector-grid">
+      <button
+        *ngFor="let role of roles"
+        type="button"
+        class="role-card"
+        [class.is-selected]="selectedRole === role.code"
+        (click)="selectRole(role.code)">
+        <div class="role-card__top">
+          <span class="role-card__icon">
+            <mat-icon>{{ role.icon }}</mat-icon>
+          </span>
+          <span class="ems-badge" [ngClass]="role.badgeClass">{{ role.code }}</span>
+        </div>
+        <strong class="role-card__name">{{ role.label }}</strong>
+        <p class="role-card__desc">{{ role.description }}</p>
+
+        <!-- Dynamic User Count & Mini-Avatars Preview -->
+        <div class="role-card__users-info">
+          <span class="user-count-chip">
+            <mat-icon>people</mat-icon>
+            {{ getUsersForRole(role.code).length }} {{ getUsersForRole(role.code).length === 1 ? 'user' : 'users' }}
+          </span>
+          <div class="mini-avatars" *ngIf="getUsersForRole(role.code).length > 0">
+            <span
+              *ngFor="let u of getUsersForRole(role.code).slice(0, 3)"
+              class="mini-avatar"
+              [title]="u.name + ' (' + u.email + ')'">
+              {{ getUserInitials(u.name) }}
+            </span>
+            <span class="mini-avatar-more" *ngIf="getUsersForRole(role.code).length > 3">
+              +{{ getUsersForRole(role.code).length - 3 }}
+            </span>
+          </div>
+        </div>
+
+        <div class="role-card__footer">
+          <span class="role-card__status" *ngIf="selectedRole === role.code">
+            <mat-icon>check_circle</mat-icon> Currently Editing
+          </span>
+          <span class="role-card__status role-card__status--inactive" *ngIf="selectedRole !== role.code">
+            Click to configure
+          </span>
+        </div>
+      </button>
+    </div>
+  </section>
+
+  <!-- Dynamic Users by Assigned Role Section -->
+  <section class="role-users-section">
+    <div class="role-users-header">
+      <div class="role-users-title">
+        <mat-icon>groups</mat-icon>
+        <h3>
+          Users Assigned to: <span class="highlight-role-name">{{ currentRole?.label }}</span>
+          <span class="role-user-count-chip">{{ getUsersForRole(selectedRole).length }}</span>
+        </h3>
+        <span class="role-users-subtitle">
+          Select any user below to inspect their individual profile and verify their role-based screen access
+        </span>
+      </div>
+
+      <div class="role-users-filter" *ngIf="getUsersForRole(selectedRole).length > 2">
+        <mat-icon class="search-mini-icon">search</mat-icon>
+        <input
+          type="text"
+          class="role-users-search-input"
+          placeholder="Filter users in {{ currentRole?.label }}..."
+          [(ngModel)]="userFilterText" />
+        <button
+          *ngIf="userFilterText"
+          type="button"
+          class="clear-mini-btn"
+          (click)="userFilterText = ''"
+          title="Clear search">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    </div>
+
+    <!-- Active User Focus Card (when an individual user is selected) -->
+    <div class="active-user-focus-card" *ngIf="selectedUser">
+      <div class="active-user-focus-card__left">
+        <div class="active-user-avatar">
+          <img [src]="getAvatar(selectedUser)" (error)="onImgError($event, selectedUser)" [alt]="selectedUser.name" />
+        </div>
+        <div class="active-user-info">
+          <div class="active-user-info__header">
+            <strong class="active-user-name">{{ selectedUser.name }}</strong>
+            <span class="user-status-pill" [class.user-status-pill--active]="selectedUser.active !== false">
+              <span class="status-dot"></span>
+              {{ selectedUser.active !== false ? 'Active Account' : 'Inactive' }}
+            </span>
+            <span class="ems-badge" [ngClass]="currentRole?.badgeClass">{{ currentRole?.label }}</span>
+          </div>
+          <div class="active-user-info__meta">
+            <span><mat-icon class="meta-icon">email</mat-icon> {{ selectedUser.email }}</span>
+            <span *ngIf="selectedUser.phoneNumber"><mat-icon class="meta-icon">phone</mat-icon> {{ selectedUser.phoneNumber }}</span>
+            <span *ngIf="selectedUser.address"><mat-icon class="meta-icon">location_on</mat-icon> {{ selectedUser.address }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="active-user-focus-card__right">
+        <span class="inspecting-label">
+          <mat-icon class="inspecting-icon">verified_user</mat-icon>
+          Inspecting permissions for <strong>{{ selectedUser.name }}</strong> via the <strong>{{ currentRole?.label }}</strong> role matrix.
+        </span>
+        <button
+          type="button"
+          class="ems-btn ems-btn--sm ems-btn--outline"
+          (click)="clearSelectedUser()"
+          matTooltip="View all users in this role without individual focus">
+          <mat-icon>close</mat-icon>
+          <span>Deselect User</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- User Grid / Chips -->
+    <div class="role-users-grid" *ngIf="!isLoadingUsers && usersForSelectedRole.length > 0">
+      <div
+        *ngFor="let user of usersForSelectedRole"
+        class="user-card-item"
+        [class.is-selected]="selectedUser?.id === user.id"
+        (click)="selectUser(user)"
+        matTooltip="Click to select {{ user.name }} and inspect their assigned access permissions">
+        <div class="user-card-item__avatar">
+          <img [src]="getAvatar(user)" (error)="onImgError($event, user)" [alt]="user.name" />
+        </div>
+        <div class="user-card-item__details">
+          <div class="user-card-item__name-row">
+            <span class="user-card-item__name">{{ user.name }}</span>
+            <span
+              class="user-status-dot"
+              [class.user-status-dot--active]="user.active !== false"
+              [matTooltip]="user.active !== false ? 'Active User' : 'Inactive Account'"></span>
+          </div>
+          <span class="user-card-item__email">{{ user.email }}</span>
+        </div>
+        <div class="user-card-item__action">
+          <span class="select-indicator" *ngIf="selectedUser?.id === user.id">
+            <mat-icon>check_circle</mat-icon> Selected
+          </span>
+          <span class="select-hint" *ngIf="selectedUser?.id !== user.id">
+            Select
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty state for no users in role -->
+    <div class="role-users-empty" *ngIf="!isLoadingUsers && usersForSelectedRole.length === 0">
+      <mat-icon class="empty-icon">people_outline</mat-icon>
+      <div class="empty-text">
+        <h4 *ngIf="getUsersForRole(selectedRole).length === 0">No users currently assigned to {{ currentRole?.label }}</h4>
+        <h4 *ngIf="getUsersForRole(selectedRole).length > 0 && userFilterText">No users match "{{ userFilterText }}"</h4>
+        <p *ngIf="getUsersForRole(selectedRole).length === 0">
+          Users assigned to this role in Employee Directory / User Management will dynamically appear here.
+        </p>
+        <button
+          *ngIf="userFilterText"
+          type="button"
+          class="ems-btn ems-btn--sm ems-btn--outline"
+          (click)="userFilterText = ''">
+          Clear Search
+        </button>
+      </div>
+    </div>
+
+    <!-- Loading skeleton -->
+    <div class="role-users-loading" *ngIf="isLoadingUsers">
+      <mat-icon class="spin-icon">sync</mat-icon>
+      <span>Loading registered users for {{ currentRole?.label }}...</span>
+    </div>
+  </section>
+
+  <!-- Filter & Actions Bar -->
+  <section class="role-controls-section">
+    <!-- Category Tabs -->
+    <div class="category-tabs">
+      <button
+        *ngFor="let cat of categories"
+        type="button"
+        class="category-tab"
+        [class.is-active]="selectedCategory === cat"
+        (click)="selectedCategory = cat">
+        <span>{{ cat === 'ALL' ? 'All Categories' : cat }}</span>
+      </button>
+    </div>
+
+    <!-- Search and Bulk Actions -->
+    <div class="filter-actions-row">
+      <div class="search-box">
+        <mat-icon class="search-box__icon">search</mat-icon>
+        <input
+          type="text"
+          class="search-box__input"
+          placeholder="Search screens by screen name, module, or description..."
+          [(ngModel)]="searchQuery" />
+        <button
+          *ngIf="searchQuery"
+          type="button"
+          class="search-box__clear"
+          (click)="searchQuery = ''"
+          title="Clear search">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+
+      <div class="bulk-buttons">
+        <button
+          type="button"
+          class="ems-btn ems-btn--sm ems-btn--outline-success"
+          (click)="toggleAll(true)"
+          matTooltip="Allow access to all displayed screens">
+          <mat-icon>check</mat-icon>
+          <span>Grant All</span>
+        </button>
+        <button
+          type="button"
+          class="ems-btn ems-btn--sm ems-btn--outline-danger"
+          (click)="toggleAll(false)"
+          matTooltip="Restrict access to all displayed screens">
+          <mat-icon>block</mat-icon>
+          <span>Restrict All</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Permissions Table -->
+  <section class="table-container">
+    <div class="table-card">
+      <div class="table-card__header">
+        <div class="table-card__title-box">
+          <mat-icon>shield</mat-icon>
+          <div>
+            <h3>
+              Permissions Matrix for: <span class="highlight-role">{{ currentRole?.label }}</span>
+              <span *ngIf="selectedUser" class="user-focus-badge">
+                <mat-icon class="badge-icon">person</mat-icon>
+                Inspecting: {{ selectedUser.name }}
+              </span>
+            </h3>
+            <p class="matrix-subtitle" *ngIf="selectedUser">
+              Permissions configured below apply to <strong>{{ selectedUser.name }}</strong> ({{ selectedUser.email }}) and all other users assigned to the <strong>{{ currentRole?.label }}</strong> role.
+            </p>
+            <p class="matrix-subtitle" *ngIf="!selectedUser">
+              Permissions configured below apply to all <strong>{{ getUsersForRole(selectedRole).length }}</strong> registered users assigned to the <strong>{{ currentRole?.label }}</strong> role.
+            </p>
+          </div>
+        </div>
+        <div class="table-card__legend">
+          <span class="legend-item"><span class="legend-dot legend-dot--allowed"></span> Allowed</span>
+          <span class="legend-item"><span class="legend-dot legend-dot--restricted"></span> Restricted</span>
+        </div>
+      </div>
+
+      <div class="table-responsive" *ngIf="!isLoading && filteredPermissions.length > 0">
+        <table class="ems-table permissions-table">
+          <thead>
+            <tr>
+              <th class="th-screen">Screen & Feature</th>
+              <th class="th-category">Module</th>
+              <th class="th-target">Target Screen / Sub-Module</th>
+              <th class="th-access">Access Status</th>
+              <th class="th-perms">Granular Permissions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              *ngFor="let item of filteredPermissions"
+              class="permission-row"
+              [class.is-restricted]="!item.allowed"
+              [class.is-allowed]="item.allowed">
+              <!-- Screen info -->
+              <td class="td-screen">
+                <div class="screen-info">
+                  <div class="screen-icon" [class.screen-icon--disabled]="!item.allowed">
+                    <mat-icon>{{ item.icon || 'tv' }}</mat-icon>
+                  </div>
+                  <div class="screen-details">
+                    <strong class="screen-name">{{ getScreenTitle(item) }}</strong>
+                    <span class="screen-desc" *ngIf="item.description">{{ item.description }}</span>
+                  </div>
+                </div>
+              </td>
+
+              <!-- Category -->
+              <td class="td-category">
+                <span class="category-chip">{{ item.category }}</span>
+              </td>
+
+              <!-- Target Screen / Sub-Module Name -->
+              <td class="td-target">
+                <div class="screen-target-badge">
+                  <span class="screen-target-module">{{ item.category }} &rsaquo;</span>
+                  <span class="screen-target-name">{{ getScreenTitle(item) }}</span>
+                </div>
+              </td>
+
+              <!-- Access Switch -->
+              <td class="td-access">
+                <label class="toggle-switch">
+                  <input
+                    type="checkbox"
+                    [checked]="item.allowed"
+                    (change)="toggleScreen(item)" />
+                  <span class="slider"></span>
+                  <span class="toggle-label" [class.toggle-label--on]="item.allowed">
+                    {{ item.allowed ? 'Allowed' : 'Restricted' }}
+                  </span>
+                </label>
+              </td>
+
+              <!-- Granular Checkboxes -->
+              <td class="td-perms">
+                <div class="granular-perms" [class.granular-perms--disabled]="!item.allowed">
+                  <!-- View -->
+                  <label class="perm-checkbox" [class.is-checked]="item.canView">
+                    <input
+                      type="checkbox"
+                      [checked]="item.canView"
+                      [disabled]="!item.allowed"
+                      (change)="togglePermission(item, 'canView')" />
+                    <span class="perm-label">
+                      <mat-icon class="perm-icon">visibility</mat-icon>
+                      View
+                    </span>
+                  </label>
+
+                  <!-- Edit -->
+                  <label class="perm-checkbox" [class.is-checked]="item.canEdit">
+                    <input
+                      type="checkbox"
+                      [checked]="item.canEdit"
+                      [disabled]="!item.allowed"
+                      (change)="togglePermission(item, 'canEdit')" />
+                    <span class="perm-label">
+                      <mat-icon class="perm-icon">edit</mat-icon>
+                      Edit
+                    </span>
+                  </label>
+
+                  <!-- Delete -->
+                  <label class="perm-checkbox" [class.is-checked]="item.canDelete">
+                    <input
+                      type="checkbox"
+                      [checked]="item.canDelete"
+                      [disabled]="!item.allowed"
+                      (change)="togglePermission(item, 'canDelete')" />
+                    <span class="perm-label">
+                      <mat-icon class="perm-icon">delete_forever</mat-icon>
+                      Delete
+                    </span>
+                  </label>
+
+                  <!-- Export -->
+                  <label class="perm-checkbox" [class.is-checked]="item.canExport">
+                    <input
+                      type="checkbox"
+                      [checked]="item.canExport"
+                      [disabled]="!item.allowed"
+                      (change)="togglePermission(item, 'canExport')" />
+                    <span class="perm-label">
+                      <mat-icon class="perm-icon">download</mat-icon>
+                      Export
+                    </span>
+                  </label>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Loading State -->
+      <div class="loading-state" *ngIf="isLoading">
+        <mat-icon class="spin-icon">sync</mat-icon>
+        <p>Loading screen access configuration for {{ currentRole?.label }}...</p>
+      </div>
+
+      <!-- Empty State -->
+      <div class="empty-state" *ngIf="!isLoading && filteredPermissions.length === 0">
+        <mat-icon>search_off</mat-icon>
+        <h4>No screens found</h4>
+        <p>No screens match your search query "{{ searchQuery }}" in category "{{ selectedCategory }}".</p>
+        <button type="button" class="ems-btn ems-btn--outline" (click)="searchQuery = ''; selectedCategory = 'ALL'">
+          Clear Filters
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Sticky Bottom Bar when changes are pending -->
+  <aside class="sticky-save-bar" *ngIf="hasUnsavedChanges">
+    <div class="sticky-save-bar__content">
+      <div class="sticky-save-bar__info">
+        <mat-icon class="warn-icon">info</mat-icon>
+        <span>You have unsaved access changes for <strong>{{ currentRole?.label }}</strong></span>
+      </div>
+      <div class="sticky-save-bar__actions">
+        <button type="button" class="ems-btn ems-btn--outline" (click)="loadRoleConfig(selectedRole)">
+          Discard
+        </button>
+        <button type="button" class="ems-btn ems-btn--primary" (click)="savePermissions()" [disabled]="isSaving">
+          <mat-icon>{{ isSaving ? 'sync' : 'save' }}</mat-icon>
+          <span>{{ isSaving ? 'Saving Changes...' : 'Save Changes Now' }}</span>
+        </button>
+      </div>
+    </div>
+  </aside>
+</div>

@@ -1,9 +1,9 @@
 <div class="ems-page">
   <div class="ems-page-head">
     <div>
-      <h1 class="ems-page-title">Java Team Leader - Task &amp; Bug Assignment</h1>
+      <h1 class="ems-page-title">Team Assignment List</h1>
       <p class="ems-page-subtitle">
-        Work approved by the testing team leader. Hand each item to a Java developer, sorted by priority and their current load.
+        Work approved for implementation. Assign each task and bug to team members, sorted by priority and current workload.
       </p>
     </div>
     <div class="ems-actions">
@@ -13,6 +13,9 @@
       </button>
     </div>
   </div>
+
+  <!-- Interactive Workflow Pipeline -->
+  <app-workflow-pipeline currentStage="assignment"></app-workflow-pipeline>
 
   <div class="ems-auth__note ems-auth__note--error" *ngIf="errorMessage">
     <mat-icon>error_outline</mat-icon>
@@ -32,12 +35,12 @@
     <div class="ems-stat">
       <span class="ems-stat__label">With the team</span>
       <span class="ems-stat__value">{{ queue.assigned }}</span>
-      <span class="ems-stat__hint">with Java developers</span>
+      <span class="ems-stat__hint">with team developers</span>
     </div>
     <div class="ems-stat">
       <span class="ems-stat__label">Free developers</span>
       <span class="ems-stat__value">{{ freeDevelopers }}</span>
-      <span class="ems-stat__hint">available Java developers</span>
+      <span class="ems-stat__hint">{{ (selected?.project || projectFilter) ? (selected?.project || projectFilter) + ' team' : 'available developers' }}</span>
     </div>
     <div class="ems-stat">
       <span class="ems-stat__label">Top of the queue</span>
@@ -56,6 +59,9 @@
           <button type="button" class="filter-chip" [class.is-active]="tab === 'assigned'" (click)="setTab('assigned')">
             Assigned <span>{{ queue.assigned }}</span>
           </button>
+          <button type="button" class="filter-chip is-active" *ngIf="projectFilter" (click)="clearProjectFilter()" matTooltip="Click to clear project filter">
+            Project: {{ projectFilter }} <mat-icon style="font-size: 14px; width: 14px; height: 14px; margin-left: 4px; vertical-align: middle;">close</mat-icon>
+          </button>
         </div>
       </div>
 
@@ -67,7 +73,7 @@
         <p>
           {{
             tab === 'awaiting'
-              ? 'Approved work appears here as soon as the testing team leader signs it off.'
+              ? 'Approved work appears here as soon as it is approved in the Review List.'
               : 'Items you hand out stay listed here with their owner.'
           }}
         </p>
@@ -82,13 +88,13 @@
           (click)="select(item)"
         >
           <header class="work-card__head">
-            <span class="task-code">{{ code(item) }}</span>
+            <span class="task-code tk-clickable" (click)="openTicketDetails(item); $event.stopPropagation()" matTooltip="Open Ticket 360° View">{{ code(item) }}</span>
             <span class="ems-badge" [ngClass]="kindClass(item)">{{ kind(item) }}</span>
             <span class="ems-badge ems-badge--neutral">{{ priorityLabel(item.priority) }}</span>
             <span class="work-card__spacer"></span>
             <mat-icon class="work-card__pick">{{ selected?.id === item.id ? 'radio_button_checked' : 'radio_button_unchecked' }}</mat-icon>
           </header>
-          <h3 class="work-card__title">{{ item.taskTitle }}</h3>
+          <h3 class="work-card__title tk-clickable-title" (click)="openTicketDetails(item); $event.stopPropagation()" matTooltip="Open Ticket 360° View">{{ item.taskTitle }}</h3>
           <p class="work-card__meta">
             <span *ngIf="item.project">{{ item.project }}</span>
             <span *ngIf="item.module">· {{ item.module }}</span>
@@ -112,7 +118,7 @@
         <table>
           <thead>
             <tr>
-              <th>Task ID</th>
+              <th>Ticket ID</th>
               <th>Work</th>
               <th>Priority</th>
               <th>Developer</th>
@@ -121,10 +127,10 @@
           </thead>
           <tbody>
             <tr *ngFor="let item of pagedAssigned">
-              <td><span class="task-code">{{ code(item) }}</span></td>
+              <td><span class="task-code tk-clickable" (click)="openTicketDetails(item)" matTooltip="Open Ticket 360° View">{{ code(item) }}</span></td>
               <td>
                 <div class="ems-rows__main">
-                  {{ item.taskTitle }}
+                  <strong class="tk-clickable-title" (click)="openTicketDetails(item)" matTooltip="Open Ticket 360° View">{{ item.taskTitle }}</strong>
                   <small>{{ kind(item) }} · {{ item.project }}</small>
                 </div>
               </td>
@@ -143,14 +149,14 @@
         [length]="awaiting.length"
         [(pageIndex)]="pageIndex"
         [(pageSize)]="pageSize"
-        noun="item">
+        noun="ticket">
       </app-pager>
       <app-pager
         *ngIf="tab === 'assigned'"
         [length]="assigned.length"
         [(pageIndex)]="pageIndex"
         [(pageSize)]="pageSize"
-        noun="assignment">
+        noun="ticket">
       </app-pager>
     </section>
 
@@ -176,13 +182,18 @@
         </div>
 
         <mat-form-field appearance="outline">
-          <mat-label>Java Developer</mat-label>
-          <mat-select [(ngModel)]="developerId">
-            <mat-option *ngFor="let developer of queue.developers" [value]="developer.id" [disabled]="!developer.active">
-              {{ developer.name }} · {{ loadLabel(developer) }}
+          <mat-label>Java Developer ({{ selected.project }} Hierarchy)</mat-label>
+          <mat-select [(ngModel)]="developerId" [disabled]="!assignableDevelopers.length">
+            <mat-option *ngFor="let developer of assignableDevelopers" [value]="developer.id" [disabled]="!developer.active">
+              {{ developer.name }} · {{ loadLabel(developer) }} {{ developer.productionSupport ? '⚡ [Prod Support]' : '' }}
             </mat-option>
           </mat-select>
         </mat-form-field>
+
+        <p class="panel-hint" *ngIf="selected && !assignableDevelopers.length" style="color: #f59e0b; margin: -6px 0 12px; font-size: 12px; display: flex; align-items: center; gap: 5px;">
+          <mat-icon style="font-size: 15px; width: 15px; height: 15px;">warning</mat-icon>
+          No developers configured for {{ selected.project }} in Team Hierarchy.
+        </p>
 
         <mat-form-field appearance="outline">
           <mat-label>Priority</mat-label>
@@ -218,18 +229,28 @@
 
       <!-- the workload the decision is made against -->
       <div class="workload">
-        <h3 class="workload__title">Developer load</h3>
-        <p class="panel-hint" *ngIf="!queue.developers.length">No developer accounts yet.</p>
-        <ul class="workload__list">
+        <h3 class="workload__title">
+          Developer load
+          <small *ngIf="selected?.project" style="font-size: 11px; font-weight: 500; color: var(--ems-primary, #3b82f6); margin-left: 6px;">
+            ({{ selected?.project }})
+          </small>
+        </h3>
+        <p class="panel-hint" *ngIf="!assignableDevelopers.length">
+          No developers mapped to {{ selected?.project || 'this project' }} in Team Hierarchy.
+        </p>
+        <ul class="workload__list" *ngIf="assignableDevelopers.length">
           <li
-            *ngFor="let developer of queue.developers"
+            *ngFor="let developer of assignableDevelopers"
             class="workload__row"
             [class.is-picked]="developerId === developer.id"
             (click)="developer.active && (developerId = developer.id)"
           >
             <span class="workload__avatar">{{ developer.name.slice(0, 2).toUpperCase() }}</span>
             <span class="workload__main">
-              <strong>{{ developer.name }}</strong>
+              <strong>
+                {{ developer.name }}
+                <span *ngIf="developer.productionSupport" class="ems-badge ems-badge--prod" style="font-size: 10px; padding: 1px 5px; margin-left: 4px;">⚡ Prod Support</span>
+              </strong>
               <small>{{ developer.email }}</small>
             </span>
             <span class="ems-badge" [ngClass]="{

@@ -251,19 +251,46 @@ export class TestingLeadDashboardComponent implements OnInit {
   }
 
   /**
-   * Checks whether the original tester is available (active member of testing team).
+   * Checks whether the original tester is available (active member of testing team configured for this project).
    */
   isOriginalTesterAvailable(item?: WorkItem | null): boolean {
     const orig = this.getOriginalTester(item);
-    return !!(orig && orig.active);
+    if (!orig || !orig.active) return false;
+    if (item?.project && orig.assignedProjects && orig.assignedProjects.length > 0) {
+      return orig.assignedProjects.some((p) => this.projectMatches(p, item.project));
+    }
+    return true;
+  }
+
+  projectMatches(p1?: string | null, p2?: string | null): boolean {
+    if (!p1 || !p2) return false;
+    const s1 = p1.trim().toLowerCase();
+    const s2 = p2.trim().toLowerCase();
+    if (s1 === s2) return true;
+    const n1 = s1.replace(/[\s_\-]+/g, '');
+    const n2 = s2.replace(/[\s_\-]+/g, '');
+    if (n1 === n2) return true;
+    return n1.length >= 5 && n2.length >= 5 && (n1.includes(n2) || n2.includes(n1));
+  }
+
+  get projectTesters(): TesterLoad[] {
+    const targetProject = this.selectedItem?.project || '';
+    if (!targetProject || !targetProject.trim()) {
+      return this.queue.testers;
+    }
+    return this.queue.testers.filter((t) => {
+      if (!t.assignedProjects || t.assignedProjects.length === 0) return false;
+      return t.assignedProjects.some((p) => this.projectMatches(p, targetProject));
+    });
   }
 
   /**
-   * Returns all available alternative testers (excluding original tester).
+   * Returns all available alternative testers (excluding original tester), filtered by project hierarchy.
    */
   get alternativeTesters(): TesterLoad[] {
     const orig = this.getOriginalTester(this.selectedItem);
-    return this.queue.testers.filter((t) => (!orig || t.id !== orig.id) && t.active);
+    const pool = this.projectTesters.length ? this.projectTesters : this.queue.testers;
+    return pool.filter((t) => (!orig || t.id !== orig.id) && t.active);
   }
 
   /**

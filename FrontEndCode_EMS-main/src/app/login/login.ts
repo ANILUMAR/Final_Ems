@@ -8,6 +8,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { RoleGuard } from '../role-guard';
+import { RolePermissionService } from '../services/role-permission.service';
 
 @Component({
   selector: 'app-login',
@@ -31,7 +32,9 @@ export class Login {
   constructor(
     private fb: FormBuilder,
     private http: HttpClient,
-    private router: Router
+    private router: Router,
+    private roleGuard: RoleGuard,
+    private rolePermissionService: RolePermissionService
   ) {
     this.loginForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
@@ -55,18 +58,27 @@ export class Login {
     ).subscribe({
       next: (response) => {
         this.loading = false;
+
+        // Clear any old session permissions first
+        this.rolePermissionService.clearPermissions();
+
         localStorage.setItem('token', response.token);
         localStorage.setItem('email', response.userEntity.email);
         localStorage.setItem('role', response.userEntity.role);
         localStorage.setItem('name', response.userEntity.username || response.userEntity.name || response.userEntity.email);
-        // Admins always manage tasks; a tester only when an admin granted it.
-        // Cached here so the sidebar and RoleGuard can decide without a round trip,
-        // while the backend stays the real gate on every write.
         localStorage.setItem('taskManager', String(response.userEntity.taskManager === true));
 
-        // The role decides the landing page: the CEO opens the admin dashboard,
-        // each team leader opens the board of the team they run.
-        this.router.navigate([RoleGuard.homeFor(response.userEntity.role)]);
+        // Refresh role-based screen and action permissions for the logged-in role before navigating
+        this.rolePermissionService.refreshCurrentUserPermissions().subscribe({
+          next: () => {
+            const landingPage = this.roleGuard.getSafeLandingRoute(response.userEntity.role);
+            this.router.navigate([landingPage]);
+          },
+          error: () => {
+            const landingPage = this.roleGuard.getSafeLandingRoute(response.userEntity.role);
+            this.router.navigate([landingPage]);
+          }
+        });
       },
       error: (err) => {
         this.loading = false;

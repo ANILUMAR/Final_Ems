@@ -52,6 +52,10 @@ public class CustomUserDetailsService implements UserDetailsService {
         }
         ArrayList<SimpleGrantedAuthority> authorities = new ArrayList<>();
         authorities.add(new SimpleGrantedAuthority("ROLE_" + role));
+        if (Roles.isTeamLead(role)) {
+            authorities.add(new SimpleGrantedAuthority("ROLE_TEAM_LEAD"));
+            authorities.add(new SimpleGrantedAuthority("ROLE_DEVELOPER_LEAD"));
+        }
         String family = Roles.family(role);
         if (!family.isEmpty() && !family.equals(role)) {
             authorities.add(new SimpleGrantedAuthority("ROLE_" + family));

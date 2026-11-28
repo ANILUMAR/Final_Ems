@@ -5,10 +5,10 @@
       <p class="ems-page-subtitle">Delivery health for every project in the workspace.</p>
     </div>
     <div class="ems-actions">
-      <a mat-flat-button color="primary" routerLink="/projects/new">
+      <button type="button" mat-flat-button color="primary" (click)="openCreateModal()" *ngIf="canCreateProject">
         <mat-icon>create_new_folder</mat-icon>
         New project
-      </a>
+      </button>
       <button mat-stroked-button matTooltip="Reload from the server" (click)="reload()">
         <mat-icon>refresh</mat-icon>
         Refresh
@@ -52,11 +52,7 @@
       <h2 class="ems-section-title"><mat-icon>folder_open</mat-icon> Projects</h2>
 
       <div class="po-list" *ngIf="rows.length; else noProjects">
-        <button
-          type="button"
-          class="po-row"
-          *ngFor="let row of pagedRows"
-          [class.is-selected]="row.id === selected?.id"
+        <button type="button" class="po-row" *ngFor="let row of pagedRows" [class.is-selected]="row.id === selected?.id"
           (click)="select(row)">
           <span class="po-row__main">
             <strong>{{ row.name }}</strong>
@@ -64,7 +60,8 @@
           </span>
           <span class="po-row__side">
             <span class="ems-pipeline__track ems-pipeline__track--sm">
-              <span class="ems-pipeline__fill" [ngClass]="fillClass(row.progress)" [style.width.%]="row.progress"></span>
+              <span class="ems-pipeline__fill" [ngClass]="fillClass(row.progress)"
+                [style.width.%]="row.progress"></span>
             </span>
             <span class="po-row__pct">{{ row.progress }}%</span>
           </span>
@@ -76,17 +73,13 @@
           <mat-icon>folder_off</mat-icon>
           <h3>No projects yet</h3>
           <p>Projects created in the workspace show up here with live progress.</p>
-          <a mat-stroked-button class="ems-empty__cta" routerLink="/tasks">Open the task board</a>
+          <a mat-stroked-button class="ems-empty__cta" routerLink="/tasks">Open the ticket board</a>
         </div>
       </ng-template>
 
       <!-- Five projects a page by default, with the dropdown to change it. -->
-      <app-pager
-        [length]="rows.length"
-        [(pageIndex)]="projectPage"
-        [pageSize]="pageSize"
-        (pageSizeChange)="setPageSize($event)"
-        noun="project">
+      <app-pager [length]="rows.length" [(pageIndex)]="projectPage" [pageSize]="pageSize"
+        (pageSizeChange)="setPageSize($event)" noun="project">
       </app-pager>
     </div>
 
@@ -104,7 +97,8 @@
             <span class="ems-dim">{{ project.done }} of {{ project.total }} tasks done</span>
           </div>
           <div class="ems-pipeline__track">
-            <span class="ems-pipeline__fill" [ngClass]="fillClass(project.progress)" [style.width.%]="project.progress"></span>
+            <span class="ems-pipeline__fill" [ngClass]="fillClass(project.progress)"
+              [style.width.%]="project.progress"></span>
           </div>
         </div>
       </div>
@@ -162,12 +156,8 @@
       </ng-template>
 
       <!-- Five tasks a page by default, with the dropdown to change it. -->
-      <app-pager
-        [length]="selectedTasks.length"
-        [(pageIndex)]="taskPage"
-        [pageSize]="pageSize"
-        (pageSizeChange)="setPageSize($event)"
-        noun="task">
+      <app-pager [length]="selectedTasks.length" [(pageIndex)]="taskPage" [pageSize]="pageSize"
+        (pageSizeChange)="setPageSize($event)" noun="task">
       </app-pager>
     </div>
 
@@ -180,5 +170,62 @@
         </div>
       </div>
     </ng-template>
+  </div>
+
+  <!-- Create Project Modal Dialog -->
+  <div class="po-modal-overlay" *ngIf="showCreateModal" (click)="closeCreateModal()">
+    <div class="po-modal-dialog" (click)="$event.stopPropagation()">
+      <div class="po-modal-head">
+        <div class="po-modal-title">
+          <mat-icon class="po-modal-icon">create_new_folder</mat-icon>
+          <h3>Create New Project</h3>
+        </div>
+        <button mat-icon-button (click)="closeCreateModal()" [disabled]="isSavingProject">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+
+      <div class="po-modal-body">
+        <p class="po-modal-hint">
+          Add a new delivery project to the workspace portfolio. Once created, team members and project hierarchy can be configured.
+        </p>
+
+        <div class="po-form-group">
+          <label class="po-form-label" for="newProjName">Project Name *</label>
+          <input
+            id="newProjName"
+            type="text"
+            class="po-input"
+            [(ngModel)]="newProjectName"
+            placeholder="e.g. Vendor Onboarding, Customer Portal…"
+            maxlength="80"
+            required />
+          <span class="po-form-subtext">Must be unique across the workspace.</span>
+        </div>
+
+        <div class="po-form-group">
+          <label class="po-form-label" for="newProjDesc">Project Description (Optional)</label>
+          <textarea
+            id="newProjDesc"
+            class="po-textarea"
+            rows="3"
+            [(ngModel)]="newProjectDescription"
+            placeholder="Brief summary of project scope, client, or deliverables…"
+            maxlength="500"></textarea>
+        </div>
+      </div>
+
+      <div class="po-modal-foot">
+        <button mat-stroked-button (click)="closeCreateModal()" [disabled]="isSavingProject">Cancel</button>
+        <button
+          mat-flat-button
+          color="primary"
+          (click)="submitCreateProject()"
+          [disabled]="!newProjectName.trim() || isSavingProject">
+          <mat-icon>{{ isSavingProject ? 'sync' : 'check' }}</mat-icon>
+          {{ isSavingProject ? 'Creating…' : 'Create Project' }}
+        </button>
+      </div>
+    </div>
   </div>
 </section>

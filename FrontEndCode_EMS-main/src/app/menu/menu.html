@@ -94,6 +94,460 @@
       <p class="set-note">These defaults apply to the timesheet form on this browser.</p>
     </article>
 
+    <!-- ==================== SIDEBAR & NAVIGATION CUSTOMIZATION ==================== -->
+    <article class="ems-card set-sidebar-customizer ems-card--full">
+      <div class="set-card-header">
+        <div class="set-card-header__info">
+          <h2 class="ems-section-title">
+            <mat-icon>tune</mat-icon> Navigation & Sidebar Customization
+          </h2>
+          <p class="set-card-header__subtitle">
+            Personalize your workspace navigation layout, expand behavior, sidebar docking position, and visual theme. Changes are saved individually for your profile.
+          </p>
+        </div>
+        <div class="set-card-header__actions">
+          <button
+            type="button"
+            mat-stroked-button
+            class="set-action-btn"
+            (click)="resetNavigationDefaults()"
+            matTooltip="Restore enterprise standard layout">
+            <mat-icon>restart_alt</mat-icon>
+            Reset to Default
+          </button>
+          <button
+            type="button"
+            mat-flat-button
+            color="primary"
+            class="set-action-btn set-action-btn--primary"
+            (click)="saveNavigationPreferences()"
+            matTooltip="Save changes to your personal workspace preferences">
+            <mat-icon>save</mat-icon>
+            Save Preferences
+          </button>
+        </div>
+      </div>
+
+      <div class="set-customizer-split">
+        <!-- Controls Column -->
+        <div class="set-controls-col">
+
+          <!-- 1. Primary Navigation Layout (Sidebar vs Top Navigation) -->
+          <div class="set-config-section">
+            <div class="set-config-section__header">
+              <span class="set-config-num">1</span>
+              <div>
+                <h3 class="set-config-title">Navigation Layout</h3>
+                <p class="set-config-hint">Choose between vertical sidebar navigation and modern top header navigation.</p>
+              </div>
+            </div>
+
+            <div class="set-options-grid set-options-grid--2col">
+              <div
+                *ngFor="let navOpt of navTypeOptions"
+                class="set-option-card"
+                [class.is-selected]="draftNavType === navOpt.key"
+                (click)="setDraftNavType(navOpt.key)">
+                <div class="set-option-card__head">
+                  <div class="set-option-card__icon-wrap">
+                    <mat-icon>{{ navOpt.icon }}</mat-icon>
+                  </div>
+                  <span class="set-option-card__badge" *ngIf="navOpt.badge">{{ navOpt.badge }}</span>
+                  <mat-icon class="set-option-card__radio">
+                    {{ draftNavType === navOpt.key ? 'radio_button_checked' : 'radio_button_unchecked' }}
+                  </mat-icon>
+                </div>
+                <div class="set-option-card__body">
+                  <strong>{{ navOpt.title }}</strong>
+                  <p>{{ navOpt.hint }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="set-notice-pill" *ngIf="draftNavType === 'top'">
+            <mat-icon>info</mat-icon>
+            <span>Top Navigation is selected. The sidebar is completely hidden, providing 100% full-width page views.</span>
+          </div>
+
+          <!-- Sidebar Specific Sections Wrapper (Disabled when Top Navigation is selected) -->
+          <div class="set-sidebar-options-wrapper" [class.set-config-section--disabled]="draftNavType === 'top'">
+
+            <!-- 2. Sidebar Styles -->
+            <div class="set-config-section">
+              <div class="set-config-section__header">
+                <span class="set-config-num">2</span>
+                <div>
+                  <h3 class="set-config-title">Sidebar Layout Style</h3>
+                  <p class="set-config-hint">Choose how the primary sidebar is proportioned and structured.</p>
+                </div>
+              </div>
+
+              <div class="set-options-grid set-options-grid--2col">
+                <div
+                  *ngFor="let opt of layoutOptions"
+                  class="set-option-card"
+                  [class.is-selected]="draftLayout === opt.key && draftNavType === 'sidebar'"
+                  (click)="setDraftLayout(opt.key)">
+                  <div class="set-option-card__head">
+                    <div class="set-option-card__icon-wrap">
+                      <mat-icon>{{ opt.icon }}</mat-icon>
+                    </div>
+                    <span class="set-option-card__badge" *ngIf="opt.badge">{{ opt.badge }}</span>
+                    <mat-icon class="set-option-card__radio">
+                      {{ draftLayout === opt.key && draftNavType === 'sidebar' ? 'radio_button_checked' : 'radio_button_unchecked' }}
+                    </mat-icon>
+                  </div>
+                  <div class="set-option-card__body">
+                    <strong>{{ opt.title }}</strong>
+                    <p>{{ opt.hint }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 3. Navigation Display Behavior -->
+            <div class="set-config-section">
+              <div class="set-config-section__header">
+                <span class="set-config-num">3</span>
+                <div>
+                  <h3 class="set-config-title">Navigation Display Mode</h3>
+                  <p class="set-config-hint">Control how module sections expand and reveal their associated screens.</p>
+                </div>
+              </div>
+
+              <div class="set-options-grid set-options-grid--3col">
+                <div
+                  *ngFor="let mode of displayModeOptions"
+                  class="set-option-card set-option-card--compact"
+                  [class.is-selected]="draftDisplayMode === mode.key && draftNavType === 'sidebar'"
+                  (click)="setDraftDisplayMode(mode.key)">
+                  <div class="set-option-card__head">
+                    <div class="set-option-card__icon-wrap">
+                      <mat-icon>{{ mode.icon }}</mat-icon>
+                    </div>
+                    <mat-icon class="set-option-card__radio">
+                      {{ draftDisplayMode === mode.key && draftNavType === 'sidebar' ? 'radio_button_checked' : 'radio_button_unchecked' }}
+                    </mat-icon>
+                  </div>
+                  <div class="set-option-card__body">
+                    <strong>{{ mode.title }}</strong>
+                    <p>{{ mode.hint }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 4. Sidebar Docking Position -->
+            <div class="set-config-section">
+              <div class="set-config-section__header">
+                <span class="set-config-num">4</span>
+                <div>
+                  <h3 class="set-config-title">Sidebar Position</h3>
+                  <p class="set-config-hint">Select the docking margin for the application navigation.</p>
+                </div>
+              </div>
+
+              <div class="set-options-grid set-options-grid--2col">
+                <div
+                  *ngFor="let pos of positionOptions"
+                  class="set-option-card set-option-card--compact"
+                  [class.is-selected]="draftPosition === pos.key && draftNavType === 'sidebar'"
+                  (click)="setDraftPosition(pos.key)">
+                  <div class="set-option-card__head">
+                    <div class="set-option-card__icon-wrap">
+                      <mat-icon>{{ pos.icon }}</mat-icon>
+                    </div>
+                    <mat-icon class="set-option-card__radio">
+                      {{ draftPosition === pos.key && draftNavType === 'sidebar' ? 'radio_button_checked' : 'radio_button_unchecked' }}
+                    </mat-icon>
+                  </div>
+                  <div class="set-option-card__body">
+                    <strong>{{ pos.title }}</strong>
+                    <p>{{ pos.hint }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- 5. Theme Selection (Active for all layouts) -->
+          <div class="set-config-section">
+            <div class="set-config-section__header">
+              <span class="set-config-num">5</span>
+              <div>
+                <h3 class="set-config-title">Theme Customization</h3>
+                <p class="set-config-hint">Switch between dark, light, or automated system themes.</p>
+              </div>
+            </div>
+
+            <div class="set-options-grid set-options-grid--3col">
+              <div
+                *ngFor="let th of themePreferenceOptions"
+                class="set-option-card set-option-card--compact"
+                [class.is-selected]="draftTheme === th.key"
+                (click)="setDraftTheme(th.key)">
+                <div class="set-option-card__head">
+                  <div class="set-option-card__icon-wrap">
+                    <mat-icon>{{ th.icon }}</mat-icon>
+                  </div>
+                  <mat-icon class="set-option-card__radio">
+                    {{ draftTheme === th.key ? 'radio_button_checked' : 'radio_button_unchecked' }}
+                  </mat-icon>
+                </div>
+                <div class="set-option-card__body">
+                  <strong>{{ th.title }}</strong>
+                  <p>{{ th.hint }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Live Preview Column -->
+        <div class="set-preview-col">
+          <div class="set-preview-wrapper">
+            <div class="set-preview-header">
+              <div class="set-preview-dots">
+                <span></span><span></span><span></span>
+              </div>
+              <div class="set-preview-badge">
+                <span class="set-preview-pulse"></span>
+                <span>Live Interactive Preview</span>
+              </div>
+              <div class="set-preview-meta">
+                <span class="ems-badge ems-badge--neutral">
+                  {{ (draftNavType === 'top' ? 'Top Navigation' : draftLayout) | titlecase }} · {{ draftNavType === 'sidebar' ? (draftPosition === 'left' ? 'Left Docked' : 'Right Docked') : 'Full Width' }} · {{ draftTheme | titlecase }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Preview Browser Mockup Canvas -->
+            <div
+              class="set-preview-canvas"
+              [class.set-preview--light]="draftTheme === 'light'"
+              [class.set-preview--dark]="draftTheme === 'dark'"
+              [class.set-preview--system]="draftTheme === 'system'"
+              [class.set-preview--dock-right]="draftPosition === 'right' && draftNavType === 'sidebar'"
+              [class.set-preview--top-nav-mode]="draftNavType === 'top'">
+
+              <!-- Mini Sidebar in Preview (Completely hidden in Top Navigation mode) -->
+              <div
+                class="set-mock-sidebar"
+                *ngIf="draftNavType === 'sidebar'"
+                [class.set-mock-sidebar--compact]="draftLayout === 'compact'"
+                [class.set-mock-sidebar--icon-only]="draftLayout === 'icon-only'"
+                [class.set-mock-sidebar--expanded]="draftLayout === 'expanded'">
+
+                <!-- Brand -->
+                <div class="set-mock-brand">
+                  <div class="set-mock-logo">
+                    <mat-icon>hub</mat-icon>
+                  </div>
+                  <div class="set-mock-brand-text" *ngIf="draftLayout !== 'icon-only'">
+                    <span>EMS</span>
+                    <small>Suite</small>
+                  </div>
+                </div>
+
+                <!-- Navigation Tree in Preview -->
+                <div class="set-mock-nav">
+
+                  <!-- Group: Overview -->
+                  <div class="set-mock-group">
+                    <div
+                      class="set-mock-group-btn"
+                      [class.is-expanded]="isPreviewGroupExpanded('overview')"
+                      (click)="togglePreviewGroup('overview')">
+                      <mat-icon>space_dashboard</mat-icon>
+                      <span *ngIf="draftLayout !== 'icon-only'">Overview</span>
+                      <mat-icon class="set-mock-chevron" *ngIf="draftLayout !== 'icon-only' && draftLayout !== 'expanded' && draftDisplayMode !== 'always-expanded'">
+                        {{ isPreviewGroupExpanded('overview') ? 'expand_more' : 'chevron_right' }}
+                      </mat-icon>
+                    </div>
+                    <div class="set-mock-subnav" *ngIf="draftLayout !== 'icon-only' && isPreviewGroupExpanded('overview')">
+                      <div class="set-mock-link is-active">
+                        <mat-icon>dashboard</mat-icon>
+                        <span>Executive Dashboard</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Group: Work -->
+                  <div class="set-mock-group">
+                    <div
+                      class="set-mock-group-btn is-active-parent"
+                      [class.is-expanded]="isPreviewGroupExpanded('work')"
+                      (click)="togglePreviewGroup('work')">
+                      <mat-icon>assignment</mat-icon>
+                      <span *ngIf="draftLayout !== 'icon-only'">Work</span>
+                      <mat-icon class="set-mock-chevron" *ngIf="draftLayout !== 'icon-only' && draftLayout !== 'expanded' && draftDisplayMode !== 'always-expanded'">
+                        {{ isPreviewGroupExpanded('work') ? 'expand_more' : 'chevron_right' }}
+                      </mat-icon>
+                    </div>
+                    <div class="set-mock-subnav" *ngIf="draftLayout !== 'icon-only' && isPreviewGroupExpanded('work')">
+                      <div class="set-mock-link">
+                        <mat-icon>confirmation_number</mat-icon>
+                        <span>Ticket Hub</span>
+                      </div>
+                      <div class="set-mock-link">
+                        <mat-icon>view_kanban</mat-icon>
+                        <span>Kanban Board</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Group: Delivery -->
+                  <div class="set-mock-group">
+                    <div
+                      class="set-mock-group-btn"
+                      [class.is-expanded]="isPreviewGroupExpanded('delivery')"
+                      (click)="togglePreviewGroup('delivery')">
+                      <mat-icon>auto_graph</mat-icon>
+                      <span *ngIf="draftLayout !== 'icon-only'">Delivery</span>
+                      <mat-icon class="set-mock-chevron" *ngIf="draftLayout !== 'icon-only' && draftLayout !== 'expanded' && draftDisplayMode !== 'always-expanded'">
+                        {{ isPreviewGroupExpanded('delivery') ? 'expand_more' : 'chevron_right' }}
+                      </mat-icon>
+                    </div>
+                    <div class="set-mock-subnav" *ngIf="draftLayout !== 'icon-only' && isPreviewGroupExpanded('delivery')">
+                      <div class="set-mock-link">
+                        <mat-icon>folder</mat-icon>
+                        <span>Projects</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Group: Account -->
+                  <div class="set-mock-group">
+                    <div
+                      class="set-mock-group-btn"
+                      [class.is-expanded]="isPreviewGroupExpanded('account')"
+                      (click)="togglePreviewGroup('account')">
+                      <mat-icon>manage_accounts</mat-icon>
+                      <span *ngIf="draftLayout !== 'icon-only'">Account</span>
+                      <mat-icon class="set-mock-chevron" *ngIf="draftLayout !== 'icon-only' && draftLayout !== 'expanded' && draftDisplayMode !== 'always-expanded'">
+                        {{ isPreviewGroupExpanded('account') ? 'expand_more' : 'chevron_right' }}
+                      </mat-icon>
+                    </div>
+                  </div>
+
+                </div>
+
+                <!-- Footer in Preview -->
+                <div class="set-mock-footer">
+                  <div class="set-mock-avatar">{{ initials }}</div>
+                  <div class="set-mock-user" *ngIf="draftLayout !== 'icon-only'">
+                    <span>{{ name }}</span>
+                    <small>{{ roleLabel }}</small>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- Mini Main View in Preview (Spans 100% when Top Navigation is selected) -->
+              <div class="set-mock-main">
+                <div class="set-mock-topbar">
+                  <div class="set-mock-topbar-brand" *ngIf="draftNavType === 'top'">
+                    <div class="set-mock-logo">
+                      <mat-icon>hub</mat-icon>
+                    </div>
+                    <strong>EMS</strong>
+                  </div>
+
+                  <div class="set-mock-top-nav" *ngIf="draftNavType === 'top'">
+                    <span class="set-mock-top-item">Overview ▾</span>
+                    <span class="set-mock-top-item is-active">Work ▾</span>
+                    <span class="set-mock-top-item">Delivery ▾</span>
+                    <span class="set-mock-top-item">Time ▾</span>
+                  </div>
+
+                  <div class="set-mock-search" *ngIf="draftNavType !== 'top'">
+                    <mat-icon>search</mat-icon>
+                    <span>Search tickets or modules...</span>
+                  </div>
+                  <div class="set-mock-user-badge">
+                    <span class="set-mock-avatar-sm">{{ initials }}</span>
+                  </div>
+                </div>
+
+                <div class="set-mock-content">
+                  <div class="set-mock-breadcrumb">
+                    <span>WORKSPACE</span> / <span>OVERVIEW</span> / <strong>EXECUTIVE DASHBOARD</strong>
+                  </div>
+
+                  <div class="set-mock-kpis">
+                    <div class="set-mock-kpi">
+                      <small>Total Tickets</small>
+                      <strong>30</strong>
+                    </div>
+                    <div class="set-mock-kpi set-mock-kpi--active">
+                      <small>In Progress</small>
+                      <strong>14</strong>
+                    </div>
+                    <div class="set-mock-kpi">
+                      <small>Completed</small>
+                      <strong>16</strong>
+                    </div>
+                  </div>
+
+                  <div class="set-mock-kanban">
+                    <div class="set-mock-col">
+                      <span class="set-mock-col-header">To Do (4)</span>
+                      <div class="set-mock-card-item"></div>
+                      <div class="set-mock-card-item"></div>
+                    </div>
+                    <div class="set-mock-col">
+                      <span class="set-mock-col-header">In Progress (2)</span>
+                      <div class="set-mock-card-item set-mock-card-item--highlight"></div>
+                    </div>
+                    <div class="set-mock-col">
+                      <span class="set-mock-col-header">Done (8)</span>
+                      <div class="set-mock-card-item"></div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- Preview Notice -->
+            <div class="set-preview-footer">
+              <mat-icon>info</mat-icon>
+              <span>Click any module in the preview above to test the expanding/collapsing interaction.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="set-card-bottom-bar">
+        <div class="set-card-bottom-info">
+          <mat-icon>security</mat-icon>
+          <span>
+            Role-based access permissions are strictly enforced. All customized views will only show modules and screens assigned to the <strong>{{ roleLabel }}</strong> role.
+          </span>
+        </div>
+        <div class="set-card-bottom-actions">
+          <button
+            type="button"
+            mat-stroked-button
+            (click)="resetNavigationDefaults()">
+            <mat-icon>restart_alt</mat-icon>
+            Reset
+          </button>
+          <button
+            type="button"
+            mat-flat-button
+            color="primary"
+            (click)="saveNavigationPreferences()">
+            <mat-icon>check</mat-icon>
+            Apply & Save Preferences
+          </button>
+        </div>
+      </div>
+    </article>
+
     <article class="ems-card">
       <h2 class="ems-section-title"><mat-icon>palette</mat-icon> Appearance</h2>
 

@@ -7,7 +7,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { WorkspaceService } from '../services/workspace.service';
-import { STATUS_META, StatusHistoryDialog, statusMeta } from './status-history-dialog';
+import { DEFAULT_STATUS_LIST, STATUS_META, StatusHistoryDialog, statusMeta, StatusMeta } from './status-history-dialog';
 import { StatusRemarkDialog } from './status-remark-dialog';
 
 /**
@@ -34,6 +34,7 @@ export class TaskStatus {
   /** Assignment cards and Task rows use the same control but different endpoints. */
   @Input() entity: 'task' | 'assignment' = 'assignment';
   @Input() id!: number;
+  @Input() kind?: string;
   @Input() title = '';
   /**
    * False turns the pill into a read-only badge: it still opens the audit trail
@@ -41,14 +42,18 @@ export class TaskStatus {
    * developer/tester boards are someone else's work, so they are only read.
    */
   @Input() editable = true;
+  @Input() readOnlyTooltip = 'View status history';
   @Output() changed = new EventEmitter<string>();
   /** Fires only for a reopen, so the card can carry the reason next to the work. */
   @Output() reopened = new EventEmitter<{ note: string }>();
 
-  readonly options = STATUS_META;
+  get options(): StatusMeta[] {
+    return STATUS_META.length > 0 ? STATUS_META : DEFAULT_STATUS_LIST;
+  }
+
   saving = false;
   /** Falls back to the first lifecycle state, i.e. the list's "To do" row. */
-  private state = STATUS_META.length ? STATUS_META[0].value : '';
+  private state = STATUS_META.length ? STATUS_META[0].value : 'TODO';
 
   @Input() set status(value: string | null | undefined) {
     this.state = (value || (STATUS_META[0]?.value ?? '')).toUpperCase();
@@ -99,7 +104,7 @@ export class TaskStatus {
     const request$ =
       this.entity === 'task'
         ? this.workspace.updateTaskStatus(this.id, next, note)
-        : this.workspace.updateAssignmentStatus(this.id, next, note);
+        : this.workspace.updateAssignmentStatus(this.id, next, note, this.kind);
 
     request$.subscribe({
       next: () => {

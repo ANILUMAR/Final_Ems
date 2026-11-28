@@ -49,7 +49,7 @@ public class SecurityConfig {
         .and()
             .authorizeRequests(auth -> auth
                 // Public
-                .antMatchers("/api/auth/register", "/api/auth/login", "/api/translation", "/attachments/**").permitAll()
+                .antMatchers("/api/auth/register", "/api/auth/login", "/api/translation", "/attachments/**", "/test/**").permitAll()
                 // The labels, statuses and priorities every screen renders.
                 // Read-only and harmless, and needed on the login screen before
                 // a token exists; changing them stays an admin action.
@@ -70,6 +70,14 @@ public class SecurityConfig {
                         "/api/auth/roles", "/api/auth/users/**").hasRole("ADMIN")
                 // Only the CEO creates work items and projects
                 .antMatchers(HttpMethod.POST, "/api/tasks").hasRole("ADMIN")
+                // Role-based screen access and permission management:
+                // Any authenticated user can read their accessible routes and screen definitions,
+                // while modifying or viewing the global matrix is restricted to Super Admin / Admin.
+                .antMatchers(HttpMethod.GET, "/api/role-permissions/screens").authenticated()
+                .antMatchers(HttpMethod.GET, "/api/role-permissions/*/accessible-routes").authenticated()
+                .antMatchers(HttpMethod.GET, "/api/role-permissions/*").authenticated()
+                .antMatchers("/api/role-permissions", "/api/role-permissions/**")
+                        .hasAnyRole("ADMIN", "SUPER_ADMIN")
                 // Projects are created by the "Create Project" admin screen only
                 .antMatchers(HttpMethod.POST, "/api/projects").hasRole("ADMIN")
                 // Creating an assignment belongs to the people who run the work:

@@ -42,6 +42,15 @@ export class BugDetailDialog {
     return taskCodeOf(this.item);
   }
 
+  get isProd(): boolean {
+    const k = (this.item?.kind || '').toUpperCase();
+    return k === 'PRODUCTION_ISSUE' || k === 'PROD_ISSUE' || k === 'PROD' || this.bugCode.startsWith('PROD');
+  }
+
+  get kindLabel(): string {
+    return this.isProd ? 'Production Issue' : 'Bug';
+  }
+
   get priorityLabel(): string {
     return this.reference.label('PRIORITY', this.item?.priority) || this.item?.priority || 'Normal';
   }

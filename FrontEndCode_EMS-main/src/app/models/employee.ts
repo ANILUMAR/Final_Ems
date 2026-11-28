@@ -60,3 +60,49 @@ export interface TimesheetEntry {
   status: string;
 }
 
+export interface DailyTimesheetTaskItem {
+  id?: string;
+  project: string;
+  taskId?: number | null;
+  taskCode?: string;
+  taskTitle: string;
+  kind?: 'TASK' | 'BUG' | 'OTHER' | string;
+  workDescription: string;
+  hours: number;
+  remarks?: string;
+  // Local UI helpers
+  availableTasks?: any[];
+  loadingTasks?: boolean;
+}
+
+export interface TimesheetAudit {
+  action: string;
+  performedBy: string;
+  performedByName?: string;
+  timestamp: string | Date;
+  comment?: string;
+}
+
+export interface DailyTimesheet {
+  id?: string;
+  employeeId?: number;
+  employeeName: string;
+  employeeEmail: string;
+  employeeRole?: string;
+  workDate: string; // "YYYY-MM-DD"
+  totalHours: number;
+  status: 'DRAFT' | 'SUBMITTED' | 'PENDING' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | string;
+  reportingPersonEmail?: string;
+  reportingPersonName?: string;
+  rejectionReason?: string;
+  overtimeRemarks?: string;
+  createdAt?: string | Date;
+  submittedAt?: string | Date;
+  reviewedAt?: string | Date;
+  reviewedBy?: string;
+  reviewedByName?: string;
+  entries: DailyTimesheetTaskItem[];
+  history?: TimesheetAudit[];
+}
+
+

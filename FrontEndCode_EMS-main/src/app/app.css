@@ -7,6 +7,28 @@
   display: flex;
   align-items: stretch;
   min-height: 100vh;
+  transition: flex-direction 0.25s ease;
+}
+
+.ems-shell--right {
+  flex-direction: row-reverse;
+}
+
+.ems-shell--compact {
+  --ems-sidebar-w: 200px;
+}
+
+.ems-shell--icon-only {
+  --ems-sidebar-w: 72px;
+}
+
+.ems-shell--top-nav {
+  --ems-sidebar-w: 0px;
+}
+
+.ems-shell--top-nav .ems-shell__main {
+  width: 100%;
+  max-width: 100%;
 }
 
 .ems-shell__main {

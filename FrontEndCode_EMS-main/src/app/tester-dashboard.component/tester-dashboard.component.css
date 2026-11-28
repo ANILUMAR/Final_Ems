@@ -2,79 +2,580 @@
   display: block;
 }
 
-/* Pull the stats away from the admin picker card. */
-.ems-stat-grid--spaced {
-  margin-top: 16px;
+/* Eyebrow Header */
+.ems-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ems-text-3);
+  margin-bottom: 2px;
 }
 
-/* Admin picker: one clickable row per tester. */
-.ems-member {
-  padding: 11px 10px;
-  margin: 0 -10px;
-  border-radius: var(--ems-radius);
-  cursor: pointer;
+.ems-eyebrow__sep {
+  opacity: 0.4;
+}
+
+/* Alert Shelf for Urgent Verification Items & Bugs */
+.ems-alert-shelf {
+  background: linear-gradient(135deg, rgba(244, 63, 94, 0.08) 0%, rgba(245, 158, 11, 0.06) 100%);
+  border: 1px solid rgba(244, 63, 94, 0.25);
+  padding: 16px 20px;
+  margin-bottom: 20px;
+}
+
+.ems-alert-shelf__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.ems-alert-shelf__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #f43f5e;
+  font-size: 13.5px;
+}
+
+.ems-alert-shelf__title mat-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+  color: #f43f5e;
+}
+
+.ems-alert-shelf__link {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #f43f5e !important;
+  text-decoration: none;
+}
+
+.ems-alert-shelf__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.ems-alert-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--ems-radius-sm);
+  background: var(--ems-surface-2);
+  border: 1px solid var(--ems-border);
+}
+
+.ems-alert-item__badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 3px 6px;
+  border-radius: 4px;
+}
+
+.ems-alert-item__badge.is-critical {
+  background: rgba(244, 63, 94, 0.15);
+  color: #f43f5e;
+  border: 1px solid rgba(244, 63, 94, 0.3);
+}
+
+.ems-alert-item__badge.is-overdue {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.ems-alert-item__body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ems-alert-item__body strong {
+  font-size: 12.5px;
+  color: var(--ems-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ems-alert-item__body small {
+  font-size: 11px;
+  color: var(--ems-text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ems-alert-item__action {
+  flex: 0 0 auto;
+}
+
+.ems-quick-verify-btn {
+  font-size: 11px !important;
+  line-height: 24px !important;
+  height: 26px !important;
+  padding: 0 8px !important;
+  border-color: #3b82f6 !important;
+  color: #3b82f6 !important;
+}
+
+.ems-quick-verify-btn--pass {
+  border-color: #10b981 !important;
+  color: #10b981 !important;
+}
+
+/* Stat Card Accents */
+.ems-stat--accent-blue {
+  border-left: 3.5px solid #3b82f6 !important;
+}
+
+.ems-stat--accent-indigo {
+  border-left: 3.5px solid #6366f1 !important;
+}
+
+.ems-stat--accent-amber {
+  border-left: 3.5px solid #f59e0b !important;
+}
+
+.ems-stat--accent-green {
+  border-left: 3.5px solid #10b981 !important;
+}
+
+/* Card Header & Controls */
+.ems-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.ems-card-subtitle {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--ems-text-3);
+}
+
+.ems-card-head__side {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ems-card-head__link {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ems-primary);
+  text-decoration: none;
+}
+
+.ems-card-head__link:hover {
+  text-decoration: underline;
+}
+
+.ems-section-count {
+  font-size: 13px;
+  color: var(--ems-text-3);
+  font-weight: 500;
+  margin-left: 4px;
+}
+
+/* Search Input */
+.ems-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border-radius: var(--ems-radius-sm);
+  background: var(--ems-surface-2);
+  border: 1px solid var(--ems-border);
+}
+
+.ems-search-wrap mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: var(--ems-text-3);
+}
+
+.ems-search-wrap input {
+  border: none;
+  background: transparent;
   outline: none;
-  transition: background-color 0.15s ease;
+  font-size: 12.5px;
+  color: var(--ems-text);
+  width: 160px;
 }
 
-.ems-member:hover,
-.ems-member:focus-visible {
-  background: var(--ems-hover-wash);
+/* Active Filter Banner */
+.ems-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: var(--ems-radius-sm);
+  background: var(--ems-primary-soft);
+  border: 1px solid var(--ems-primary-line-soft);
+  margin-bottom: 14px;
+  font-size: 12.5px;
+  color: var(--ems-primary);
 }
 
-.ems-member--active {
-  background: var(--ems-info-soft);
+.ems-filter-bar__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.ems-member--active strong {
-  color: var(--ems-info);
-}
-
-.ems-member__tick {
-  color: var(--ems-info);
+.ems-filter-bar__label mat-icon {
   font-size: 18px;
   width: 18px;
   height: 18px;
 }
 
-/* Collapsed picker: the chosen tester only, with a way back to the list. */
-.ems-selected {
+.ems-filter-bar__clear {
+  height: 26px !important;
+  line-height: 24px !important;
+  font-size: 11.5px !important;
+  padding: 0 10px !important;
+  border-color: var(--ems-primary) !important;
+  color: var(--ems-primary) !important;
+}
+
+/* QA Team Roster Grid */
+.ems-roster-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.ems-roster-card {
   display: flex;
   align-items: center;
-  gap: 14px;
-  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--ems-radius-md);
+  background: var(--ems-surface-2);
+  border: 1.5px solid var(--ems-border-soft);
+  cursor: pointer;
+  transition: all 0.16s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+.ems-roster-card:hover {
+  border-color: var(--ems-border-strong);
+  background: var(--ems-surface-3);
+  transform: translateY(-1px);
+}
+
+.ems-roster-card.is-selected {
+  border-color: var(--ems-primary);
+  background: var(--ems-primary-wash);
+  box-shadow: 0 4px 14px var(--ems-primary-soft);
+}
+
+.ems-roster-card.is-inactive {
+  opacity: 0.55;
+}
+
+.ems-roster-card__avatar {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  border-radius: 50%;
+  background: var(--ems-primary-soft);
+  color: var(--ems-primary);
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid var(--ems-primary-line-soft);
+}
+
+.ems-roster-card__body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ems-roster-card__name {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
 }
 
-.ems-selected__avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  background: var(--ems-info-soft);
-  color: var(--ems-info);
-  flex: 0 0 auto;
+.ems-roster-card__name strong {
+  font-size: 13px;
+  color: var(--ems-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.ems-selected__main {
+.ems-selected-check {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  color: var(--ems-primary);
+}
+
+.ems-roster-card__email {
+  font-size: 11px;
+  color: var(--ems-text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+
+.ems-roster-card__metrics {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin-right: auto;
-  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10.5px;
+  color: var(--ems-text-3);
 }
 
-.ems-selected__main strong {
-  font-size: 15px;
-  font-weight: 600;
+.ems-roster-card__metrics strong {
   color: var(--ems-text);
 }
 
-.ems-selected__main small {
-  font-size: 12.5px;
-  color: var(--ems-text-2);
+.ems-roster-card__tag {
+  position: absolute;
+  top: 8px;
+  right: 10px;
 }
 
-/* .ems-actions--stack lives in styles.css: both boards use it. */
+.ems-workload-tag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+
+.ems-workload-tag.is-available {
+  background: rgba(16, 185, 129, 0.14);
+  color: #10b981;
+}
+
+.ems-workload-tag.is-optimal {
+  background: rgba(59, 130, 246, 0.14);
+  color: #3b82f6;
+}
+
+.ems-workload-tag.is-heavy {
+  background: rgba(244, 63, 94, 0.14);
+  color: #f43f5e;
+}
+
+.ems-workload-tag.is-inactive {
+  background: rgba(148, 163, 184, 0.14);
+  color: #94a3b8;
+}
+
+/* 2-Column Dashboard Grid */
+.ems-dash-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+@media (max-width: 1024px) {
+  .ems-dash-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ems-side-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Work Item in Verification List */
+.ems-work-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px !important;
+}
+
+.ems-work-item__left {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ems-work-item__badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 3px;
+}
+
+.ems-kind-pill {
+  font-size: 9.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(59, 130, 246, 0.14);
+  color: #3b82f6;
+}
+
+.ems-kind-pill.is-bug {
+  background: rgba(244, 63, 94, 0.14);
+  color: #f43f5e;
+}
+
+.ems-priority-pill {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.ems-priority-pill.is-critical {
+  background: rgba(244, 63, 94, 0.15);
+  color: #f43f5e;
+}
+
+.ems-priority-pill.is-high {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.ems-priority-pill.is-medium {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+
+.ems-priority-pill.is-low {
+  background: rgba(148, 163, 184, 0.15);
+  color: #94a3b8;
+}
+
+.ems-task-code {
+  font-size: 10px;
+  font-weight: 600;
+  font-family: monospace;
+  color: var(--ems-text-3);
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--ems-surface-3);
+}
+
+.ems-work-item__title {
+  font-size: 14px;
+  color: var(--ems-text);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.ems-work-item__sub {
+  font-size: 12px;
+  color: var(--ems-text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ems-work-item__owner {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--ems-text-3);
+  margin-top: 2px;
+}
+
+.ems-work-item__owner mat-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+}
+
+.ems-work-item__right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+.ems-work-item__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ems-action-btn {
+  height: 30px !important;
+  line-height: 28px !important;
+  padding: 0 10px !important;
+  font-size: 11.5px !important;
+  font-weight: 600 !important;
+  border-radius: 6px !important;
+}
+
+.ems-action-btn mat-icon {
+  font-size: 16px !important;
+  width: 16px !important;
+  height: 16px !important;
+  margin-right: 4px;
+}
+
+.ems-action-btn--start {
+  border-color: #3b82f6 !important;
+  color: #3b82f6 !important;
+}
+
+.ems-action-btn--start:hover {
+  background: rgba(59, 130, 246, 0.1) !important;
+}
+
+.ems-action-btn--pass {
+  border-color: #10b981 !important;
+  color: #10b981 !important;
+}
+
+.ems-action-btn--pass:hover {
+  background: rgba(16, 185, 129, 0.1) !important;
+}
+
+/* Projects Card */
+.proj-row {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.proj-row:hover {
+  background: var(--ems-hover-wash);
+}
+
+.proj-row__chevron {
+  color: var(--ems-text-3);
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}

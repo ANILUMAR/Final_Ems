@@ -13,6 +13,7 @@ import { WorkflowService } from '../services/workflow.service';
 import { Pager } from '../shared/pager';
 import { DEFAULT_PAGE_SIZE, lastPageOf, pageSlice } from '../shared/pagination';
 import { BugDetailDialog } from '../bug-detail-dialog/bug-detail-dialog';
+import { TicketDetailDialog } from '../ticket-detail-dialog/ticket-detail-dialog';
 
 @Component({
   selector: 'app-tester-completed',
@@ -138,12 +139,89 @@ export class TesterCompletedComponent implements OnInit {
     return (item.kind || '').toUpperCase() === 'BUG';
   }
 
-  openBugDetails(item: WorkItem): void {
-    this.dialog.open(BugDetailDialog, {
+  priorityLabel(priority?: string): string {
+    const p = (priority || 'MEDIUM').toUpperCase();
+    switch (p) {
+      case 'HIGH': return 'High';
+      case 'MEDIUM': return 'Medium';
+      case 'LOW': return 'Low';
+      default: return priority || 'Medium';
+    }
+  }
+
+  initials(name?: string): string {
+    return (name || '?')
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part.charAt(0).toUpperCase())
+      .join('');
+  }
+
+  isOverdue(item: WorkItem): boolean {
+    return !!item.endDate && new Date(item.endDate).getTime() < new Date().setHours(0, 0, 0, 0);
+  }
+
+  toIsoDate(date: any): string {
+    if (!date) return '—';
+    try {
+      return new Date(date).toISOString().slice(0, 10);
+    } catch {
+      return '—';
+    }
+  }
+
+  openTicketDetails(item: WorkItem): void {
+    const ref = this.dialog.open(TicketDetailDialog, {
       data: { item },
       width: '92vw',
-      maxWidth: '1100px',
+      maxWidth: '1150px',
       maxHeight: '92vh'
     });
+    ref.afterClosed().subscribe(() => {
+      this.loadData();
+    });
+  }
+
+  openBugDetails(item: WorkItem): void {
+    this.openTicketDetails(item);
+  }
+
+  downloadCsv(): void {
+    const headers = ['Ticket ID', 'Kind', 'Title', 'Project', 'Module', 'Screen', 'Developer', 'Tester', 'Priority', 'Start Date', 'Due Date', 'Status'];
+    const rows = this.filteredItems.map(item => [
+      this.code(item),
+      item.kind || 'TASK',
+      item.taskTitle,
+      item.project || '—',
+      item.module || '—',
+      item.screen || '—',
+      item.assignedToName || 'Unassigned',
+      this.testerName || 'Me',
+      this.priorityLabel(item.priority),
+      this.toIsoDate(item.startDate),
+      this.toIsoDate(item.endDate),
+      item.status || 'DONE'
+    ]);
+    this.exportCsvFile('Tester_Completed_Tasks', headers, rows);
+  }
+
+  exportCsvFile(filename: string, headers: string[], rows: (string | number | undefined | null)[][]): void {
+    const escapeCell = (val: any): string => {
+      if (val === null || val === undefined) return '""';
+      const s = String(val).replace(/"/g, '""');
+      return `"${s}"`;
+    };
+    const headerLine = headers.map(escapeCell).join(',');
+    const rowLines = rows.map(r => r.map(escapeCell).join(','));
+    const csvContent = '\uFEFF' + [headerLine, ...rowLines].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const dateStr = new Date().toISOString().slice(0, 10);
+    link.download = `${filename}_${dateStr}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   }
 }

@@ -290,8 +290,9 @@ export class WorkspaceService {
    * Moves an assignment (the cards on /tasks and /my-tasks) to a new status.
    * The backend rejects it unless the caller owns the work or is an admin.
    */
-  updateAssignmentStatus(id: number, status: string, note?: string): Observable<any> {
-    return this.http.patch(`${this.base}/assigntasks/${id}/status`, { status, note }, { headers: this.headers() });
+  updateAssignmentStatus(id: number, status: string, note?: string, kind?: string): Observable<any> {
+    const params = kind ? `?kind=${encodeURIComponent(kind)}` : '';
+    return this.http.patch(`${this.base}/assigntasks/${id}/status${params}`, { status, note }, { headers: this.headers() });
   }
 
   /** Same lifecycle for the Task model that drives project progress. */

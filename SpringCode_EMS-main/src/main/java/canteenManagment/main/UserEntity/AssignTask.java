@@ -149,14 +149,20 @@ public class AssignTask {
     public static final String LEGACY_PREFIX = "EMS";
 
     /**
-     * The identifier a row of this kind and id carries: "TASK-001" or
-     * "BUG-001". The three-digit (or more) number starts from 001.
+     * The identifier a row of this kind and id carries: "TASK-001", "BUG-001",
+     * or "PROD-001". The three-digit (or more) number starts from 001.
      */
     public static String codeFor(String kind, Long id) {
         if (id == null) {
             return "";
         }
-        String prefix = "BUG".equalsIgnoreCase(kind == null ? "" : kind.trim()) ? "BUG" : "TASK";
+        String k = kind == null ? "" : kind.trim().toUpperCase(java.util.Locale.ROOT);
+        String prefix = "TASK";
+        if ("BUG".equals(k)) {
+            prefix = "BUG";
+        } else if ("PRODUCTION_ISSUE".equals(k) || "PROD_ISSUE".equals(k) || "PROD".equals(k)) {
+            prefix = "PROD";
+        }
         return String.format("%s-%03d", prefix, id);
     }
 

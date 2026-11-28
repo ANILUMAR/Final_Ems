@@ -5,11 +5,16 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { TicketDetailDialog } from '../ticket-detail-dialog/ticket-detail-dialog';
 import { ReferenceService } from '../services/reference.service';
 import { WorkflowService } from '../services/workflow.service';
+import { isSuperAdminRole } from '../models/role';
 import { approvalBadge, approvalLabel, kindBadge, kindLabel, taskCodeOf, WorkItem } from '../models/work-item';
 import { Pager } from '../shared/pager';
 import { DEFAULT_PAGE_SIZE, lastPageOf, pageSlice } from '../shared/pagination';
+import { WorkflowPipelineComponent } from '../shared/workflow-pipeline/workflow-pipeline.component';
 
 /**
  * The testing team leader's decision screen.
@@ -29,12 +34,16 @@ import { DEFAULT_PAGE_SIZE, lastPageOf, pageSlice } from '../shared/pagination';
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
-    Pager
+    MatTooltipModule,
+    MatDialogModule,
+    Pager,
+    WorkflowPipelineComponent
   ],
   templateUrl: './approval-queue.html',
   styleUrl: './approval-queue.css'
 })
 export class ApprovalQueue implements OnInit {
+  isSuperAdmin = isSuperAdminRole(localStorage.getItem('role') || '');
   items: WorkItem[] = [];
   loading = true;
   errorMessage = '';
@@ -42,6 +51,7 @@ export class ApprovalQueue implements OnInit {
 
   /** PENDING, APPROVED, REJECTED or ALL. */
   filter = 'PENDING';
+  search = '';
 
   /** The queue pages in the browser, so the chips still count every item. */
   pageIndex = 0;
@@ -53,7 +63,23 @@ export class ApprovalQueue implements OnInit {
   /** The item with a decision in flight. */
   busyId: number | null = null;
 
-  constructor(private workflow: WorkflowService, private reference: ReferenceService) {}
+  constructor(
+    private workflow: WorkflowService,
+    private reference: ReferenceService,
+    private dialog: MatDialog
+  ) {}
+
+  openTicketDetails(item: WorkItem): void {
+    const ref = this.dialog.open(TicketDetailDialog, {
+      data: { item },
+      width: '92vw',
+      maxWidth: '1150px',
+      maxHeight: '92vh'
+    });
+    ref.afterClosed().subscribe(() => {
+      this.load();
+    });
+  }
 
   ngOnInit(): void {
     this.load();
@@ -90,11 +116,31 @@ export class ApprovalQueue implements OnInit {
     return this.items.filter((item) => this.stateOf(item) === state).length;
   }
 
+  onSearchChange(): void {
+    this.pageIndex = 0;
+  }
+
   get filtered(): WorkItem[] {
-    if (this.filter === 'ALL') {
-      return this.items;
-    }
-    return this.items.filter((item) => this.stateOf(item) === this.filter);
+    const q = this.search.trim().toLowerCase();
+    return this.items.filter((item) => {
+      const matchesFilter = this.filter === 'ALL' || this.stateOf(item) === this.filter;
+      if (!matchesFilter) return false;
+      if (!q) return true;
+
+      const code = taskCodeOf(item).toLowerCase();
+      const title = (item.taskTitle || '').toLowerCase();
+      const proj = (item.project || '').toLowerCase();
+      const mod = (item.module || '').toLowerCase();
+      const reporter = this.reporter(item).toLowerCase();
+      const desc = (item.description || '').toLowerCase();
+
+      return code.includes(q) || title.includes(q) || proj.includes(q) || mod.includes(q) || reporter.includes(q) || desc.includes(q);
+    });
+  }
+
+  get rejectingItem(): WorkItem | null {
+    if (this.rejectingId === null) return null;
+    return this.items.find(i => i.id === this.rejectingId) || null;
   }
 
   /** The slice actually rendered for the current page. */
@@ -205,5 +251,81 @@ export class ApprovalQueue implements OnInit {
 
   attachmentUrl(name: string): string {
     return 'http://localhost:9001/attachments/' + name;
+  }
+
+  openBugDetails(item: WorkItem): void {
+    this.openTicketDetails(item);
+  }
+
+  isBug(item: WorkItem): boolean {
+    return (item.kind || '').toUpperCase() === 'BUG';
+  }
+
+  isProdIssue(item: WorkItem): boolean {
+    const k = (item.kind || '').toUpperCase();
+    return k === 'PRODUCTION_ISSUE' || k === 'PROD_ISSUE' || k === 'PROD' || (item.taskCode || '').startsWith('PROD');
+  }
+
+  priorityBadge(priority?: string): string {
+    switch ((priority || '').toUpperCase()) {
+      case 'HIGH': return 'ems-badge--danger';
+      case 'MEDIUM': return 'ems-badge--warning';
+      case 'LOW': return 'ems-badge--neutral';
+      default: return 'ems-badge--neutral';
+    }
+  }
+
+  initials(name?: string | null): string {
+    return (name || '?')
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part.charAt(0).toUpperCase())
+      .join('');
+  }
+
+  toIsoDate(date: any): string {
+    if (!date) return '—';
+    try {
+      return new Date(date).toISOString().slice(0, 10);
+    } catch {
+      return '—';
+    }
+  }
+
+  downloadCsv(): void {
+    const headers = ['Ticket ID', 'Kind', 'Title', 'Project', 'Module', 'Screen', 'Priority', 'Raised Date', 'Reporter', 'Status'];
+    const rows = this.filtered.map(item => [
+      this.code(item),
+      item.kind || 'TASK',
+      item.taskTitle,
+      item.project || '—',
+      item.module || '—',
+      item.screen || '—',
+      this.priorityLabel(item.priority),
+      this.toIsoDate(item.createdAt || item.startDate),
+      this.reporter(item),
+      this.stateLabel(item)
+    ]);
+    this.exportCsvFile('Testing_Review_Tickets', headers, rows);
+  }
+
+  exportCsvFile(filename: string, headers: string[], rows: (string | number | undefined | null)[][]): void {
+    const escapeCell = (val: any): string => {
+      if (val === null || val === undefined) return '""';
+      const s = String(val).replace(/"/g, '""');
+      return `"${s}"`;
+    };
+    const headerLine = headers.map(escapeCell).join(',');
+    const rowLines = rows.map(r => r.map(escapeCell).join(','));
+    const csvContent = '\uFEFF' + [headerLine, ...rowLines].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const dateStr = new Date().toISOString().slice(0, 10);
+    link.download = `${filename}_${dateStr}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   }
 }

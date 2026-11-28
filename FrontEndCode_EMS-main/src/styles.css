@@ -1,3 +1,5 @@
+/* Material Icons and Roboto fonts are loaded locally from /fonts/ems-fonts.css in index.html for 100% offline operation */
+
 /* ============================================================
    Employee Management System — global design system (dark admin)
    Tokens + Angular Material M3 dark overrides + shared utilities
@@ -15,6 +17,7 @@
   --ems-surface: #131b2b;
   --ems-surface-2: #182135;
   --ems-surface-3: #1f2a42;
+  --ems-card: #131b2b;
   --ems-border: #26314c;
   --ems-border-soft: rgba(255, 255, 255, 0.07);
   --ems-border-strong: #33426a;
@@ -30,6 +33,7 @@
   /* accents */
   --ems-primary: #7b9cff;
   --ems-primary-strong: #5b7cfa;
+  --ems-primary-hover: #5b7cfa;
   --ems-primary-soft: rgba(91, 124, 250, 0.16);
   --ems-primary-text: #dbe4ff;
   --ems-primary-line: rgba(123, 156, 255, 0.38);
@@ -83,6 +87,8 @@
   /* shape + depth */
   --ems-radius: 14px;
   --ems-radius-sm: 10px;
+  --ems-radius-md: 12px;
+  --ems-radius-lg: 16px;
   --ems-radius-pill: 999px;
   --ems-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
   --ems-shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.5);
@@ -102,6 +108,7 @@ html[data-theme="light"] {
   --ems-surface: #ffffff;
   --ems-surface-2: #f1f4fb;
   --ems-surface-3: #e6ebf6;
+  --ems-card: #ffffff;
   --ems-border: #d6dded;
   --ems-border-soft: rgba(21, 33, 62, 0.09);
   --ems-border-strong: #b7c2d9;
@@ -113,11 +120,14 @@ html[data-theme="light"] {
 
   --ems-primary: #3d5bd9;
   --ems-primary-strong: #2f49c4;
+  --ems-primary-hover: #2f49c4;
   --ems-primary-soft: rgba(61, 91, 217, 0.1);
   --ems-primary-text: #22348c;
   --ems-primary-line: rgba(61, 91, 217, 0.38);
   --ems-primary-line-soft: rgba(61, 91, 217, 0.24);
   --ems-primary-wash: rgba(61, 91, 217, 0.06);
+  --ems-radius-md: 12px;
+  --ems-radius-lg: 16px;
   --ems-success: #0d8f66;
   --ems-success-soft: rgba(13, 143, 102, 0.12);
   --ems-success-line: rgba(13, 143, 102, 0.28);
@@ -409,6 +419,7 @@ a:hover { text-decoration: underline; }
 .ems-badge--success { background: var(--ems-success-soft); color: var(--ems-success); border-color: var(--ems-success-line); }
 .ems-badge--warning { background: var(--ems-warning-soft); color: var(--ems-warning); border-color: var(--ems-warning-line); }
 .ems-badge--danger  { background: var(--ems-danger-soft);  color: var(--ems-danger);  border-color: var(--ems-danger-line); }
+.ems-badge--prod    { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
 .ems-badge--info    { background: var(--ems-info-soft);    color: var(--ems-info);    border-color: var(--ems-info-line); }
 .ems-badge--neutral { background: var(--ems-surface-3);    color: var(--ems-text-2);  border-color: var(--ems-border); }
 
@@ -1515,3 +1526,1011 @@ tr.mat-row:hover { background: var(--ems-primary-wash) !important; }
   .ems-auth__panel { padding: 24px 16px 40px; }
   .ems-auth__grid { grid-template-columns: 1fr; }
 }
+
+/* ============================================================
+   Ticketing System Shared Styles (Universal Clickable, SLA, Priority)
+   ============================================================ */
+.tk-clickable {
+  cursor: pointer !important;
+  transition: all 0.15s ease-in-out;
+  display: inline-block;
+}
+
+.tk-clickable:hover {
+  filter: brightness(1.25);
+  transform: translateY(-1px);
+  text-decoration: underline;
+}
+
+.tk-clickable-title {
+  cursor: pointer !important;
+  transition: color 0.15s ease-in-out;
+}
+
+.tk-clickable-title:hover {
+  color: var(--ems-primary, #6366f1) !important;
+  text-decoration: underline;
+}
+
+/* Priority Badges */
+.ems-pri-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.ems-pri--p1 { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid #ef4444; }
+.ems-pri--p2 { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid #f59e0b; }
+.ems-pri--p3 { background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid #3b82f6; }
+.ems-pri--p4 { background: rgba(100, 116, 139, 0.2); color: #cbd5e1; border: 1px solid #64748b; }
+
+/* SLA Status Badges */
+.ems-sla-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.ems-sla--ontrack { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+.ems-sla--duesoon { background: rgba(245, 158, 11, 0.18); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.35); }
+.ems-sla--breached { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+.ems-sla--resolved { background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid #10b981; }
+.ems-sla--neutral { background: rgba(255, 255, 255, 0.05); color: #94a3b8; border: 1px solid var(--ems-border, #33394d); }
+
+/* ============================================================
+   Angular CDK Overlay & Material Dropdown Overrides
+   ============================================================ */
+.cdk-overlay-container {
+  position: fixed !important;
+  z-index: 3000 !important;
+  pointer-events: none;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+}
+
+/* Allow backdrop clicks to dismiss dropdowns/dialogs */
+.cdk-overlay-backdrop {
+  pointer-events: auto !important;
+}
+
+/* Let bounding box ignore pointer events outside pane */
+.cdk-overlay-connected-position-bounding-box,
+.cdk-global-overlay-wrapper {
+  pointer-events: none !important;
+}
+
+/* Dropdown / dialog panel receives all pointer events */
+.cdk-overlay-pane {
+  pointer-events: auto !important;
+}
+
+/* Material Select Panel - Theme Adaptive */
+.mat-mdc-select-panel,
+.mat-select-panel {
+  background: var(--ems-surface) !important;
+  color: var(--ems-text) !important;
+  border: 1px solid var(--ems-border) !important;
+  border-radius: 10px !important;
+  box-shadow: var(--ems-shadow-lg) !important;
+  max-height: 400px !important;
+  padding: 6px 0 !important;
+  pointer-events: auto !important;
+}
+
+.mat-mdc-option,
+.mat-option {
+  color: var(--ems-text) !important;
+  font-size: 13px !important;
+  min-height: 44px !important;
+  padding: 0 16px !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+.mat-mdc-option:hover:not(.mdc-list-item--disabled),
+.mat-option:hover:not(.mat-option-disabled) {
+  background: var(--ems-hover-wash) !important;
+}
+
+.mat-mdc-option.mdc-list-item--selected:not(.mdc-list-item--disabled),
+.mat-option.mat-selected:not(.mat-option-disabled) {
+  background: var(--ems-primary-soft) !important;
+  color: var(--ems-primary) !important;
+}
+
+.mat-mdc-optgroup-label,
+.mat-optgroup-label {
+  color: var(--ems-primary) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  padding: 8px 16px 4px !important;
+  background: var(--ems-surface-2) !important;
+}
+
+/* Rich Employee Dropdown Options (Inside CDK Overlay) */
+.th-emp-option {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 4px 0 !important;
+  width: 100% !important;
+}
+
+.th-emp-option__meta {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+}
+
+.th-emp-option__name {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: var(--ems-text) !important;
+  line-height: 1.3 !important;
+}
+
+.th-emp-option__email {
+  font-size: 11px !important;
+  color: var(--ems-text-3) !important;
+  line-height: 1.2 !important;
+}
+
+.th-opt-avatar {
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 6px !important;
+  background: var(--ems-primary-soft) !important;
+  color: var(--ems-primary) !important;
+  border: 1px solid var(--ems-primary-line) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+}
+
+.th-opt-avatar--pm {
+  background: rgba(251, 191, 36, 0.16) !important;
+  color: #fbbf24 !important;
+  border-color: rgba(251, 191, 36, 0.4) !important;
+}
+
+.th-opt-avatar--dev {
+  background: rgba(56, 189, 248, 0.16) !important;
+  color: #38bdf8 !important;
+  border-color: rgba(56, 189, 248, 0.4) !important;
+}
+
+.th-opt-avatar--test {
+  background: rgba(167, 139, 250, 0.16) !important;
+  color: #a78bfa !important;
+  border-color: rgba(167, 139, 250, 0.4) !important;
+}
+
+.th-opt-role-badge {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  padding: 2px 7px !important;
+  border-radius: 4px !important;
+  flex-shrink: 0 !important;
+  margin-left: auto !important;
+}
+
+.th-opt-role-badge--admin,
+.th-role-pill--admin {
+  background: rgba(239, 68, 68, 0.14) !important;
+  color: #f87171 !important;
+  border: 1px solid rgba(239, 68, 68, 0.3) !important;
+}
+
+.th-opt-role-badge--pm,
+.th-role-pill--pm {
+  background: rgba(251, 191, 36, 0.14) !important;
+  color: #fbbf24 !important;
+  border: 1px solid rgba(251, 191, 36, 0.3) !important;
+}
+
+.th-opt-role-badge--dev,
+.th-role-pill--dev {
+  background: rgba(56, 189, 248, 0.14) !important;
+  color: #38bdf8 !important;
+  border: 1px solid rgba(56, 189, 248, 0.3) !important;
+}
+
+.th-opt-role-badge--tester,
+.th-role-pill--tester {
+  background: rgba(167, 139, 250, 0.14) !important;
+  color: #a78bfa !important;
+  border: 1px solid rgba(167, 139, 250, 0.3) !important;
+}
+
+.th-proj-option {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  font-size: 13px !important;
+  color: var(--ems-text) !important;
+}
+
+.th-proj-option mat-icon {
+  font-size: 17px !important;
+  width: 17px !important;
+  height: 17px !important;
+  color: var(--ems-primary) !important;
+}
+
+/* ============================================================
+   Light Theme (White Theme) Universal Component Enhancements
+   ============================================================ */
+html[data-theme="light"] {
+  /* High contrast badge styling */
+  --ems-badge-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+html[data-theme="light"] .ems-pri--p1 {
+  background: #fef2f2 !important;
+  color: #b91c1c !important;
+  border-color: #fca5a5 !important;
+}
+
+html[data-theme="light"] .ems-pri--p2 {
+  background: #fffbeb !important;
+  color: #b45309 !important;
+  border-color: #fcd34d !important;
+}
+
+html[data-theme="light"] .ems-pri--p3 {
+  background: #eff6ff !important;
+  color: #1d4ed8 !important;
+  border-color: #bfdbfe !important;
+}
+
+html[data-theme="light"] .ems-pri--p4 {
+  background: #f1f5f9 !important;
+  color: #475569 !important;
+  border-color: #cbd5e1 !important;
+}
+
+html[data-theme="light"] .ems-sla--ontrack {
+  background: #ecfdf5 !important;
+  color: #047857 !important;
+  border-color: #a7f3d0 !important;
+}
+
+html[data-theme="light"] .ems-sla--duesoon {
+  background: #fffbeb !important;
+  color: #b45309 !important;
+  border-color: #fcd34d !important;
+}
+
+html[data-theme="light"] .ems-sla--breached {
+  background: #fef2f2 !important;
+  color: #b91c1c !important;
+  border-color: #fca5a5 !important;
+}
+
+html[data-theme="light"] .ems-sla--resolved {
+  background: #ecfdf5 !important;
+  color: #059669 !important;
+  border-color: #6ee7b7 !important;
+}
+
+html[data-theme="light"] .ems-sla--neutral {
+  background: #f8fafc !important;
+  color: #64748b !important;
+  border-color: #e2e8f0 !important;
+}
+
+html[data-theme="light"] .ems-badge--prod {
+  background: #fffbeb !important;
+  color: #b45309 !important;
+  border-color: #fcd34d !important;
+}
+
+html[data-theme="light"] .ems-badge--danger {
+  background: #fef2f2 !important;
+  color: #b91c1c !important;
+  border-color: #fca5a5 !important;
+}
+
+html[data-theme="light"] .ems-badge--info {
+  background: #f0fdf4 !important;
+  color: #15803d !important;
+  border-color: #bbf7d0 !important;
+}
+
+/* Card, Stat & KPI Blocks in Light Mode */
+html[data-theme="light"] .ems-stat-card,
+html[data-theme="light"] .ems-kpi-card,
+html[data-theme="light"] .ems-stat {
+  background: var(--ems-surface) !important;
+  border-color: var(--ems-border) !important;
+  color: var(--ems-text) !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05), 0 4px 12px rgba(15, 23, 42, 0.03) !important;
+}
+
+html[data-theme="light"] .ems-stat-card:hover,
+html[data-theme="light"] .ems-kpi-card:hover {
+  border-color: var(--ems-primary) !important;
+  box-shadow: 0 4px 16px rgba(61, 91, 217, 0.12) !important;
+}
+
+html[data-theme="light"] .ems-stat-card__value,
+html[data-theme="light"] .ems-kpi-card__value {
+  color: var(--ems-headline) !important;
+}
+
+html[data-theme="light"] .ems-stat-card__label,
+html[data-theme="light"] .ems-kpi-card__label {
+  color: var(--ems-text-2) !important;
+}
+
+/* Chips in Light Mode */
+html[data-theme="light"] .ems-chip {
+  background: var(--ems-surface-2) !important;
+  border-color: var(--ems-border) !important;
+  color: var(--ems-text-2) !important;
+}
+
+html[data-theme="light"] .ems-chip:hover {
+  background: var(--ems-surface-3) !important;
+  color: var(--ems-text) !important;
+  border-color: var(--ems-border-strong) !important;
+}
+
+html[data-theme="light"] .ems-chip.is-active,
+html[data-theme="light"] .ems-chip--active {
+  background: rgba(61, 91, 217, 0.1) !important;
+  color: var(--ems-primary) !important;
+  border-color: var(--ems-primary) !important;
+  font-weight: 600 !important;
+}
+
+/* Modals & Dialogs in Light Mode */
+html[data-theme="light"] .tk-modal-shell,
+html[data-theme="light"] .my-modal-dialog,
+html[data-theme="light"] .app-modal-dialog,
+html[data-theme="light"] .vt-modal-dialog,
+html[data-theme="light"] .th-modal-dialog {
+  background: var(--ems-surface) !important;
+  border-color: var(--ems-border) !important;
+  color: var(--ems-text) !important;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.15) !important;
+}
+
+html[data-theme="light"] .tk-modal-head,
+html[data-theme="light"] .my-modal-head,
+html[data-theme="light"] .app-modal-head,
+html[data-theme="light"] .vt-modal-head,
+html[data-theme="light"] .th-modal-head {
+  background: var(--ems-surface-2) !important;
+  border-bottom-color: var(--ems-border) !important;
+}
+
+html[data-theme="light"] .my-modal-head h3,
+html[data-theme="light"] .app-modal-head h3,
+html[data-theme="light"] .vt-modal-head h3,
+html[data-theme="light"] .th-modal-head h3,
+html[data-theme="light"] .tk-title {
+  color: var(--ems-headline) !important;
+}
+
+/* Fullscreen mode in Light Mode */
+html[data-theme="light"] .ems-page.is-fullscreen-mode {
+  background: var(--ems-bg, #f3f6fc) !important;
+}
+
+/* ========================================================================== */
+/* TEAM HIERARCHY - LIGHT THEME ENHANCEMENTS                                  */
+/* ========================================================================== */
+html[data-theme="light"] .th-pm-card,
+html[data-theme="light"] .th-project-card,
+html[data-theme="light"] .th-lead-card,
+html[data-theme="light"] .th-summary-card {
+  background: var(--ems-card, #ffffff) !important;
+  border-color: var(--ems-border) !important;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05) !important;
+}
+
+html[data-theme="light"] .th-pm-card__head,
+html[data-theme="light"] .th-project-card__head,
+html[data-theme="light"] .th-lead-card__head,
+html[data-theme="light"] .th-sc-foot,
+html[data-theme="light"] .th-modal-head,
+html[data-theme="light"] .th-modal-foot {
+  border-bottom-color: var(--ems-border) !important;
+  border-top-color: var(--ems-border) !important;
+}
+
+html[data-theme="light"] .th-user-name,
+html[data-theme="light"] .th-proj-name,
+html[data-theme="light"] .th-lead-title-row strong,
+html[data-theme="light"] .th-leader-info strong,
+html[data-theme="light"] .th-member-title-row strong,
+html[data-theme="light"] .th-sc-header h3,
+html[data-theme="light"] .th-roster-head h4,
+html[data-theme="light"] .th-roster-member-cell strong,
+html[data-theme="light"] .th-sel-trigger-content strong,
+html[data-theme="light"] .th-emp-option__name,
+html[data-theme="light"] .th-locked-field strong,
+html[data-theme="light"] .th-empty-box h4 {
+  color: var(--ems-headline, #101a31) !important;
+}
+
+html[data-theme="light"] .th-leader-box,
+html[data-theme="light"] .th-member-card,
+html[data-theme="light"] .th-input-card,
+html[data-theme="light"] .th-member-assign-row,
+html[data-theme="light"] .th-pa-row,
+html[data-theme="light"] .th-pa-section,
+html[data-theme="light"] .th-modal-section,
+html[data-theme="light"] .th-locked-field {
+  background: var(--ems-surface-2, #f1f4fb) !important;
+  border-color: var(--ems-border) !important;
+}
+
+html[data-theme="light"] .th-member-card:hover {
+  background: var(--ems-surface-3, #e6ebf6) !important;
+  border-color: var(--ems-border-strong) !important;
+}
+
+html[data-theme="light"] .th-roster-table-wrap {
+  background: var(--ems-surface, #ffffff) !important;
+  border-color: var(--ems-border) !important;
+}
+
+html[data-theme="light"] .th-roster-table th {
+  background: var(--ems-surface-2, #f1f4fb) !important;
+  color: var(--ems-text-2) !important;
+  border-bottom-color: var(--ems-border) !important;
+}
+
+html[data-theme="light"] .th-roster-table td {
+  border-bottom-color: var(--ems-border-soft, rgba(21, 33, 62, 0.09)) !important;
+  color: var(--ems-text) !important;
+}
+
+html[data-theme="light"] .th-project-chip {
+  background: var(--ems-surface-2) !important;
+  border-color: var(--ems-border) !important;
+  color: var(--ems-text) !important;
+}
+
+html[data-theme="light"] .th-member-prod-pill {
+  background: var(--ems-surface-2, #f1f4fb) !important;
+  border-color: var(--ems-border) !important;
+  color: var(--ems-text-2) !important;
+}
+
+html[data-theme="light"] .th-prio-chip {
+  background: var(--ems-surface) !important;
+  border-color: var(--ems-border) !important;
+}
+
+html[data-theme="light"] .th-leads-wrapper,
+html[data-theme="light"] .th-lead-branch::before,
+html[data-theme="light"] .th-members-tree,
+html[data-theme="light"] .th-member-node::before {
+  border-color: var(--ems-border-strong) !important;
+}
+html[data-theme="light"] .th-lead-branch::before,
+html[data-theme="light"] .th-member-node::before {
+  background: var(--ems-border-strong) !important;
+}
+
+/* ========================================================================== */
+/* DEVELOPER COMPLETED & ON-HOLD TASKS - LIGHT THEME                          */
+/* ========================================================================== */
+html[data-theme="light"] .ems-header__title,
+html[data-theme="light"] .ems-empty-state__title {
+  color: var(--ems-headline, #101a31) !important;
+}
+
+html[data-theme="light"] .ems-task-card {
+  background: var(--ems-card, #ffffff) !important;
+  border-color: var(--ems-border) !important;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05) !important;
+}
+
+html[data-theme="light"] .ems-task-card:hover {
+  border-color: var(--ems-primary) !important;
+  box-shadow: 0 4px 16px rgba(61, 91, 217, 0.1) !important;
+}
+
+html[data-theme="light"] .ems-task-card__title {
+  color: var(--ems-headline, #101a31) !important;
+}
+
+html[data-theme="light"] .ems-task-card__desc {
+  background: var(--ems-surface-2, #f1f4fb) !important;
+  color: var(--ems-text-2, #4d5b78) !important;
+  border-left-color: var(--ems-primary, #3d5bd9) !important;
+}
+
+html[data-theme="light"] .ems-release-status-box {
+  background: var(--ems-surface-2, #f1f4fb) !important;
+  border-color: var(--ems-border) !important;
+}
+
+html[data-theme="light"] .ems-release-note {
+  background: var(--ems-surface-3, #e6ebf6) !important;
+  color: var(--ems-text) !important;
+}
+
+html[data-theme="light"] .ems-search-input {
+  background: var(--ems-surface, #ffffff) !important;
+  border-color: var(--ems-border) !important;
+  color: var(--ems-text) !important;
+}
+
+html[data-theme="light"] .ems-search-input:focus {
+  border-color: var(--ems-primary) !important;
+  box-shadow: 0 0 0 2px rgba(61, 91, 217, 0.15) !important;
+}
+
+html[data-theme="light"] .ems-code-badge {
+  background: var(--ems-surface-2, #f1f4fb) !important;
+  border-color: var(--ems-border) !important;
+  color: var(--ems-text) !important;
+}
+
+html[data-theme="light"] .ems-toolbar {
+  background: var(--ems-surface, #ffffff) !important;
+  border-color: var(--ems-border) !important;
+}
+
+html[data-theme="light"] .ems-filter-btn {
+  border-color: var(--ems-border) !important;
+  color: var(--ems-text-2) !important;
+}
+
+html[data-theme="light"] .ems-filter-btn:hover {
+  background: var(--ems-surface-2, #f1f4fb) !important;
+  color: var(--ems-text) !important;
+}
+
+html[data-theme="light"] .ems-filter-btn.is-active {
+  background: #d97706 !important;
+  border-color: #d97706 !important;
+  color: #ffffff !important;
+}
+
+html[data-theme="light"] .ems-loading-state,
+html[data-theme="light"] .ems-empty-state {
+  background: var(--ems-card, #ffffff) !important;
+  border-color: var(--ems-border) !important;
+}
+
+html[data-theme="light"] .ems-modal-dialog {
+  background: var(--ems-card, #ffffff) !important;
+  border-color: var(--ems-border) !important;
+  color: var(--ems-text) !important;
+  box-shadow: 0 25px 50px rgba(15, 23, 42, 0.2) !important;
+}
+
+/* ========================================================================== */
+/* TESTING LEAD DASHBOARD - LIGHT THEME                                       */
+/* ========================================================================== */
+html[data-theme="light"] .ems-roster-shelf {
+  background: var(--ems-surface-2, #f1f4fb) !important;
+  border-color: var(--ems-border) !important;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05) !important;
+}
+
+html[data-theme="light"] .ems-roster-card {
+  background: var(--ems-card, #ffffff) !important;
+  border-color: var(--ems-border) !important;
+}
+
+html[data-theme="light"] .ems-roster-card:hover {
+  background: var(--ems-surface-3, #e6ebf6) !important;
+  border-color: var(--ems-primary) !important;
+}
+
+html[data-theme="light"] .ems-roster-card.is-selected {
+  background: rgba(61, 91, 217, 0.08) !important;
+  border-color: var(--ems-primary) !important;
+}
+
+html[data-theme="light"] .ems-roster-card__avatar {
+  background: var(--ems-surface-2) !important;
+  border-color: var(--ems-border) !important;
+  color: var(--ems-primary) !important;
+}
+
+html[data-theme="light"] .ems-roster-card__name {
+  color: var(--ems-headline, #101a31) !important;
+}
+
+html[data-theme="light"] .ems-stat-card {
+  background: var(--ems-card, #ffffff) !important;
+  border-color: var(--ems-border, #d6dded) !important;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05) !important;
+}
+
+html[data-theme="light"] .ems-stat-card:hover {
+  background: var(--ems-surface-2, #f8faff) !important;
+  border-color: var(--ems-primary) !important;
+}
+
+html[data-theme="light"] .ems-stat-card--active {
+  background: rgba(61, 91, 217, 0.08) !important;
+  border-color: var(--ems-primary) !important;
+}
+
+html[data-theme="light"] .ems-stat-card__value {
+  color: var(--ems-headline, #101a31) !important;
+}
+
+html[data-theme="light"] .ems-stat-card__label {
+  color: var(--ems-text-2, #4d5b78) !important;
+}
+
+html[data-theme="light"] .ems-triage-column {
+  background: var(--ems-card, #ffffff) !important;
+  border-color: var(--ems-border, #d6dded) !important;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.06) !important;
+}
+
+html[data-theme="light"] .ems-queue-toolbar {
+  background: var(--ems-surface-2, #f8faff) !important;
+  border-bottom-color: var(--ems-border, #d6dded) !important;
+}
+
+html[data-theme="light"] .ems-search-box {
+  background: var(--ems-surface, #ffffff) !important;
+  border-color: var(--ems-border, #d6dded) !important;
+}
+
+html[data-theme="light"] .ems-kind-chip {
+  background: var(--ems-surface, #ffffff) !important;
+  border-color: var(--ems-border, #d6dded) !important;
+  color: var(--ems-text-2, #4d5b78) !important;
+}
+
+html[data-theme="light"] .ems-kind-chip:hover {
+  background: var(--ems-surface-2, #f1f4fb) !important;
+  color: var(--ems-text, #16203a) !important;
+}
+
+html[data-theme="light"] .ems-queue-card {
+  background: var(--ems-surface, #ffffff) !important;
+  border-color: var(--ems-border, #e2e8f0) !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04) !important;
+}
+
+html[data-theme="light"] .ems-queue-card:hover {
+  background: var(--ems-surface-2, #f8fafc) !important;
+  border-color: var(--ems-border-strong, #cbd5e1) !important;
+}
+
+html[data-theme="light"] .ems-queue-card--selected {
+  background: #eff6ff !important;
+  border-color: var(--ems-primary) !important;
+  border-left: 4px solid var(--ems-primary) !important;
+  box-shadow: 0 4px 14px rgba(61, 91, 217, 0.12) !important;
+}
+
+html[data-theme="light"] .ems-queue-card__title {
+  color: var(--ems-headline, #101a31) !important;
+}
+
+html[data-theme="light"] .ems-panel-header {
+  background: var(--ems-surface-2, #f8faff) !important;
+  border-bottom-color: var(--ems-border, #d6dded) !important;
+}
+
+html[data-theme="light"] .ems-panel-title {
+  color: var(--ems-headline, #101a31) !important;
+}
+
+html[data-theme="light"] .ems-panel-meta-bar {
+  background: var(--ems-surface, #ffffff) !important;
+  border-color: var(--ems-border, #d6dded) !important;
+}
+
+html[data-theme="light"] .ems-panel-tabs {
+  border-bottom-color: var(--ems-border, #d6dded) !important;
+}
+
+html[data-theme="light"] .ems-panel-tab {
+  color: var(--ems-text-2, #4d5b78) !important;
+}
+
+html[data-theme="light"] .ems-panel-tab:hover {
+  color: var(--ems-headline, #101a31) !important;
+}
+
+html[data-theme="light"] .ems-panel-tab.is-active {
+  color: var(--ems-primary) !important;
+  border-bottom-color: var(--ems-primary) !important;
+  background: rgba(61, 91, 217, 0.08) !important;
+}
+
+html[data-theme="light"] .ems-notice-banner {
+  background: #f0fdf4 !important;
+  border-color: #bbf7d0 !important;
+  color: #166534 !important;
+}
+
+html[data-theme="light"] .ems-smart-assign-card {
+  background: var(--ems-surface-2, #f8faff) !important;
+  border-color: var(--ems-border, #d6dded) !important;
+}
+
+html[data-theme="light"] .ems-smart-assign-card.is-orig-available {
+  background: #f0fdf4 !important;
+  border-color: #86efac !important;
+}
+
+html[data-theme="light"] .ems-smart-avatar {
+  background: var(--ems-surface, #ffffff) !important;
+  border-color: var(--ems-border, #cbd5e1) !important;
+  color: var(--ems-primary) !important;
+}
+
+html[data-theme="light"] .ems-smart-name {
+  color: var(--ems-headline, #101a31) !important;
+}
+
+html[data-theme="light"] .ems-card-section {
+  background: var(--ems-surface-2, #f8faff) !important;
+  border-color: var(--ems-border, #d6dded) !important;
+}
+
+html[data-theme="light"] .ems-section-heading {
+  color: var(--ems-headline, #101a31) !important;
+}
+
+html[data-theme="light"] .ems-segmented-control {
+  background: var(--ems-surface, #ffffff) !important;
+  border-color: var(--ems-border, #d6dded) !important;
+}
+
+html[data-theme="light"] .ems-segment-btn {
+  color: var(--ems-text-2, #4d5b78) !important;
+}
+
+html[data-theme="light"] .ems-segment-btn:hover {
+  background: var(--ems-surface-2, #f1f4fb) !important;
+  color: var(--ems-text, #16203a) !important;
+}
+
+html[data-theme="light"] .ems-segment-btn.is-active {
+  background: var(--ems-primary) !important;
+  color: #ffffff !important;
+  border-color: var(--ems-primary) !important;
+}
+
+html[data-theme="light"] .ems-picked-tester-box {
+  background: #ecfdf5 !important;
+  border-color: #a7f3d0 !important;
+}
+
+html[data-theme="light"] .ems-form-select,
+html[data-theme="light"] .ems-form-textarea {
+  background: var(--ems-surface, #ffffff) !important;
+  border-color: var(--ems-border, #cbd5e1) !important;
+  color: var(--ems-text, #16203a) !important;
+}
+
+html[data-theme="light"] .ems-release-card {
+  background: var(--ems-surface-2, #f8fafc) !important;
+  border-left-color: var(--ems-primary) !important;
+  border-top: 1px solid var(--ems-border, #e2e8f0);
+  border-right: 1px solid var(--ems-border, #e2e8f0);
+  border-bottom: 1px solid var(--ems-border, #e2e8f0);
+}
+
+html[data-theme="light"] .ems-release-card__quote {
+  color: var(--ems-headline, #101a31) !important;
+}
+
+html[data-theme="light"] .ems-pre-code {
+  background: var(--ems-surface-2, #f1f4fb) !important;
+  border-color: var(--ems-border, #cbd5e1) !important;
+  color: var(--ems-text, #16203a) !important;
+}
+
+html[data-theme="light"] .ems-attach-btn {
+  background: var(--ems-surface, #ffffff) !important;
+  border-color: var(--ems-border, #cbd5e1) !important;
+  color: var(--ems-primary) !important;
+}
+
+html[data-theme="light"] .ems-verify-choice-card {
+  background: var(--ems-surface, #ffffff) !important;
+  border-color: var(--ems-border, #d6dded) !important;
+}
+
+html[data-theme="light"] .ems-verify-choice-card:hover {
+  background: var(--ems-surface-2, #f8fafc) !important;
+  border-color: var(--ems-primary) !important;
+}
+
+html[data-theme="light"] .ems-verify-choice-text h4 {
+  color: var(--ems-headline, #101a31) !important;
+}
+
+html[data-theme="light"] .ems-detail-placeholder {
+  color: var(--ems-text-3, #7c89a4) !important;
+}
+
+html[data-theme="light"] .ems-detail-placeholder mat-icon {
+  color: var(--ems-border-strong, #b7c2d9) !important;
+}
+
+html[data-theme="light"] .ems-detail-placeholder h3 {
+  color: var(--ems-headline, #101a31) !important;
+}
+
+/* ========================================================================== */
+/* TIMESHEETS & APPROVALS - LIGHT THEME                                       */
+/* ========================================================================== */
+html[data-theme="light"] .my-date-cell strong,
+html[data-theme="light"] .app-date-cell strong,
+html[data-theme="light"] .vt-date-cell strong,
+html[data-theme="light"] .app-emp-info strong,
+html[data-theme="light"] .vt-emp-info strong,
+html[data-theme="light"] .app-project-text,
+html[data-theme="light"] .vt-project-text,
+html[data-theme="light"] .my-project-badge,
+html[data-theme="light"] .my-modal-task-title,
+html[data-theme="light"] .app-modal-task-title,
+html[data-theme="light"] .vt-modal-task-title {
+  color: var(--ems-headline, #101a31) !important;
+}
+
+html[data-theme="light"] .my-modal-history,
+html[data-theme="light"] .app-modal-history,
+html[data-theme="light"] .vt-modal-history {
+  background: var(--ems-surface-2, #f1f4fb) !important;
+  border-color: var(--ems-border) !important;
+}
+
+html[data-theme="light"] .my-history-list li,
+html[data-theme="light"] .app-history-list li,
+html[data-theme="light"] .vt-history-list li {
+  color: var(--ems-text) !important;
+}
+
+/* ========================================================================== */
+/* TASK LIST & BOARD ENHANCEMENTS - LIGHT THEME                               */
+/* ========================================================================== */
+html[data-theme="light"] .tl-inline-select option {
+  background: var(--ems-surface, #ffffff) !important;
+  color: var(--ems-text, #16203a) !important;
+}
+
+html[data-theme="light"] .tl-inline-select optgroup {
+  background: var(--ems-surface-2, #f1f4fb) !important;
+  color: var(--ems-primary, #3d5bd9) !important;
+}
+
+html[data-theme="light"] .tl-fullscreen-btn {
+  background: var(--ems-surface-2, #f1f4fb) !important;
+  border-color: var(--ems-border, #d6dded) !important;
+  color: var(--ems-text, #16203a) !important;
+}
+
+html[data-theme="light"] .tl-fullscreen-btn:hover {
+  background: rgba(61, 91, 217, 0.1) !important;
+  border-color: var(--ems-primary, #3d5bd9) !important;
+  color: var(--ems-primary, #3d5bd9) !important;
+}
+
+html[data-theme="light"] .tl-compact-date-input::-webkit-calendar-picker-indicator {
+  filter: none !important;
+  opacity: 0.65;
+}
+
+/* ========================================================================== */
+/* BUG DETAILS & ISSUE CREATION - LIGHT THEME                                 */
+/* ========================================================================== */
+html[data-theme="light"] .flow-preview-card {
+  background: var(--ems-card, #ffffff) !important;
+  border-color: var(--ems-border) !important;
+}
+
+html[data-theme="light"] .flow-preview-card__head {
+  background: var(--ems-surface-2, #f1f4fb) !important;
+  border-bottom-color: var(--ems-border) !important;
+}
+
+html[data-theme="light"] .flow-preview-card__img-wrap {
+  background: var(--ems-surface-3, #e6ebf6) !important;
+}
+
+html[data-theme="light"] .ems-owner-role {
+  color: var(--ems-text, #16203a) !important;
+}
+
+html[data-theme="light"] .ems-qa-instruction-callout__desc {
+  color: var(--ems-text-2, #4d5b78) !important;
+}
+
+/* ========================================================================== */
+/* MODULE & SCREEN SETUP: EXCEL UPLOAD MODAL - LIGHT THEME                    */
+/* ========================================================================== */
+html[data-theme="light"] .md-modal-dialog {
+  background: var(--ems-card, #ffffff) !important;
+  border-color: var(--ems-border) !important;
+  color: var(--ems-text) !important;
+  box-shadow: 0 25px 50px rgba(15, 23, 42, 0.2) !important;
+}
+
+html[data-theme="light"] .md-modal-head,
+html[data-theme="light"] .md-modal-foot {
+  background: var(--ems-surface-2, #f1f4fb) !important;
+  border-color: var(--ems-border) !important;
+}
+
+html[data-theme="light"] .md-modal-head h3,
+html[data-theme="light"] .md-file-name,
+html[data-theme="light"] .md-ps-badge strong {
+  color: var(--ems-headline, #101a31) !important;
+}
+
+html[data-theme="light"] .md-dropzone {
+  background: var(--ems-surface-2, #f8fafc) !important;
+  border-color: var(--ems-border-strong, #b7c2d9) !important;
+}
+
+html[data-theme="light"] .md-dropzone.has-file {
+  background: rgba(34, 197, 94, 0.08) !important;
+  border-color: #34d399 !important;
+}
+
+html[data-theme="light"] .md-dropzone-btn,
+html[data-theme="light"] .md-tt-btn {
+  background: var(--ems-surface, #ffffff) !important;
+  border-color: var(--ems-border, #d6dded) !important;
+  color: var(--ems-primary, #3d5bd9) !important;
+}
+
+html[data-theme="light"] .md-preview-wrap {
+  background: var(--ems-surface, #ffffff) !important;
+  border-color: var(--ems-border) !important;
+}
+
+html[data-theme="light"] .md-preview-head,
+html[data-theme="light"] .md-preview-table th {
+  background: var(--ems-surface-2, #f1f4fb) !important;
+  color: var(--ems-text-2) !important;
+  border-color: var(--ems-border) !important;
+}
+
+html[data-theme="light"] .md-preview-table td {
+  border-color: var(--ems-border-soft, rgba(21, 33, 62, 0.09)) !important;
+  color: var(--ems-text) !important;
+}
+
+html[data-theme="light"] .md-ps-badge {
+  background: var(--ems-surface-2, #f1f4fb) !important;
+  border-color: var(--ems-border) !important;
+  color: var(--ems-text-2) !important;
+}
+
+
+
+

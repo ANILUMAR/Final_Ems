@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatOptionModule } from '@angular/material/core';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -78,13 +78,23 @@ export class RaiseIssue implements OnInit {
     private reference: ReferenceService,
     private master: MasterDataService,
     private router: Router,
+    private route: ActivatedRoute,
     private dialog: MatDialog
   ) {}
 
   ngOnInit(): void {
+    this.route.queryParams.subscribe((params) => {
+      if (params['project']) {
+        this.project = params['project'];
+      }
+    });
+
     this.workspace.getProjects().subscribe({
       next: (rows) => {
         this.projects = (rows || []).map((project) => ({ id: project.id, name: project.name }));
+        if (this.project && !this.projects.some((p) => p.name.toLowerCase() === this.project.toLowerCase())) {
+          this.projects.unshift({ id: -1, name: this.project });
+        }
       },
       error: () => {
         this.errorMessage = 'Could not load the project list. Reload the page to try again.';
@@ -256,7 +266,7 @@ export class RaiseIssue implements OnInit {
       body.append('attachment', this.selectedFile);
     }
 
-    if (this.kind === 'BUG') {
+    if (this.kind === 'BUG' || this.kind === 'PRODUCTION_ISSUE') {
       if (this.reproductionSteps.trim()) {
         body.append('reproductionSteps', this.reproductionSteps.trim());
       }
@@ -264,7 +274,7 @@ export class RaiseIssue implements OnInit {
         body.append('reproductionFlow', this.flowJson);
       }
       if (this.flowImageBlob) {
-        body.append('reproductionFlowImage', this.flowImageBlob, 'bug_reproduction_flow.png');
+        body.append('reproductionFlowImage', this.flowImageBlob, 'reproduction_flow.png');
       }
       if (this.flowImageDataUrl) {
         body.append('reproductionFlowImageBase64', this.flowImageDataUrl);
@@ -275,10 +285,16 @@ export class RaiseIssue implements OnInit {
       next: (saved) => {
         this.saving = false;
         this.lastCode = saved.taskCode || '';
-        const label = this.kind === 'BUG' ? 'Bug' : 'Task';
-        this.successMessage = this.skipsReview
-          ? `${label} ${this.lastCode} raised and waiting for a developer to be assigned.`
-          : `${label} ${this.lastCode} sent to your team leader for review.`;
+        const label = this.kind === 'PRODUCTION_ISSUE' ? 'Production Issue' : (this.kind === 'BUG' ? 'Bug' : 'Task');
+        if (this.kind === 'PRODUCTION_ISSUE') {
+          this.successMessage = saved.assignedToName
+            ? `${label} ${this.lastCode} raised and automatically assigned to Production Support (${saved.assignedToName}).`
+            : `${label} ${this.lastCode} raised and routed to Production Support queue.`;
+        } else {
+          this.successMessage = this.skipsReview
+            ? `${label} ${this.lastCode} raised and waiting for a developer to be assigned.`
+            : `${label} ${this.lastCode} sent to your team leader for review.`;
+        }
         this.resetForm();
       },
       error: (err) => {

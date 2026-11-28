@@ -28,6 +28,8 @@ public final class AuthContext {
     public static final String ROLE_EMPLOYEE = "ROLE_EMPLOYEE";
     public static final String ROLE_TESTER = "ROLE_TESTER";
     public static final String ROLE_SUPER_ADMIN = "ROLE_SUPER_ADMIN";
+    public static final String ROLE_PROJECT_MANAGER = "ROLE_PROJECT_MANAGER";
+    public static final String ROLE_TEAM_LEAD = "ROLE_TEAM_LEAD";
     public static final String ROLE_DEVELOPER_LEAD = "ROLE_DEVELOPER_LEAD";
     public static final String ROLE_TESTER_LEAD = "ROLE_TESTER_LEAD";
 
@@ -57,9 +59,11 @@ public final class AuthContext {
         return isSuperAdmin(authentication);
     }
 
-    /** A team leader of either team, whichever one it is. */
+    /** A team leader of any team (general Team Leader, Dev Lead, or QA Lead). */
     public static boolean isLead(Authentication authentication) {
-        return hasRole(authentication, ROLE_TESTER_LEAD) || hasRole(authentication, ROLE_DEVELOPER_LEAD);
+        return hasRole(authentication, ROLE_TESTER_LEAD)
+                || hasRole(authentication, ROLE_DEVELOPER_LEAD)
+                || hasRole(authentication, ROLE_TEAM_LEAD);
     }
 
     /**
@@ -67,7 +71,7 @@ public final class AuthContext {
      * than only the rows addressed to them.
      */
     public static boolean isManager(Authentication authentication) {
-        return isSuperAdmin(authentication) || isLead(authentication);
+        return isSuperAdmin(authentication) || isLead(authentication) || hasRole(authentication, ROLE_PROJECT_MANAGER);
     }
 
     /** Email (the JWT subject) of the caller, lowercased for comparisons. */

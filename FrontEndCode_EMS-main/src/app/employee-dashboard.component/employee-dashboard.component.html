@@ -1,341 +1,330 @@
 <div class="ems-page">
-  <div class="ems-page-head">
+  <!-- Header with Eyebrow, Title, Actions -->
+  <header class="ems-page-head">
     <div>
-      <h1 class="ems-page-title">{{ isAdmin ? 'Developer board' : 'Hi ' + firstName }}</h1>
+      <div class="ems-eyebrow">
+        <span>{{ isAdmin ? 'ENGINEERING SPRINT' : 'MY WORKSPACE' }}</span>
+        <span class="ems-eyebrow__sep">/</span>
+        <span>{{ roleLabel | uppercase }}</span>
+      </div>
+      <h1 class="ems-page-title">
+        {{ isAdmin ? 'Development Team Board' : 'Developer Cockpit, ' + firstName }}
+      </h1>
       <p class="ems-page-subtitle">
-        {{ today | date:'EEEE, d MMMM' }} ·
+        {{ today | date:'EEEE, d MMMM y' }} ·
         <ng-container *ngIf="isAdmin">
-          {{ selectedRow
-              ? selectedName + ' · ' + assignedTasks + ' task(s) · ' + selectedHours + 'h logged'
-              : 'pick a developer to open their board' }}
+          {{ teamRows.length }} developer(s) · {{ teamTasks.length }} active sprint ticket(s) · {{
+          readyForQAReleaseCount }} ready for QA release
         </ng-container>
-        <ng-container *ngIf="!isAdmin">{{ roleLabel }} board · {{ openTasks }} open task(s)</ng-container>
+        <ng-container *ngIf="!isAdmin">
+          {{ myTasks.length }} assigned work item(s) · {{ hoursLoggedToday }}h recorded today (Target: 8h)
+        </ng-container>
       </p>
     </div>
 
     <div class="ems-actions">
-      <button mat-stroked-button routerLink="/developer-completed">
-        <mat-icon>check_circle</mat-icon>
-        Completed Work
-      </button>
-      <button mat-stroked-button *ngIf="!isAdmin" (click)="goToSubmission()">
-        <mat-icon>edit_calendar</mat-icon>
-        Log hours
-      </button>
-      <button mat-stroked-button *ngIf="isAdmin" (click)="goToTriage()">
-        <mat-icon>assignment_ind</mat-icon>
-        Assignment queue
-      </button>
-      <button mat-stroked-button *ngIf="isAdmin" (click)="goToAllTasks()">
-        <mat-icon>list_alt</mat-icon>
-        All tasks
-      </button>
-      <button mat-flat-button color="primary" (click)="goToTasks()">
-        <mat-icon>task_alt</mat-icon>
-        {{ isAdmin ? 'Open task board' : 'Open my tasks' }}
-      </button>
-    </div>
-  </div>
+      <!-- Lead Actions -->
+      <ng-container *ngIf="isAdmin">
+        <button mat-stroked-button (click)="goToTriage()">
+          <mat-icon>assignment_ind</mat-icon>
+          Work Allocation
+        </button>
+        <button mat-stroked-button routerLink="/developer-completed"
+          [matTooltip]="readyForQAReleaseCount + ' ticket(s) ready to release'">
+          <mat-icon>check_circle</mat-icon>
+          Release to QA ({{ readyForQAReleaseCount }})
+        </button>
+        <button mat-stroked-button routerLink="/on-hold-tasks">
+          <mat-icon>pause_circle_outline</mat-icon>
+          On-Hold
+        </button>
+        <button mat-flat-button color="primary" (click)="goToTasks()">
+          <mat-icon>view_kanban</mat-icon>
+          Kanban Board
+        </button>
+      </ng-container>
 
+      <!-- Developer Actions -->
+      <ng-container *ngIf="!isAdmin">
+        <button mat-stroked-button routerLink="/developer-completed">
+          <mat-icon>check_circle</mat-icon>
+          Completed Work
+        </button>
+        <button mat-stroked-button (click)="goToSubmission()">
+          <mat-icon>edit_calendar</mat-icon>
+          Log Hours
+        </button>
+        <button mat-flat-button color="primary" (click)="goToTasks()">
+          <mat-icon>task_alt</mat-icon>
+          My Tickets ({{ myTasks.length }})
+        </button>
+      </ng-container>
+    </div>
+  </header>
+
+  <!-- Error Alert -->
   <div class="ems-auth__note ems-auth__note--error" *ngIf="errorMessage">
     <mat-icon>error_outline</mat-icon>
     <span>{{ errorMessage }}</span>
   </div>
 
-  <!-- admin only: pick whose board to read -->
-  <section class="ems-card" *ngIf="isAdmin">
-    <!-- once picked, the list collapses to just that developer -->
-    <div class="ems-selected" *ngIf="!pickerOpen">
-      <span class="ems-selected__avatar"><mat-icon>person</mat-icon></span>
-      <div class="ems-selected__main">
-        <strong>{{ selectedName || 'No developer selected' }}</strong>
-        <small>{{ selectedRow?.email || 'Use Change to pick a developer' }}</small>
+  <!-- Developer Urgent Task Alert Shelf (High Priority / On-Hold) -->
+  <section class="ems-card ems-alert-shelf" *ngIf="!isAdmin && myBlockedOrHighPriorityTasks.length > 0">
+    <div class="ems-alert-shelf__head">
+      <div class="ems-alert-shelf__title">
+        <mat-icon>priority_high</mat-icon>
+        <strong>High Priority Action Items ({{ myBlockedOrHighPriorityTasks.length }})</strong>
       </div>
-      <div class="ems-actions">
-        <ng-container *ngIf="selectedRow">
-          <span class="ems-badge ems-badge--neutral">{{ selectedRow.total }} task(s)</span>
-          <span class="ems-badge ems-badge--neutral">{{ selectedRow.progress }}%</span>
-          <span class="ems-badge" [ngClass]="selectedRow.active ? 'ems-badge--success' : 'ems-badge--danger'">
-            {{ selectedRow.active ? 'Active' : 'Inactive' }}
-          </span>
-        </ng-container>
-        <button mat-stroked-button type="button" (click)="openPicker()">
-          <mat-icon>switch_account</mat-icon>
-          Change
-        </button>
+      <a routerLink="/my-tasks" mat-button class="ems-alert-shelf__link">View All My Tickets &rarr;</a>
+    </div>
+
+    <div class="ems-alert-shelf__grid">
+      <div class="ems-alert-item" *ngFor="let item of myBlockedOrHighPriorityTasks.slice(0, 4)">
+        <div class="ems-alert-item__badge" [ngClass]="item.status === 'ON_HOLD' ? 'is-overdue' : 'is-critical'">
+          {{ item.status === 'ON_HOLD' ? 'ON HOLD' : (item.priority || 'HIGH PRIORITY') }}
+        </div>
+        <div class="ems-alert-item__body">
+          <strong>{{ item.title || 'Untitled Task' }}</strong>
+          <small>{{ item.project?.name || 'Unassigned Project' }}</small>
+        </div>
+        <span class="ems-badge ems-badge--info">{{ item.status || 'IN_PROGRESS' }}</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Role-Tailored 4-KPI Metric Grid -->
+  <div class="ems-stat-grid">
+    <!-- Team Lead Metrics -->
+    <ng-container *ngIf="isAdmin">
+      <article class="ems-stat ems-stat--accent-blue">
+        <span class="ems-stat__label">Sprint Active Tasks</span>
+        <strong class="ems-stat__value">{{ teamTasks.length }}</strong>
+        <span class="ems-stat__hint">{{ teamInProgressCount }} in active development</span>
+      </article>
+
+      <article class="ems-stat ems-stat--accent-amber">
+        <span class="ems-stat__label">Developers on Team</span>
+        <strong class="ems-stat__value">{{ teamRows.length }}</strong>
+        <span class="ems-stat__hint">Tracked on sprint board</span>
+      </article>
+
+      <article class="ems-stat ems-stat--accent-green">
+        <span class="ems-stat__label">Ready for QA Release</span>
+        <strong class="ems-stat__value">{{ readyForQAReleaseCount }}</strong>
+        <span class="ems-stat__hint">
+          <a routerLink="/developer-completed">Review completed work &rarr;</a>
+        </span>
+      </article>
+
+      <article class="ems-stat ems-stat--accent-indigo">
+        <span class="ems-stat__label">Team Hours Logged</span>
+        <strong class="ems-stat__value">{{ teamTotalHours }}<small>h</small></strong>
+        <span class="ems-stat__hint">Recorded on timesheets</span>
+      </article>
+    </ng-container>
+
+    <!-- Developer Metrics -->
+    <ng-container *ngIf="!isAdmin">
+      <article class="ems-stat ems-stat--accent-blue">
+        <span class="ems-stat__label">In Progress</span>
+        <strong class="ems-stat__value">{{ inProgressTasks.length }}</strong>
+        <span class="ems-stat__hint">Currently being coded</span>
+      </article>
+
+      <article class="ems-stat ems-stat--accent-amber">
+        <span class="ems-stat__label">Ready for Dev</span>
+        <strong class="ems-stat__value">{{ todoTasks.length }}</strong>
+        <span class="ems-stat__hint">Queued in backlog</span>
+      </article>
+
+      <article class="ems-stat ems-stat--accent-green">
+        <span class="ems-stat__label">Hours Logged Today</span>
+        <strong class="ems-stat__value">{{ hoursLoggedToday }}<small>h</small></strong>
+        <span class="ems-stat__hint">{{ todayTargetPercent }}% of 8h daily target</span>
+      </article>
+
+      <article class="ems-stat ems-stat--accent-indigo">
+        <span class="ems-stat__label">Completed Tasks</span>
+        <strong class="ems-stat__value">{{ completedTasks }}</strong>
+        <span class="ems-stat__hint">{{ completionRate }}% completion rate</span>
+      </article>
+    </ng-container>
+  </div>
+
+  <!-- Team Lead: Developer Capacity & Workload Grid -->
+  <section class="ems-card" *ngIf="isAdmin">
+    <div class="ems-card-head">
+      <div>
+        <h2 class="ems-section-title">
+          <mat-icon>groups</mat-icon>
+          Developer Workload & Allocation Roster
+        </h2>
+        <p class="ems-card-subtitle">Click any developer to inspect their active assignments and progress below.</p>
+      </div>
+      <div class="ems-search-wrap">
+        <mat-icon>search</mat-icon>
+        <input type="text" [(ngModel)]="search" (ngModelChange)="onSearchChange()" placeholder="Filter developers..." />
       </div>
     </div>
 
-    <ng-container *ngIf="pickerOpen">
-      <h2 class="ems-section-title">
-        <mat-icon>groups</mat-icon>
-        Select a developer
-      </h2>
-
-      <mat-form-field appearance="outline" class="ems-search">
-        <mat-label>Search developers</mat-label>
-        <input matInput [(ngModel)]="search" (ngModelChange)="onSearchChange()" placeholder="Name or email…" />
-        <mat-icon matPrefix>search</mat-icon>
-      </mat-form-field>
-
-      <div class="ems-empty" *ngIf="!loading && teamRows.length === 0">
-        <mat-icon>group_off</mat-icon>
-        <h3>No developers yet</h3>
-        <p>Accounts created with the Developer role appear here.</p>
-      </div>
-
-      <div class="ems-empty" *ngIf="!loading && teamRows.length > 0 && filteredRows.length === 0">
-        <mat-icon>search_off</mat-icon>
-        <h3>No developer matches “{{ search }}”</h3>
-        <p>Try part of a name or an email address.</p>
-      </div>
-
-      <ul class="ems-rows" *ngIf="filteredRows.length > 0">
-        <li class="ems-rows__item ems-member"
-            *ngFor="let member of filteredRows"
-            role="button"
-            tabindex="0"
-            [class.ems-member--active]="member.email === selectedEmail"
-            [attr.aria-pressed]="member.email === selectedEmail"
-            (click)="selectMember(member)"
-            (keydown.enter)="selectMember(member)"
-            (keydown.space)="selectMember(member)">
-          <div class="ems-rows__main">
+    <div class="ems-roster-grid">
+      <div *ngFor="let member of filteredRows" class="ems-roster-card"
+        [class.is-selected]="member.email === selectedEmail" (click)="selectMember(member)">
+        <div class="ems-roster-card__avatar">
+          {{ member.name.slice(0, 2).toUpperCase() }}
+        </div>
+        <div class="ems-roster-card__body">
+          <div class="ems-roster-card__name">
             <strong>{{ member.name }}</strong>
-            <small>{{ member.email }}</small>
+            <mat-icon class="ems-selected-check" *ngIf="member.email === selectedEmail">check_circle</mat-icon>
           </div>
-          <div class="ems-rows__side">
-            <span class="ems-badge ems-badge--neutral">{{ member.total }} task(s)</span>
-            <span class="ems-badge ems-badge--neutral">{{ member.progress }}%</span>
-            <span class="ems-badge" [ngClass]="member.active ? 'ems-badge--success' : 'ems-badge--danger'">
-              {{ member.active ? 'Active' : 'Inactive' }}
-            </span>
-            <mat-icon class="ems-member__tick" *ngIf="member.email === selectedEmail">check_circle</mat-icon>
+          <small class="ems-roster-card__email">{{ member.email }}</small>
+          <div class="ems-roster-card__metrics">
+            <span>{{ member.inProgress }} in dev · {{ member.done }} done</span>
+            <strong>{{ member.progress }}%</strong>
           </div>
-        </li>
-      </ul>
-    </ng-container>
+        </div>
+        <div class="ems-roster-card__tag">
+          <span class="ems-workload-tag" [ngClass]="devWorkloadClass(member)">
+            {{ devWorkloadLabel(member) }}
+          </span>
+        </div>
+      </div>
+    </div>
   </section>
 
-  <div class="ems-stat-grid" [class.ems-stat-grid--spaced]="isAdmin">
-    <ng-container *ngIf="isAdmin">
-      <article class="ems-stat">
-        <span class="ems-stat__label">Assigned</span>
-        <strong class="ems-stat__value">{{ assignedTasks }}</strong>
-        <span class="ems-stat__hint">{{ inProgressTasks.length }} in progress</span>
-      </article>
+  <!-- Main Content 2-Column Split -->
+  <div class="ems-dash-split">
 
-      <article class="ems-stat">
-        <span class="ems-stat__label">Completed</span>
-        <strong class="ems-stat__value">{{ completedTasks }}</strong>
-        <span class="ems-stat__hint">{{ completionRate }}% of the workload</span>
-      </article>
+    <!-- Left Main Column (65%) -->
+    <div class="ems-dash-col-main">
 
-      <article class="ems-stat">
-        <span class="ems-stat__label">Hours logged</span>
-        <strong class="ems-stat__value">{{ selectedHours }}<small>h</small></strong>
-        <span class="ems-stat__hint">on their timesheets</span>
-      </article>
-
-      <article class="ems-stat">
-        <span class="ems-stat__label">Projects</span>
-        <strong class="ems-stat__value">{{ projectRows.length }}</strong>
-        <span class="ems-stat__hint">
-          {{ selectedRow ? (selectedRow.active ? 'Active account' : 'Inactive account') : 'No developer selected' }}
-        </span>
-      </article>
-    </ng-container>
-
-    <ng-container *ngIf="!isAdmin">
-      <article class="ems-stat">
-        <span class="ems-stat__label">Assigned to me</span>
-        <strong class="ems-stat__value">{{ assignedTasks }}</strong>
-        <span class="ems-stat__hint">{{ inProgressTasks.length }} in progress</span>
-      </article>
-
-      <article class="ems-stat">
-        <span class="ems-stat__label">Completed</span>
-        <strong class="ems-stat__value">{{ completedTasks }}</strong>
-        <span class="ems-stat__hint">{{ completionRate }}% of my workload</span>
-      </article>
-
-      <article class="ems-stat">
-        <span class="ems-stat__label">Hours today</span>
-        <strong class="ems-stat__value">{{ hoursLoggedToday }}<small>h</small></strong>
-        <span class="ems-stat__hint">{{ hoursLoggedTotal }}h logged in total</span>
-      </article>
-
-      <article class="ems-stat">
-        <span class="ems-stat__label">Timesheet</span>
-        <strong class="ems-stat__value ems-stat__value--text">{{ timesheetStatus }}</strong>
-        <span class="ems-stat__hint">{{ myTimesheets.length }} entry(ies) submitted</span>
-      </article>
-    </ng-container>
-  </div>
-
-  <!-- one card per role: a lead gets the shortcuts their role owns -->
-  <app-quick-actions [wide]="true"></app-quick-actions>
-
-  <div class="ems-dash-grid">
-    <section class="ems-card">
-      <h2 class="ems-section-title">
-        <mat-icon>view_kanban</mat-icon>
-        {{ isAdmin ? 'Queue' : 'My queue' }}
-      </h2>
-
-      <div class="ems-empty" *ngIf="!loading && boardTasks.length === 0">
-        <mat-icon>inbox</mat-icon>
-        <h3>{{ isAdmin ? 'No work assigned' : 'Nothing assigned yet' }}</h3>
-        <p>
-          {{ isAdmin
-              ? (selectedRow ? selectedName + ' has no tasks right now.' : 'Pick a developer above to see their work.')
-              : 'When an admin assigns work it will show up here.' }}
-        </p>
-      </div>
-
-      <ul class="ems-rows" *ngIf="boardTasks.length > 0">
-        <li class="ems-rows__item" *ngFor="let task of boardTasks">
-          <div class="ems-rows__main">
-            <strong>{{ task.title }}</strong>
-            <small>{{ task.project?.name || 'No project' }} · {{ task.description || 'No description' }}</small>
-          </div>
-          <div class="ems-rows__side">
-            <app-task-status
-              entity="assignment"
-              [id]="task.id"
-              [title]="task.title"
-              [status]="task.status"
-              [editable]="!isAdmin"
-              (changed)="onStatusChanged(task, $event)">
-            </app-task-status>
-          </div>
-        </li>
-      </ul>
-    </section>
-
-    <section class="ems-card">
-      <h2 class="ems-section-title">
-        <mat-icon>rule</mat-icon>
-        Execution progress
-      </h2>
-
-      <!-- The same card the verification board shows, in the developer's own
-           vocabulary: finished first, then what is moving, then the backlog. -->
-      <div class="ems-pipeline">
-        <div class="ems-pipeline__row">
-          <div class="ems-pipeline__meta">
-            <span class="ems-badge ems-badge--success">Done</span>
-            <strong>{{ completedTasks }}</strong>
-          </div>
-          <div class="ems-pipeline__track">
-            <span class="ems-pipeline__fill is-success" [style.width.%]="completionRate"></span>
-          </div>
+      <!-- Active Work Items for Developer or Selected Developer for Lead -->
+      <section class="ems-card">
+        <div class="ems-card-head">
+          <h2 class="ems-section-title">
+            <mat-icon>task_alt</mat-icon>
+            {{ isAdmin ? (selectedName ? selectedName + "’s Work Items" : "Team Work Items") : "My Assigned Work Items"
+            }}
+          </h2>
+          <span class="ems-badge ems-badge--info">{{ boardTasks.length }} Ticket(s)</span>
         </div>
 
-        <div class="ems-pipeline__row">
-          <div class="ems-pipeline__meta">
-            <span class="ems-badge ems-badge--info">In progress</span>
-            <strong>{{ inProgressTasks.length }}</strong>
-          </div>
-          <div class="ems-pipeline__track">
-            <span class="ems-pipeline__fill is-info"
-                  [style.width.%]="assignedTasks ? (inProgressTasks.length / assignedTasks) * 100 : 0"></span>
-          </div>
+        <div class="ems-empty" *ngIf="!loading && boardTasks.length === 0">
+          <mat-icon>inbox</mat-icon>
+          <h3>No tasks in queue</h3>
+          <p>{{ isAdmin ? "Selected developer has no assigned tasks." : "You have no active tasks assigned right now."
+            }}</p>
         </div>
 
-        <div class="ems-pipeline__row">
-          <div class="ems-pipeline__meta">
-            <span class="ems-badge ems-badge--neutral">To do</span>
-            <strong>{{ todoTasks.length }}</strong>
-          </div>
-          <div class="ems-pipeline__track">
-            <span class="ems-pipeline__fill is-neutral"
-                  [style.width.%]="assignedTasks ? (todoTasks.length / assignedTasks) * 100 : 0"></span>
+        <div class="ems-task-list" *ngIf="boardTasks.length > 0">
+          <div class="ems-task-card" *ngFor="let task of boardTasks">
+            <div class="ems-task-card__header">
+              <div class="ems-task-card__tags">
+                <span class="ems-task-code">{{ task.taskCode || ('TASK-' + task.id) }}</span>
+                <span class="ems-badge" [ngClass]="{
+                  'ems-badge--danger': task.priority === 'High' || task.priority === 'Critical',
+                  'ems-badge--warning': task.priority === 'Medium',
+                  'ems-badge--neutral': task.priority === 'Low' || !task.priority
+                }">{{ task.priority || 'Medium' }}</span>
+              </div>
+              <div class="ems-task-card__status-box">
+                <span class="ems-badge" [ngClass]="{
+                  'ems-badge--success': task.status === 'DONE',
+                  'ems-badge--info': task.status === 'IN_PROGRESS',
+                  'ems-badge--warning': task.status === 'IN_REVIEW',
+                  'ems-badge--neutral': task.status === 'TODO' || !task.status
+                }">{{ task.status || 'TODO' }}</span>
+              </div>
+            </div>
+
+            <div class="ems-task-card__title">
+              <strong>{{ task.title || 'Untitled Work Item' }}</strong>
+              <p *ngIf="task.description">{{ task.description }}</p>
+            </div>
+
+            <div class="ems-task-card__footer">
+              <span class="ems-task-project">
+                <mat-icon>folder_open</mat-icon>
+                {{ task.project?.name || 'Unassigned Project' }}
+              </span>
+
+              <!-- Quick Status Update Controls for Developer -->
+              <div class="ems-task-quick-actions" *ngIf="!isAdmin">
+                <button mat-stroked-button class="ems-btn-mini"
+                  *ngIf="task.status !== 'IN_PROGRESS' && task.status !== 'DONE'"
+                  (click)="updateTaskStatus(task, 'IN_PROGRESS')" matTooltip="Start working on this task">
+                  Start Work
+                </button>
+                <button mat-flat-button color="primary" class="ems-btn-mini" *ngIf="task.status === 'IN_PROGRESS'"
+                  (click)="updateTaskStatus(task, 'DONE')" matTooltip="Mark task complete and ready for QA release">
+                  Complete
+                </button>
+              </div>
+            </div>
           </div>
         </div>
+      </section>
 
-        <div class="ems-pipeline__summary">
-          <div>
-            <span class="ems-pipeline__summary-value">{{ completionRate }}%</span>
-            <span class="ems-pipeline__summary-label">
-              of {{ isAdmin ? 'the queue' : 'your workload' }} completed
-            </span>
+    </div>
+
+    <!-- Right Side Column (35%) -->
+    <div class="ems-dash-col-side">
+
+      <!-- Today's Timesheet Progress (for Developer) -->
+      <section class="ems-card" *ngIf="!isAdmin">
+        <div class="ems-card-head">
+          <h2 class="ems-section-title">
+            <mat-icon>schedule</mat-icon>
+            Today’s Work Hours
+          </h2>
+          <a routerLink="/timesheets/new" class="ems-card-head__link">Log hours &rarr;</a>
+        </div>
+
+        <div class="ems-time-summary">
+          <div class="ems-time-gauge">
+            <div class="ems-time-gauge__val">{{ hoursLoggedToday }}<span>/8h</span></div>
+            <div class="ems-time-gauge__bar">
+              <div class="ems-time-gauge__fill" [style.width.%]="todayTargetPercent"></div>
+            </div>
+          </div>
+          <p class="ems-time-summary__hint">
+            {{ hoursLoggedToday >= 8 ? "Great job! Daily 8-hour target achieved." : (8 - hoursLoggedToday) + "h
+            remaining to meet your 8-hour daily target." }}
+          </p>
+        </div>
+      </section>
+
+      <!-- Projects Contributing To -->
+      <section class="ems-card">
+        <div class="ems-card-head">
+          <h2 class="ems-section-title">
+            <mat-icon>folder</mat-icon>
+            Project Workload
+          </h2>
+          <a routerLink="/my-projects" class="ems-card-head__link">All projects &rarr;</a>
+        </div>
+
+        <div class="ems-empty" *ngIf="projectRows.length === 0">
+          <mat-icon>folder_off</mat-icon>
+          <h3>No project associations</h3>
+        </div>
+
+        <div class="ems-project-summary-list" *ngIf="projectRows.length > 0">
+          <div class="ems-project-summary-row" *ngFor="let proj of projectRows" (click)="openProject(proj)">
+            <div class="ems-project-summary-info">
+              <strong>{{ proj.name }}</strong>
+              <small>{{ proj.doneCount }} of {{ proj.taskCount }} tasks done</small>
+            </div>
+            <mat-icon class="ems-arrow-icon">chevron_right</mat-icon>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div class="ems-actions ems-actions--stack">
-        <a mat-stroked-button [routerLink]="isAdmin ? '/tasks' : '/my-tasks'">
-          <mat-icon>task_alt</mat-icon>
-          {{ isAdmin ? 'Task board' : 'My tasks' }}
-        </a>
-        <a mat-stroked-button routerLink="/my-projects">
-          <mat-icon>folder_open</mat-icon>
-          My projects
-        </a>
-      </div>
-    </section>
-  </div>
+      <!-- Quick Operations -->
+      <app-quick-actions></app-quick-actions>
 
-  <div class="ems-dash-grid">
-    <section class="ems-card">
-      <h2 class="ems-section-title">
-        <mat-icon>folder_open</mat-icon>
-        {{ isAdmin ? 'Projects' : 'My projects' }}
-      </h2>
+    </div>
 
-      <div class="ems-empty" *ngIf="!loading && projectRows.length === 0">
-        <mat-icon>folder_off</mat-icon>
-        <h3>No projects yet</h3>
-        <p>{{ isAdmin ? 'No projects linked to these tasks.' : 'Projects appear once your tasks are linked to one.' }}</p>
-      </div>
-
-      <ul class="ems-rows" *ngIf="projectRows.length > 0">
-        <!-- A project is a door, not a label: the row opens the task detail. -->
-        <li class="ems-rows__item proj-row"
-            *ngFor="let project of projectRows"
-            role="button"
-            tabindex="0"
-            [attr.aria-label]="'Open the tasks in ' + project.name"
-            (click)="openProject(project)"
-            (keydown.enter)="openProject(project)"
-            (keydown.space)="openProject(project)">
-          <div class="ems-rows__main">
-            <strong>{{ project.name }}</strong>
-            <small>{{ project.taskCount }} task(s) {{ isAdmin ? 'in this board' : 'assigned to me' }} · click to read the detail</small>
-          </div>
-          <div class="ems-rows__side">
-            <span class="ems-badge ems-badge--neutral">{{ project.doneCount }}/{{ project.taskCount }} done</span>
-            <mat-icon class="proj-row__chevron">chevron_right</mat-icon>
-          </div>
-        </li>
-      </ul>
-    </section>
-
-    <section class="ems-card">
-      <h2 class="ems-section-title">
-        <mat-icon>history</mat-icon>
-        {{ isAdmin ? 'Latest hours' : 'My latest hours' }}
-      </h2>
-
-      <div class="ems-empty" *ngIf="!loading && recentActivity.length === 0">
-        <mat-icon>event_busy</mat-icon>
-        <h3>No hours logged</h3>
-        <p>{{ isAdmin ? 'This developer has not submitted hours yet.' : 'Submit a timesheet to see it here.' }}</p>
-      </div>
-
-      <ul class="ems-rows" *ngIf="recentActivity.length > 0">
-        <li class="ems-rows__item" *ngFor="let entry of recentActivity">
-          <div class="ems-rows__main">
-            <strong>{{ entry.project || 'Unassigned' }}</strong>
-            <small>{{ entry.date }}</small>
-          </div>
-          <div class="ems-rows__side">
-            <span class="ems-badge ems-badge--neutral">{{ entry.status || 'LOGGED' }}</span>
-            <span class="ems-rows__hours">{{ entry.hours }}h</span>
-          </div>
-        </li>
-      </ul>
-    </section>
   </div>
 </div>

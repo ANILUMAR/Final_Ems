@@ -2,8 +2,8 @@
   <!-- Modal Header -->
   <header class="modal-head">
     <div class="modal-head__left">
-      <span class="bug-pill">
-        <mat-icon>bug_report</mat-icon>
+      <span class="bug-pill" [class.is-prod]="isProd">
+        <mat-icon>{{ isProd ? 'warning' : 'bug_report' }}</mat-icon>
         {{ bugCode }}
       </span>
       <div>
@@ -53,7 +53,7 @@
     <section class="section-card">
       <h3 class="section-title">
         <mat-icon>subject</mat-icon>
-        Bug Description
+        {{ kindLabel }} Description
       </h3>
       <p class="section-text">{{ item.description || 'No description provided.' }}</p>
     </section>

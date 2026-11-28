@@ -13,7 +13,7 @@
         <mat-icon>upload_file</mat-icon>
         Bulk onboard
       </button>
-      <a mat-flat-button color="primary" routerLink="/register">
+      <a mat-flat-button color="primary" routerLink="/register" *ngIf="canAddEmployee">
         <mat-icon>person_add</mat-icon>
         Add employee
       </a>
@@ -109,7 +109,7 @@
                 class="reg-person__avatar"
                 [src]="photoUrl(employee)"
                 [alt]="employee.name"
-                (error)="onImageError(employee)" />
+                (error)="onImageError($event, employee)" />
               <ng-template #initialsTpl>
                 <span class="reg-person__avatar reg-person__avatar--initials">{{ initials(employee.name) }}</span>
               </ng-template>
@@ -168,7 +168,7 @@
           <td>{{ employee.address || '—' }}</td>
           <td>{{ registeredOn(employee) }}</td>
           <td class="reg-actions-col">
-            <button mat-icon-button matTooltip="Edit account" (click)="editEmployee(employee)" aria-label="Edit account">
+            <button *ngIf="canEditEmployee" mat-icon-button matTooltip="Edit account" (click)="editEmployee(employee)" aria-label="Edit account">
               <mat-icon>edit</mat-icon>
             </button>
           </td>

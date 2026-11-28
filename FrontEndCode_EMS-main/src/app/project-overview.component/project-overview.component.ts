@@ -7,6 +7,9 @@ import { RouterModule } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { ProjectItem, TaskItem, WorkspaceService } from '../services/workspace.service';
 import { ReferenceService } from '../services/reference.service';
+import { RolePermissionService } from '../services/role-permission.service';
+import { FormsModule } from '@angular/forms';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { statusMeta } from '../task-status/status-history-dialog';
 import { Pager } from '../shared/pager';
 import { DEFAULT_PAGE_SIZE, lastPageOf, pageSlice } from '../shared/pagination';
@@ -27,7 +30,7 @@ interface ProjectRow {
 @Component({
   selector: 'app-project-overview',
   standalone: true,
-  imports: [CommonModule, MatButtonModule, MatIconModule, MatTooltipModule, RouterModule, Pager],
+  imports: [CommonModule, FormsModule, MatButtonModule, MatIconModule, MatTooltipModule, RouterModule, Pager],
   templateUrl: './project-overview.component.html',
   styleUrls: ['./project-overview.component.css']
 })
@@ -38,6 +41,11 @@ export class ProjectOverviewComponent implements OnInit {
   rows: ProjectRow[] = [];
   selectedId: number | null = null;
   private allTasks: TaskItem[] = [];
+
+  showCreateModal = false;
+  newProjectName = '';
+  newProjectDescription = '';
+  isSavingProject = false;
 
   /**
    * Both lists page in the browser: the portfolio rows and the task breakdown
@@ -62,7 +70,51 @@ export class ProjectOverviewComponent implements OnInit {
     return pageSlice(this.selectedTasks, this.taskPage, this.pageSize);
   }
 
-  constructor(private workspace: WorkspaceService, private reference: ReferenceService) {}
+  constructor(
+    private workspace: WorkspaceService,
+    private reference: ReferenceService,
+    private rolePermissionService: RolePermissionService,
+    private snackBar: MatSnackBar
+  ) {}
+
+  get canCreateProject(): boolean {
+    return this.rolePermissionService.isScreenAllowed('PROJECT_OVERVIEW') &&
+           this.rolePermissionService.canAdd('PROJECT_OVERVIEW');
+  }
+
+  openCreateModal(): void {
+    this.newProjectName = '';
+    this.newProjectDescription = '';
+    this.showCreateModal = true;
+  }
+
+  closeCreateModal(): void {
+    if (this.isSavingProject) return;
+    this.showCreateModal = false;
+  }
+
+  submitCreateProject(): void {
+    const name = this.newProjectName.trim();
+    if (!name || this.isSavingProject) return;
+
+    this.isSavingProject = true;
+    this.workspace.createProject({
+      name: name,
+      description: this.newProjectDescription.trim()
+    }).subscribe({
+      next: (proj) => {
+        this.isSavingProject = false;
+        this.showCreateModal = false;
+        this.snackBar.open(`Project "${proj.name}" created successfully! Configure its team in Project Teams & Hierarchy.`, 'Close', { duration: 4000 });
+        this.reload();
+      },
+      error: (err) => {
+        this.isSavingProject = false;
+        const message = typeof err?.error === 'string' && err.error.trim() ? err.error : (err?.error?.message || 'Could not create the project.');
+        this.snackBar.open(message, 'Close', { duration: 4000 });
+      }
+    });
+  }
 
   ngOnInit(): void {
     this.reload();

@@ -16,6 +16,15 @@ export interface MasterEntry {
   sortOrder?: number | null;
 }
 
+export interface ExcelImportResult {
+  totalRows: number;
+  modulesProcessed: number;
+  subModulesProcessed: number;
+  screensProcessed: number;
+  warnings: string[];
+  data?: MasterMap;
+}
+
 type MasterMap = Partial<Record<MasterType, MasterEntry[]>>;
 
 /**
@@ -103,6 +112,50 @@ export class MasterDataService {
     return this.http
       .delete<MasterEntry>(`${this.apiUrl}/${entry.id}`, { headers: this.headers() })
       .pipe(tap(() => this.request$ = null));
+  }
+
+  /**
+   * Uploads an Excel file to parse and save Modules, Sub-Modules, and Screens in the database.
+   */
+  uploadExcel(file: File): Observable<ExcelImportResult> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<ExcelImportResult>(`${this.apiUrl}/upload-excel`, formData, {
+      headers: new HttpHeaders({ Authorization: `Bearer ${localStorage.getItem('token')}` })
+    }).pipe(
+      tap((result) => {
+        this.request$ = null;
+        if (result?.data) {
+          this.apply(result.data);
+        }
+      })
+    );
+  }
+
+  /**
+   * Bulk imports parsed rows of { module, subModule, screen } into the database.
+   */
+  importBulk(rows: { module: string; subModule: string; screen: string }[]): Observable<ExcelImportResult> {
+    return this.http.post<ExcelImportResult>(`${this.apiUrl}/bulk`, rows, {
+      headers: this.headers()
+    }).pipe(
+      tap((result) => {
+        this.request$ = null;
+        if (result?.data) {
+          this.apply(result.data);
+        }
+      })
+    );
+  }
+
+  /**
+   * Downloads the pre-formatted Excel template for Module and Screen Setup.
+   */
+  downloadTemplate(): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/excel-template`, {
+      headers: this.headers(),
+      responseType: 'blob'
+    });
   }
 
   /* ---------- internals ---------- */

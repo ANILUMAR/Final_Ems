@@ -3,24 +3,27 @@
   <header class="ems-header">
     <div class="ems-header__titles">
       <div class="ems-header__eyebrow">
-        <a routerLink="/developer-completed" class="ems-breadcrumb-link">
-          <mat-icon>arrow_back</mat-icon> Developer Completed Work
+        <a [routerLink]="isSuperAdmin ? '/completed-tasks' : '/developer-completed'" class="ems-breadcrumb-link">
+          <mat-icon>arrow_back</mat-icon> {{ isSuperAdmin ? 'Completed Tickets/Bugs List' : 'Developer Completed Work' }}
         </a>
         <span class="ems-header__sep">/</span>
-        <span>Review Queue</span>
+        <span>{{ isSuperAdmin ? 'Super Admin' : 'Review Queue' }}</span>
       </div>
       <h1 class="ems-header__title">
         <mat-icon class="ems-title-icon">pause_circle_filled</mat-icon>
-        On Hold Tasks
+        On-Hold Tickets List
       </h1>
       <p class="ems-header__subtitle">
-        Tasks and bugs placed on hold by the Team Leader during review. Held tasks are isolated here until approved for QA testing or returned to developers for rework.
+        {{ isSuperAdmin ? 'Tickets and bugs placed on hold. Review hold reasons, assigned developers, or return to
+        developers for rework.' : 'Tickets and bugs placed on hold by the Team Leader during review. Held tickets are
+        isolated here until approved for QA testing or returned to developers for rework.' }}
       </p>
     </div>
     <div class="ems-header__actions">
-      <a mat-flat-button color="primary" routerLink="/developer-completed" class="ems-btn-completed-top">
+      <a mat-flat-button color="primary" [routerLink]="isSuperAdmin ? '/completed-tasks' : '/developer-completed'"
+        class="ems-btn-completed-top">
         <mat-icon>check_circle</mat-icon>
-        Completed Tasks & Batch Release
+        Completed Tickets/Bugs List
       </a>
       <button mat-stroked-button color="primary" (click)="loadData()" [disabled]="loading">
         <mat-icon>refresh</mat-icon> Refresh
@@ -28,12 +31,16 @@
     </div>
   </header>
 
+  <!-- Interactive Workflow Pipeline -->
+  <app-workflow-pipeline currentStage="onhold"></app-workflow-pipeline>
+
   <!-- Banner Alerts -->
   <div *ngIf="successMessage" class="ems-alert ems-alert--success">
     <mat-icon>check_circle</mat-icon>
     <div class="ems-alert__content">
       <span>{{ successMessage }}</span>
-      <a routerLink="/developer-completed" class="ems-alert__action-link">Go to Developer Completed Tasks &rarr;</a>
+      <a [routerLink]="isSuperAdmin ? '/completed-tasks' : '/developer-completed'" class="ems-alert__action-link">Go to
+        Completed Tasks/Bugs List &rarr;</a>
     </div>
     <button class="ems-alert__close" (click)="successMessage = ''">&times;</button>
   </div>
@@ -62,7 +69,7 @@
       </div>
       <div class="ems-stat-card__content">
         <span class="ems-stat-card__value">{{ totalHeldTasks }}</span>
-        <span class="ems-stat-card__label">Held Tasks</span>
+        <span class="ems-stat-card__label">Held Tickets</span>
       </div>
     </div>
 
@@ -80,38 +87,21 @@
   <!-- Filter & Search Toolbar -->
   <div class="ems-toolbar">
     <div class="ems-filters">
-      <button
-        class="ems-filter-btn"
-        [class.is-active]="filter === 'ALL'"
-        (click)="setFilter('ALL')"
-      >
+      <button class="ems-filter-btn" [class.is-active]="filter === 'ALL'" (click)="setFilter('ALL')">
         All ({{ totalOnHold }})
       </button>
-      <button
-        class="ems-filter-btn"
-        [class.is-active]="filter === 'TASK'"
-        (click)="setFilter('TASK')"
-      >
-        Tasks ({{ totalHeldTasks }})
+      <button class="ems-filter-btn" [class.is-active]="filter === 'TASK'" (click)="setFilter('TASK')">
+        Tickets ({{ totalHeldTasks }})
       </button>
-      <button
-        class="ems-filter-btn"
-        [class.is-active]="filter === 'BUG'"
-        (click)="setFilter('BUG')"
-      >
+      <button class="ems-filter-btn" [class.is-active]="filter === 'BUG'" (click)="setFilter('BUG')">
         Bugs ({{ totalHeldBugs }})
       </button>
     </div>
 
     <div class="ems-search-wrap">
       <mat-icon class="ems-search-icon">search</mat-icon>
-      <input
-        type="text"
-        class="ems-search-input"
-        placeholder="Search code, title, developer, or reason..."
-        [(ngModel)]="search"
-        (input)="onSearchChange()"
-      />
+      <input type="text" class="ems-search-input" placeholder="Search code, title, developer, or reason..."
+        [(ngModel)]="search" (input)="onSearchChange()" />
       <button *ngIf="search" class="ems-search-clear" (click)="search = ''; onSearchChange()">
         <mat-icon>close</mat-icon>
       </button>
@@ -130,17 +120,17 @@
       <mat-icon>check_circle_outline</mat-icon>
     </div>
     <h3 class="ems-empty-state__title">
-      {{ search || filter !== 'ALL' ? 'No matching tasks on hold' : 'No tasks currently on hold' }}
+      {{ search || filter !== 'ALL' ? 'No matching tickets on hold' : 'No tickets currently on hold' }}
     </h3>
     <p class="ems-empty-state__desc">
       {{
-        search || filter !== 'ALL'
-          ? 'Try adjusting your search query or filter selection.'
-          : 'All developer completed tasks are either approved for testing or have already been released.'
+      search || filter !== 'ALL'
+      ? 'Try adjusting your search query or filter selection.'
+      : 'All developer completed tickets are either approved for testing or have already been released.'
       }}
     </p>
     <a *ngIf="!search && filter === 'ALL'" mat-flat-button color="primary" routerLink="/developer-completed">
-      <mat-icon>arrow_forward</mat-icon> View Developer Completed Tasks
+      <mat-icon>arrow_forward</mat-icon> View Developer Completed Tickets
     </a>
   </div>
 
@@ -153,7 +143,7 @@
           <span class="ems-kind-badge" [ngClass]="kindBadge(item)">
             {{ kindLabel(item) }}
           </span>
-          <span class="ems-code-badge">{{ taskCode(item) }}</span>
+          <span class="ems-code-badge tk-clickable" (click)="openTicketDetails(item)" matTooltip="Open Ticket 360° View">{{ taskCode(item) }}</span>
           <span class="ems-priority-badge" [attr.data-priority]="item.priority">
             {{ item.priority || 'MEDIUM' }}
           </span>
@@ -166,7 +156,7 @@
       </div>
 
       <!-- Title -->
-      <h3 class="ems-task-card__title">{{ item.taskTitle }}</h3>
+      <h3 class="ems-task-card__title tk-clickable-title" (click)="openTicketDetails(item)" matTooltip="Open Ticket 360° View">{{ item.taskTitle }}</h3>
 
       <!-- Hold Reason Callout Banner -->
       <div class="ems-hold-banner">
@@ -224,22 +214,13 @@
 
       <!-- Card Actions (Leader & Admin) -->
       <div *ngIf="isLeader" class="ems-task-card__actions">
-        <button
-          mat-flat-button
-          class="ems-btn-approve-unhold"
-          (click)="approveForTesting(item)"
-          matTooltip="Unhold this task and approve it for batch release to Testing Team"
-        >
-          <mat-icon>check_circle</mat-icon> Approve for Testing
+        <button mat-flat-button class="ems-btn-approve-unhold" (click)="approveForTesting(item)"
+          [matTooltip]="isSuperAdmin ? 'Unhold this item and return it to Completed Tasks/Bugs List' : 'Unhold this task and approve it for batch release to Testing Team'">
+          <mat-icon>check_circle</mat-icon> {{ isSuperAdmin ? 'Unhold & Resume' : 'Approve for Testing' }}
         </button>
 
-        <button
-          mat-stroked-button
-          color="warn"
-          class="ems-btn-rework"
-          (click)="openReworkModal(item)"
-          matTooltip="Return this task to the developer with rework instructions"
-        >
+        <button mat-stroked-button color="warn" class="ems-btn-rework" (click)="openReworkModal(item)"
+          matTooltip="Return this task to the developer with rework instructions">
           <mat-icon>replay</mat-icon> Send Back to Developer
         </button>
       </div>
@@ -248,12 +229,8 @@
 
   <!-- Pagination -->
   <div *ngIf="!loading && filteredItems.length > 0" class="ems-pagination-wrap">
-    <app-pager
-      [length]="filteredItems.length"
-      [(pageIndex)]="pageIndex"
-      [(pageSize)]="pageSize"
-      noun="task"
-    ></app-pager>
+    <app-pager [length]="filteredItems.length" [(pageIndex)]="pageIndex" [(pageSize)]="pageSize"
+      noun="ticket"></app-pager>
   </div>
 
   <!-- Rework Modal (Send Back to Developer) -->
@@ -285,24 +262,18 @@
 
         <div class="ems-form-group">
           <label class="ems-label">Rework Instructions / Feedback <span class="required">*</span></label>
-          <textarea
-            class="ems-textarea"
-            rows="4"
-            placeholder="Explain why this task is being sent back and what the developer needs to fix or change..."
-            [(ngModel)]="reworkInstructions"
-          ></textarea>
-          <span class="ems-hint">The task status will revert to In Progress, and these instructions will appear on the developer's board.</span>
+          <textarea class="ems-textarea" rows="4"
+            placeholder="Explain why this ticket is being sent back and what the developer needs to fix or change..."
+            [(ngModel)]="reworkInstructions"></textarea>
+          <span class="ems-hint">The ticket status will revert to In Progress, and these instructions will appear on the
+            developer's board.</span>
         </div>
       </div>
 
       <div class="ems-modal__footer">
         <button mat-button (click)="closeReworkModal()" [disabled]="submittingRework">Cancel</button>
-        <button
-          mat-flat-button
-          color="warn"
-          (click)="submitRework()"
-          [disabled]="submittingRework || !reworkInstructions.trim()"
-        >
+        <button mat-flat-button color="warn" (click)="submitRework()"
+          [disabled]="submittingRework || !reworkInstructions.trim()">
           <mat-icon>undo</mat-icon>
           {{ submittingRework ? 'Sending...' : 'Confirm & Send Back to Developer' }}
         </button>

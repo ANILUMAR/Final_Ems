@@ -12,6 +12,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterModule } from '@angular/router';
 import { roleLabel as formatRole, assignableRoles, isSuperAdminRole } from '../models/role';
 import { ReferenceService } from '../services/reference.service';
+import { LocalAvatarService } from '../services/local-avatar.service';
 
 @Component({
   selector: 'app-update-profile',
@@ -56,14 +57,30 @@ export class UpdateProfileComponent implements OnInit {
     return formatRole(role);
   }
 
-  constructor(private fb: FormBuilder, private snackBar: MatSnackBar, private http: HttpClient,
-              private reference: ReferenceService) {
+  getRoleIcon(role: string): string {
+    return this.avatarService.getRoleIcon(role);
+  }
+
+  onPhotoError(event: Event): void {
+    const img = event.target as HTMLImageElement;
+    if (img) {
+      img.src = this.avatarService.getDefaultAvatarForRole(this.profileForm.get('role')?.value);
+    }
+  }
+
+  constructor(
+    private fb: FormBuilder,
+    private snackBar: MatSnackBar,
+    private http: HttpClient,
+    private reference: ReferenceService,
+    private avatarService: LocalAvatarService
+  ) {
     this.profileForm = this.fb.group({
       name: ['', Validators.required],
       email: [{ value: '', disabled: true }, [Validators.required, Validators.email]],
       phoneNumber: ['', [Validators.pattern(/^[0-9]{10}$/)]],
       address: [''],
-      role: ['', Validators.required]
+      role: [{ value: '', disabled: !this.canEditRole }, Validators.required]
     });
   }
 
@@ -116,20 +133,27 @@ export class UpdateProfileComponent implements OnInit {
 
     this.http.get<any>(url, { headers }).subscribe({
       next: (data: any) => {
+        const userRole = (data.role || '').toUpperCase();
         this.profileForm.patchValue({
           name: data.name || data.username || data.fullName || '',
           email: data.email || username,
           phoneNumber: data.phoneNumber || '',
           address: data.address || '',
-          role: (data.role || '').toUpperCase()
+          role: userRole
         });
 
-        this.storedImage = data.registerImage || '';
-        if (this.storedImage) {
-          this.profilePhotoUrl = this.storedImage.startsWith('http')
-            ? this.storedImage
-            : `http://localhost:9001/attachments/${this.storedImage}`;
+        if (this.canEditRole) {
+          this.profileForm.get('role')?.enable();
+        } else {
+          this.profileForm.get('role')?.disable();
         }
+
+        this.storedImage = data.registerImage || '';
+        this.profilePhotoUrl = this.avatarService.getAvatarUrl(
+          this.storedImage,
+          userRole,
+          data.name || data.username || data.fullName
+        );
 
         this.loading = false;
       },
@@ -163,14 +187,18 @@ export class UpdateProfileComponent implements OnInit {
 
     const value = this.profileForm.getRawValue();
 
-    const details = {
+    const details: any = {
       username: value.email,
       email: value.email,
       fullName: value.name,
-      role: value.role,
       address: value.address || null,
       phoneNumber: value.phoneNumber || null
     };
+
+    // Role changes are strictly permitted for Administrators only
+    if (this.canEditRole && value.role) {
+      details.role = value.role;
+    }
 
     const formData = new FormData();
     formData.append('details', new Blob([JSON.stringify(details)], { type: 'application/json' }));
@@ -185,9 +213,11 @@ export class UpdateProfileComponent implements OnInit {
       next: () => {
         this.saving = false;
         localStorage.setItem('name', value.name);
-        localStorage.setItem('role', value.role);
+        if (this.canEditRole && value.role) {
+          localStorage.setItem('role', value.role);
+        }
         this.selectedFile = null;
-        this.snackBar.open('Profile updated.', 'Close', { duration: 3000 });
+        this.snackBar.open('Profile updated successfully.', 'Close', { duration: 3000 });
         this.loadProfile();
       },
       error: (err) => {
@@ -200,7 +230,11 @@ export class UpdateProfileComponent implements OnInit {
 
   reset(): void {
     this.selectedFile = null;
-    this.profilePhotoUrl = this.storedImage ? `http://localhost:9001/attachments/${this.storedImage}` : null;
+    this.profilePhotoUrl = this.avatarService.getAvatarUrl(
+      this.storedImage,
+      this.profileForm.get('role')?.value,
+      this.displayName
+    );
     this.loadProfile();
   }
 }

@@ -2,7 +2,7 @@
   <header class="ems-page-head">
     <div>
       <h1 class="ems-page-title">My projects</h1>
-      <p class="ems-page-subtitle">Work grouped by the projects you are assigned to.</p>
+      <p class="ems-page-subtitle">Projects and assignments you are involved in across your team hierarchy.</p>
     </div>
     <div class="ems-actions">
       <button mat-stroked-button matTooltip="Reload your projects" (click)="reload()">
@@ -14,9 +14,9 @@
 
   <div class="ems-stat-grid">
     <article class="ems-stat">
-      <span class="ems-stat__label">Projects</span>
+      <span class="ems-stat__label">Assigned Projects</span>
       <span class="ems-stat__value">{{ myProjectCount }}</span>
-      <span class="ems-stat__hint">You are involved in</span>
+      <span class="ems-stat__hint">In your hierarchy</span>
     </article>
 
     <article class="ems-stat">
@@ -47,12 +47,68 @@
     <article class="ems-card mp-card" *ngFor="let row of pagedRows">
       <header class="mp-card__head">
         <div class="mp-card__id">
-          <h2>{{ row.name }}</h2>
+          <div class="mp-card__title-row">
+            <h2>{{ row.name }}</h2>
+            <span class="mp-role-pill" [ngClass]="row.myRoleClass" [matTooltip]="'Your role on ' + row.name">
+              <mat-icon>badge</mat-icon>
+              {{ row.myRole }}
+            </span>
+          </div>
           <p>{{ row.description }}</p>
         </div>
-        <span class="ems-badge" [ngClass]="row.statusClass">{{ row.status }}</span>
+        <div class="mp-card__badges">
+          <span class="ems-badge" [ngClass]="row.statusClass">{{ row.status }}</span>
+          <span class="mp-auth-pill is-authorized" *ngIf="row.workAuthorized" matTooltip="CEO Approved & Authorized to Begin Work">
+            <mat-icon>verified</mat-icon> Authorized
+          </span>
+          <span class="mp-auth-pill is-pending" *ngIf="!row.workAuthorized && row.approvalStatus === 'SUBMITTED'" matTooltip="Submitted to CEO, awaiting authorization">
+            <mat-icon>hourglass_empty</mat-icon> Pending CEO
+          </span>
+          <span class="mp-auth-pill is-draft" *ngIf="!row.workAuthorized && row.approvalStatus !== 'SUBMITTED'" matTooltip="Project team hierarchy in draft mode">
+            <mat-icon>edit_note</mat-icon> Draft
+          </span>
+        </div>
       </header>
 
+      <!-- Assignment & Responsibilities banner -->
+      <div class="mp-role-callout" *ngIf="row.myResponsibilities">
+        <div class="mp-callout-header">
+          <span class="mp-callout-label">
+            <mat-icon>assignment_turned_in</mat-icon>
+            Your Responsibilities
+          </span>
+          <div class="mp-callout-tags">
+            <span class="mp-tag" matTooltip="Project capacity allocation">
+              <mat-icon>donut_large</mat-icon> {{ row.myAllocation }}% Allocation
+            </span>
+            <span class="mp-tag" [ngClass]="'prio-' + (row.myPriority || 'MEDIUM').toLowerCase()">
+              <mat-icon>flag</mat-icon> {{ row.myPriority }} Priority
+            </span>
+          </div>
+        </div>
+        <p class="mp-callout-text">{{ row.myResponsibilities }}</p>
+      </div>
+
+      <!-- Project Leadership & Key Contacts -->
+      <div class="mp-leadership-row" *ngIf="row.pmName || row.devLeadName || row.testerLeadName">
+        <div class="mp-lead-chip" *ngIf="row.pmName" [matTooltip]="'Project Manager: ' + (row.pmEmail || '')">
+          <mat-icon class="icon-pm">manage_accounts</mat-icon>
+          <span class="lead-role">PM:</span>
+          <span class="lead-name">{{ row.pmName }}</span>
+        </div>
+        <div class="mp-lead-chip" *ngIf="row.devLeadName" [matTooltip]="'Java Team Leader: ' + (row.devLeadEmail || '')">
+          <mat-icon class="icon-dev">code</mat-icon>
+          <span class="lead-role">Java Lead:</span>
+          <span class="lead-name">{{ row.devLeadName }}</span>
+        </div>
+        <div class="mp-lead-chip" *ngIf="row.testerLeadName" [matTooltip]="'Testing Team Leader: ' + (row.testerLeadEmail || '')">
+          <mat-icon class="icon-test">bug_report</mat-icon>
+          <span class="lead-role">QA Lead:</span>
+          <span class="lead-name">{{ row.testerLeadName }}</span>
+        </div>
+      </div>
+
+      <!-- Delivery Progress Tracking -->
       <div class="ems-pipeline" *ngIf="row.progress !== null; else noTracking">
         <div class="ems-pipeline__row">
           <div class="ems-pipeline__meta">
@@ -65,13 +121,17 @@
         </div>
       </div>
       <ng-template #noTracking>
-        <p class="mp-none">No tracked tasks recorded for this project yet.</p>
+        <div class="mp-no-tasks-box">
+          <mat-icon>info_outline</mat-icon>
+          <span>You are assigned to this project team hierarchy. Tasks and sprint deliverables will appear here as work progresses.</span>
+        </div>
       </ng-template>
 
+      <!-- Task Meta Stats -->
       <ul class="mp-meta">
         <li>
           <mat-icon>assignment</mat-icon>
-          <span>{{ row.myTasks.length }} assigned to you</span>
+          <span>{{ row.myTasks.length }} personal task{{ row.myTasks.length === 1 ? '' : 's' }}</span>
         </li>
         <li>
           <mat-icon>event</mat-icon>
@@ -83,25 +143,56 @@
         </li>
       </ul>
 
-      <div class="ems-chip-row mp-tasks">
+      <!-- Active Task Chips -->
+      <div class="ems-chip-row mp-tasks" *ngIf="row.myTasks.length">
         <span class="mp-task" *ngFor="let task of row.myTasks | slice: 0:4" [class.is-overdue]="isOverdue(task)">
           {{ task.taskTitle }}
         </span>
         <span class="mp-task mp-task--more" *ngIf="row.myTasks.length > 4">+{{ row.myTasks.length - 4 }} more</span>
       </div>
 
+      <!-- Card Footer with Team Avatars & Workflow Action Buttons -->
       <footer class="mp-card__foot">
-        <span class="mp-team" *ngIf="row.team.length; else solo">
-          <span class="ems-avatar-sm" *ngFor="let person of row.team | slice: 0:4">{{ initials(person) }}</span>
-        </span>
+        <div class="mp-team" *ngIf="row.team.length; else solo">
+          <span class="ems-avatar-sm" *ngFor="let person of row.team | slice: 0:5" [matTooltip]="person">{{ initials(person) }}</span>
+          <span class="ems-dim mp-team-count" *ngIf="row.team.length > 5">+{{ row.team.length - 5 }}</span>
+        </div>
         <ng-template #solo>
-          <span class="ems-dim">Only you on this project</span>
+          <span class="ems-dim">Team member</span>
         </ng-template>
 
-        <a mat-stroked-button [routerLink]="taskBoardLink">
-          <mat-icon>open_in_new</mat-icon>
-          View tasks
-        </a>
+        <div class="mp-actions-cluster">
+          <!-- Tester Action: Raise bug/issue -->
+          <a mat-stroked-button class="mp-btn-action" *ngIf="isTester(row) || isTestLead(row) || isAdmin()"
+             [routerLink]="['/issues/new']" [queryParams]="{ project: row.name }"
+             matTooltip="Raise a bug or test item for this project">
+            <mat-icon>add_circle_outline</mat-icon>
+            Report Bug
+          </a>
+
+          <!-- Dev Lead Action: Assign/triage tickets -->
+          <a mat-stroked-button class="mp-btn-action" *ngIf="isDevLead(row) || isPM(row) || isAdmin()"
+             [routerLink]="['/triage']" [queryParams]="{ project: row.name }"
+             matTooltip="Assign approved tickets to developers">
+            <mat-icon>assignment_ind</mat-icon>
+            Assign
+          </a>
+
+          <!-- Log Timesheet action -->
+          <a mat-stroked-button class="mp-btn-action"
+             [routerLink]="['/timesheets/new']" [queryParams]="{ project: row.name }"
+             matTooltip="Submit daily work log / timesheet for this project">
+            <mat-icon>schedule</mat-icon>
+            Log Time
+          </a>
+
+          <!-- View Tickets / Tasks -->
+          <a mat-flat-button color="primary" class="mp-btn-action mp-btn-primary"
+             [routerLink]="taskBoardLink" [queryParams]="{ project: row.name }">
+            <mat-icon>open_in_new</mat-icon>
+            Tasks
+          </a>
+        </div>
       </footer>
     </article>
   </div>
@@ -110,18 +201,14 @@
     <div class="ems-empty">
       <mat-icon>workspaces</mat-icon>
       <h3>No projects assigned yet</h3>
-      <p>Once work is assigned to you, it is grouped here by project.</p>
+      <p>Once you are configured in a Project Team Hierarchy or assigned work, your projects will appear here.</p>
       <a mat-stroked-button class="ems-empty__cta" [routerLink]="taskBoardLink">
-        {{ taskBoardLink === '/tasks' ? 'Open the task board' : 'Open my tasks' }}
+        {{ taskBoardLink === '/tasks' ? 'Open Kanban Board' : 'Open My Assigned Tickets' }}
       </a>
     </div>
   </ng-template>
 
   <!-- Five projects a page by default, with the dropdown to change it. -->
-  <app-pager
-    [length]="rows.length"
-    [(pageIndex)]="pageIndex"
-    [(pageSize)]="pageSize"
-    noun="project">
+  <app-pager [length]="rows.length" [(pageIndex)]="pageIndex" [(pageSize)]="pageSize" noun="project">
   </app-pager>
 </section>

@@ -1,43 +1,32 @@
 import { HttpClientModule } from '@angular/common/http';
-import { Component, NgModule, ViewEncapsulation } from '@angular/core';
-import { NavigationEnd, RouterOutlet } from '@angular/router';
+import { Component, inject } from '@angular/core';
+import { NavigationEnd, Router, RouterModule, RouterOutlet } from '@angular/router';
 import { Header } from "./layout/header/header";
 import { Sidebar } from "./layout/sidebar/sidebar";
 import { filter } from 'rxjs';
-import { Router, RouterModule } from '@angular/router';
-import { CommonModule } from '@angular/common'; // ✅ Needed for *ngIf
+import { CommonModule } from '@angular/common';
 import { ThemeService } from './services/theme.service';
-
-
-
+import { NavigationPreferenceService } from './services/navigation-preference.service';
 
 @Component({
   selector: 'app-root',
-   standalone: true,
-  imports: [RouterOutlet, HttpClientModule, Header, Sidebar, CommonModule],
-  
+  standalone: true,
+  imports: [RouterOutlet, HttpClientModule, Header, Sidebar, CommonModule, RouterModule],
   templateUrl: './app.html',
   styleUrl: './app.css'
-    //encapsulation: ViewEncapsulation.None, // Needed for global style overrides
-
 })
-
-
 export class App {
+  private router = inject(Router);
+  readonly navPref = inject(NavigationPreferenceService);
   showHeader = true;
 
-  constructor(private Router: Router, theme: ThemeService) {
-    // Injecting the service at the root applies the saved theme on every screen,
-    // including the auth pages where the header is hidden.
+  constructor(theme: ThemeService) {
     void theme;
-    this.Router.events
+    this.router.events
       .pipe(filter(event => event instanceof NavigationEnd))
       .subscribe((event: any) => {
-        const noHeaderRoutes = ['/','/login', '/register', '/forgotpassward'];
+        const noHeaderRoutes = ['/', '/login', '/register', '/forgotpassward'];
         this.showHeader = !noHeaderRoutes.includes(event.urlAfterRedirects);
       });
   }
 }
-  
-  
-

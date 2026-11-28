@@ -1,9 +1,12 @@
 package canteenManagment.main.master;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -14,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import canteenManagment.main.service.UserService;
 
@@ -67,6 +71,58 @@ public class MasterDataController {
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(ex.getMessage());
         }
+    }
+
+    /**
+     * Uploads and parses an Excel (.xlsx or .xls) file containing Module, Sub-Module,
+     * and Screen rows, saving them into the database.
+     */
+    @PostMapping(value = "/upload-excel", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> uploadExcel(@RequestParam("file") MultipartFile file, Authentication authentication) {
+        if (!userService.canEditMasters(authentication)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body("Only the company administrator can change the master data.");
+        }
+        if (file == null || file.isEmpty()) {
+            return ResponseEntity.badRequest().body("Please select a non-empty Excel file.");
+        }
+        String filename = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().toLowerCase(Locale.ROOT);
+        if (!filename.endsWith(".xlsx") && !filename.endsWith(".xls")) {
+            return ResponseEntity.badRequest().body("Invalid file type. Please upload an Excel (.xlsx or .xls) file.");
+        }
+        try {
+            return ResponseEntity.ok(masterDataService.importExcel(file.getInputStream()));
+        } catch (Exception ex) {
+            return ResponseEntity.badRequest().body("Failed to process Excel file: " + ex.getMessage());
+        }
+    }
+
+    /**
+     * Bulk imports a list of (module, subModule, screen) maps.
+     */
+    @PostMapping("/bulk")
+    public ResponseEntity<?> importBulk(@RequestBody List<Map<String, String>> rows, Authentication authentication) {
+        if (!userService.canEditMasters(authentication)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body("Only the company administrator can change the master data.");
+        }
+        try {
+            return ResponseEntity.ok(masterDataService.importRows(rows));
+        } catch (Exception ex) {
+            return ResponseEntity.badRequest().body("Bulk import failed: " + ex.getMessage());
+        }
+    }
+
+    /**
+     * Downloads an Excel (.xlsx) template with pre-configured headers and sample rows.
+     */
+    @GetMapping("/excel-template")
+    public ResponseEntity<byte[]> downloadTemplate() {
+        byte[] bytes = masterDataService.generateExcelTemplate();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"Module_Screen_Setup_Template.xlsx\"")
+                .header(HttpHeaders.CONTENT_TYPE, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                .body(bytes);
     }
 
     /** Retires a value (and everything under it); recorded work keeps rendering. */

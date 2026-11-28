@@ -7,7 +7,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { RouterModule } from '@angular/router';
+import { ActivatedRoute, RouterModule } from '@angular/router';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { TaskModel } from '../models/employee';
 import { taskCodeOf } from '../models/work-item';
@@ -17,6 +17,8 @@ import { WorkflowService } from '../services/workflow.service';
 import { Pager } from '../shared/pager';
 import { DEFAULT_PAGE_SIZE, lastPageOf, pageSlice } from '../shared/pagination';
 import { BugDetailDialog } from '../bug-detail-dialog/bug-detail-dialog';
+import { TicketDetailDialog } from '../ticket-detail-dialog/ticket-detail-dialog';
+import { TicketService, SlaStatus } from '../services/ticket.service';
 
 @Component({
   selector: 'app-employee-my-task',
@@ -55,20 +57,42 @@ export class EmployeeMyTask implements OnInit {
     private http: HttpClient,
     private reference: ReferenceService,
     private dialog: MatDialog,
-    private workflow: WorkflowService
+    private workflow: WorkflowService,
+    private ticketService: TicketService,
+    private route: ActivatedRoute
   ) {}
 
   ngOnInit(): void {
+    this.route.queryParams.subscribe((params) => {
+      if (params['project']) {
+        this.search = params['project'];
+      }
+    });
     this.taskModelResponse();
   }
 
-  openBugDetails(task: TaskModel): void {
-    this.dialog.open(BugDetailDialog, {
+  slaOf(task: TaskModel): SlaStatus {
+    return this.ticketService.computeSlaStatus(task);
+  }
+
+  priorityMetaOf(task: TaskModel) {
+    return this.ticketService.priorityPill(task.priority);
+  }
+
+  openTicketDetails(task: TaskModel): void {
+    const ref = this.dialog.open(TicketDetailDialog, {
       data: { item: task },
       width: '92vw',
-      maxWidth: '1100px',
+      maxWidth: '1150px',
       maxHeight: '92vh'
     });
+    ref.afterClosed().subscribe(() => {
+      this.taskModelResponse();
+    });
+  }
+
+  openBugDetails(task: TaskModel): void {
+    this.openTicketDetails(task);
   }
 
   get filteredTasks(): TaskModel[] {
@@ -173,6 +197,21 @@ export class EmployeeMyTask implements OnInit {
     return (task.kind || 'TASK').toUpperCase() === 'BUG';
   }
 
+  isProdIssue(task: TaskModel): boolean {
+    const k = (task.kind || '').toUpperCase();
+    return k === 'PRODUCTION_ISSUE' || k === 'PROD_ISSUE' || k === 'PROD' || (task.taskCode || '').startsWith('PROD');
+  }
+
+  kindLabel(task: TaskModel): string {
+    if (this.isProdIssue(task)) return 'Production Issue';
+    return this.isBug(task) ? 'Bug' : 'Ticket';
+  }
+
+  kindBadge(task: TaskModel): string {
+    if (this.isProdIssue(task)) return 'ems-badge--prod';
+    return this.isBug(task) ? 'ems-badge--danger' : 'ems-badge--info';
+  }
+
   initials(name: string): string {
     return (name || '?')
       .split(' ')
@@ -194,6 +233,11 @@ export class EmployeeMyTask implements OnInit {
 
   onStatusChanged(task: TaskModel, status: string): void {
     task.status = status;
+    if (status === 'DONE') {
+      task.testingStatus = 'VERIFIED';
+    } else if (task.testingStatus === 'VERIFIED') {
+      task.testingStatus = 'IN_TESTING';
+    }
   }
 
   /** A reopen carries a remark; keep it on the card until the item is done again. */
@@ -314,5 +358,51 @@ export class EmployeeMyTask implements OnInit {
         alert('Failed to delete the task');
       }
     });
+  }
+
+  toIsoDate(date: any): string {
+    if (!date) return '—';
+    try {
+      return new Date(date).toISOString().slice(0, 10);
+    } catch {
+      return '—';
+    }
+  }
+
+  downloadCsv(): void {
+    const headers = ['Ticket ID', 'Kind', 'Title', 'Project', 'Module', 'Screen', 'Assignee', 'Priority', 'Start Date', 'Due Date', 'Status'];
+    const rows = this.filteredTasks.map(task => [
+      this.code(task),
+      task.kind || 'TASK',
+      task.taskTitle,
+      task.project || '—',
+      task.module || '—',
+      task.screen || '—',
+      task.assignedToName || task.assignedTesterName || 'Me',
+      this.priorityLabel(task.priority),
+      this.toIsoDate(task.startDate),
+      this.toIsoDate(task.endDate),
+      task.status || 'ASSIGNED'
+    ]);
+    this.exportCsvFile('My_Tickets', headers, rows);
+  }
+
+  exportCsvFile(filename: string, headers: string[], rows: (string | number | undefined | null)[][]): void {
+    const escapeCell = (val: any): string => {
+      if (val === null || val === undefined) return '""';
+      const s = String(val).replace(/"/g, '""');
+      return `"${s}"`;
+    };
+    const headerLine = headers.map(escapeCell).join(',');
+    const rowLines = rows.map(r => r.map(escapeCell).join(','));
+    const csvContent = '\uFEFF' + [headerLine, ...rowLines].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const dateStr = new Date().toISOString().slice(0, 10);
+    link.download = `${filename}_${dateStr}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   }
 }

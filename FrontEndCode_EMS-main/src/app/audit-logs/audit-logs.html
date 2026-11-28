@@ -1,0 +1,379 @@
+<section class="ems-page al-page">
+  <!-- Header -->
+  <header class="ems-page-head">
+    <div>
+      <h1 class="ems-page-title">
+        <mat-icon class="al-head-icon">manage_history</mat-icon>
+        Audit Logs
+      </h1>
+      <p class="ems-page-subtitle">
+        Comprehensive historical record of all application transactions, status transitions, ticket removals, and user activities.
+      </p>
+    </div>
+
+    <div class="ems-actions">
+      <button mat-stroked-button (click)="exportCsv()" [disabled]="!filteredLogs.length" matTooltip="Download filtered audit logs as CSV report">
+        <mat-icon>download</mat-icon>
+        Export CSV
+      </button>
+      <button mat-stroked-button (click)="loadLogs(); loadStats()" matTooltip="Reload recent activity records">
+        <mat-icon>refresh</mat-icon>
+        Refresh
+      </button>
+    </div>
+  </header>
+
+  <!-- Error banner -->
+  <div class="ems-auth__note ems-auth__note--error" *ngIf="errorMessage">
+    <mat-icon>error_outline</mat-icon>
+    <span>{{ errorMessage }}</span>
+  </div>
+
+  <!-- Metric Statistics Cards -->
+  <div class="ems-stat-grid al-stat-grid">
+    <article class="ems-stat al-stat-card">
+      <div class="al-stat-icon al-stat-icon--primary">
+        <mat-icon>manage_history</mat-icon>
+      </div>
+      <div>
+        <span class="ems-stat__label">Total Transactions</span>
+        <strong class="ems-stat__value">{{ stats.totalActivities || logs.length }}</strong>
+        <span class="ems-stat__hint">Global application activity history</span>
+      </div>
+    </article>
+
+    <article class="ems-stat al-stat-card">
+      <div class="al-stat-icon al-stat-icon--info">
+        <mat-icon>sync_alt</mat-icon>
+      </div>
+      <div>
+        <span class="ems-stat__label">Status Transitions</span>
+        <strong class="ems-stat__value">{{ stats.statusTransitions }}</strong>
+        <span class="ems-stat__hint">Ticket & bug progress updates</span>
+      </div>
+    </article>
+
+    <article class="ems-stat al-stat-card">
+      <div class="al-stat-icon al-stat-icon--danger">
+        <mat-icon>delete_sweep</mat-icon>
+      </div>
+      <div>
+        <span class="ems-stat__label">Deletions Audited</span>
+        <strong class="ems-stat__value">{{ stats.deletions }}</strong>
+        <span class="ems-stat__hint">Removed tickets with accountability notes</span>
+      </div>
+    </article>
+
+    <article class="ems-stat al-stat-card">
+      <div class="al-stat-icon al-stat-icon--success">
+        <mat-icon>fact_check</mat-icon>
+      </div>
+      <div>
+        <span class="ems-stat__label">Timesheet Reviews</span>
+        <strong class="ems-stat__value">{{ stats.timesheetEvents }}</strong>
+        <span class="ems-stat__hint">Submissions, approvals, and reviews</span>
+      </div>
+    </article>
+
+    <article class="ems-stat al-stat-card">
+      <div class="al-stat-icon al-stat-icon--neutral">
+        <mat-icon>people</mat-icon>
+      </div>
+      <div>
+        <span class="ems-stat__label">Active Actors</span>
+        <strong class="ems-stat__value">{{ stats.activeUsers }}</strong>
+        <span class="ems-stat__hint">Team members with recorded actions</span>
+      </div>
+    </article>
+  </div>
+
+  <!-- Main Content Card -->
+  <section class="ems-card al-main-card">
+    <!-- Toolbar: Category Tabs + Search + Date Filters -->
+    <div class="al-toolbar">
+      <!-- Category Tabs -->
+      <nav class="al-category-tabs">
+        <button
+          type="button"
+          class="al-tab-btn"
+          [class.is-active]="selectedCategory === 'ALL'"
+          (click)="setCategory('ALL')">
+          <mat-icon>all_inclusive</mat-icon>
+          <span>All Activities</span>
+          <span class="al-tab-count">{{ countByCategory('ALL') }}</span>
+        </button>
+
+        <button
+          type="button"
+          class="al-tab-btn"
+          [class.is-active]="selectedCategory === 'STATUS_CHANGE'"
+          (click)="setCategory('STATUS_CHANGE')">
+          <mat-icon>sync_alt</mat-icon>
+          <span>Status Updates</span>
+          <span class="al-tab-count">{{ countByCategory('STATUS_CHANGE') }}</span>
+        </button>
+
+        <button
+          type="button"
+          class="al-tab-btn al-tab-btn--danger"
+          [class.is-active]="selectedCategory === 'TICKET_DELETION'"
+          (click)="setCategory('TICKET_DELETION')">
+          <mat-icon>delete_sweep</mat-icon>
+          <span>Deletions</span>
+          <span class="al-tab-count">{{ countByCategory('TICKET_DELETION') }}</span>
+        </button>
+
+        <button
+          type="button"
+          class="al-tab-btn al-tab-btn--success"
+          [class.is-active]="selectedCategory === 'TIMESHEET'"
+          (click)="setCategory('TIMESHEET')">
+          <mat-icon>schedule</mat-icon>
+          <span>Timesheets</span>
+          <span class="al-tab-count">{{ countByCategory('TIMESHEET') }}</span>
+        </button>
+      </nav>
+
+      <!-- Date Presets & Filter Controls -->
+      <div class="al-filter-controls">
+        <div class="al-preset-group">
+          <button type="button" class="al-preset-btn" [class.is-active]="activePreset === 'all'" (click)="setDatePreset('all')">All Time</button>
+          <button type="button" class="al-preset-btn" [class.is-active]="activePreset === 'today'" (click)="setDatePreset('today')">Today</button>
+          <button type="button" class="al-preset-btn" [class.is-active]="activePreset === 'week'" (click)="setDatePreset('week')">This Week</button>
+          <button type="button" class="al-preset-btn" [class.is-active]="activePreset === 'month'" (click)="setDatePreset('month')">This Month</button>
+        </div>
+
+        <div class="al-date-inputs">
+          <input type="date" class="al-date-field" [(ngModel)]="fromDate" placeholder="From date" />
+          <span class="al-date-sep">→</span>
+          <input type="date" class="al-date-field" [(ngModel)]="toDate" placeholder="To date" />
+        </div>
+
+        <button *ngIf="hasActiveFilters" type="button" class="al-btn-clear" (click)="clearFilters()" matTooltip="Clear all filters">
+          <mat-icon>clear</mat-icon>
+          Clear
+        </button>
+      </div>
+    </div>
+
+    <!-- Search Input Bar -->
+    <div class="al-search-bar">
+      <div class="al-search-wrap">
+        <mat-icon class="al-search-icon">search</mat-icon>
+        <input
+          type="text"
+          class="al-search-input"
+          [(ngModel)]="search"
+          placeholder="Filter by actor name, email, ticket code (TASK-001), action or remarks..." />
+        <button *ngIf="search" type="button" class="al-search-clear" (click)="search = ''">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+      <span class="al-results-count">
+        Showing <strong>{{ filteredLogs.length }}</strong> of {{ logs.length }} logs
+      </span>
+    </div>
+
+    <!-- Loading State -->
+    <div class="ems-empty" *ngIf="loading">
+      <mat-icon class="al-spin">hourglass_top</mat-icon>
+      <h3>Loading Audit History...</h3>
+      <p>Fetching transaction records and activity trails.</p>
+    </div>
+
+    <!-- Empty State -->
+    <div class="ems-empty" *ngIf="!loading && filteredLogs.length === 0">
+      <mat-icon>manage_history</mat-icon>
+      <h3>No audit records found</h3>
+      <p *ngIf="!logs.length">No activities or transactions have been logged in the system yet.</p>
+      <p *ngIf="logs.length">No log entries matched your active category, date, or search filters.</p>
+      <button *ngIf="hasActiveFilters" mat-stroked-button (click)="clearFilters()">
+        <mat-icon>restart_alt</mat-icon> Reset Filters
+      </button>
+    </div>
+
+    <!-- Audit Logs Data Table -->
+    <div class="ems-table-wrap" *ngIf="!loading && filteredLogs.length > 0">
+      <table class="al-table">
+        <thead>
+          <tr>
+            <th style="width: 170px">Timestamp</th>
+            <th style="width: 220px">Performed By</th>
+            <th style="width: 150px">Activity Category</th>
+            <th>Action & Target Entity</th>
+            <th>Details & Transition</th>
+            <th>User Remarks / Reason</th>
+            <th style="width: 70px; text-align: center">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of pagedLogs" (click)="viewDetails(item)" class="al-row">
+            <!-- 1. Timestamp -->
+            <td class="al-col-time">
+              <div class="al-time-box">
+                <span class="al-time-date">{{ item.timestamp | date:'dd MMM yyyy' }}</span>
+                <span class="al-time-clock">{{ item.timestamp | date:'HH:mm:ss' }}</span>
+              </div>
+            </td>
+
+            <!-- 2. Performed By (Actor) -->
+            <td class="al-col-actor">
+              <div class="al-actor-info">
+                <span class="ems-avatar-sm al-avatar">{{ initials(item.actorName || item.actorEmail) }}</span>
+                <div class="al-actor-text">
+                  <strong class="al-actor-name">{{ item.actorName || item.actorEmail || 'System' }}</strong>
+                  <div class="al-actor-sub">
+                    <span class="al-actor-role">{{ item.actorRole || 'Member' }}</span>
+                    <span *ngIf="item.actorEmail" class="al-actor-email" [title]="item.actorEmail">{{ item.actorEmail }}</span>
+                  </div>
+                </div>
+              </div>
+            </td>
+
+            <!-- 3. Activity Category -->
+            <td class="al-col-cat">
+              <span class="al-cat-pill" [ngClass]="categoryMeta(item.category).css">
+                <mat-icon>{{ categoryMeta(item.category).icon }}</mat-icon>
+                <span>{{ categoryMeta(item.category).label }}</span>
+              </span>
+            </td>
+
+            <!-- 4. Action & Target Entity -->
+            <td class="al-col-target">
+              <div class="al-target-box">
+                <div class="al-action-text">{{ item.action }}</div>
+                <div class="al-entity-chips">
+                  <span class="al-code-chip" *ngIf="item.entityCode || item.entityId">
+                    <mat-icon style="font-size:12px;width:12px;height:12px">tag</mat-icon>
+                    {{ item.entityCode || ('ID ' + item.entityId) }}
+                  </span>
+                  <span class="al-entity-title" [title]="item.entityTitle">{{ item.entityTitle }}</span>
+                </div>
+              </div>
+            </td>
+
+            <!-- 5. Details & Transition -->
+            <td class="al-col-details">
+              <!-- Visual Transition Badge (From -> To) -->
+              <div class="al-transition-row" *ngIf="item.fromValue || item.toValue">
+                <span class="al-state-badge al-state--from">{{ item.fromValue || 'INITIAL' }}</span>
+                <mat-icon class="al-trans-arrow">arrow_forward</mat-icon>
+                <span class="al-state-badge al-state--to">{{ item.toValue }}</span>
+              </div>
+              <div class="al-detail-desc" *ngIf="!item.fromValue && item.details">{{ item.details }}</div>
+            </td>
+
+            <!-- 6. Remarks / Reason -->
+            <td class="al-col-remarks">
+              <span *ngIf="item.remarks" class="al-remarks-text" [matTooltip]="item.remarks">
+                “{{ item.remarks }}”
+              </span>
+              <span *ngIf="!item.remarks" class="al-remarks-empty">—</span>
+            </td>
+
+            <!-- 7. View Details Button -->
+            <td class="al-col-actions" style="text-align: center">
+              <button
+                type="button"
+                class="ems-icon-btn"
+                (click)="$event.stopPropagation(); viewDetails(item)"
+                matTooltip="Inspect complete transaction audit details">
+                <mat-icon>visibility</mat-icon>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pager -->
+    <app-pager
+      *ngIf="filteredLogs.length > 0"
+      [length]="filteredLogs.length"
+      [(pageIndex)]="pageIndex"
+      [(pageSize)]="pageSize"
+      noun="audit log">
+    </app-pager>
+  </section>
+
+  <!-- Detailed Modal Drawer for Selected Log -->
+  <div class="al-drawer-backdrop" *ngIf="selectedLog" (click)="closeDetails()">
+    <div class="al-drawer" (click)="$event.stopPropagation()">
+      <header class="al-drawer-head">
+        <div class="al-drawer-title-group">
+          <span class="al-cat-pill" [ngClass]="categoryMeta(selectedLog.category).css">
+            <mat-icon>{{ categoryMeta(selectedLog.category).icon }}</mat-icon>
+            {{ categoryMeta(selectedLog.category).label }}
+          </span>
+          <h2>Transaction Audit Details</h2>
+        </div>
+        <button type="button" class="ems-icon-btn" (click)="closeDetails()">
+          <mat-icon>close</mat-icon>
+        </button>
+      </header>
+
+      <div class="al-drawer-body">
+        <div class="al-detail-card">
+          <label>Action Performed</label>
+          <div class="al-val-lead">{{ selectedLog.action }}</div>
+        </div>
+
+        <div class="al-grid-2">
+          <div class="al-detail-card">
+            <label>Timestamp</label>
+            <div class="al-val">{{ selectedLog.timestamp | date:'EEEE, dd MMMM yyyy, HH:mm:ss' }}</div>
+          </div>
+          <div class="al-detail-card">
+            <label>Transaction ID</label>
+            <div class="al-val al-mono">{{ selectedLog.id }}</div>
+          </div>
+        </div>
+
+        <div class="al-detail-card">
+          <label>Actor (Performed By)</label>
+          <div class="al-actor-info" style="margin-top: 6px">
+            <span class="ems-avatar-sm al-avatar">{{ initials(selectedLog.actorName || selectedLog.actorEmail) }}</span>
+            <div class="al-actor-text">
+              <strong class="al-actor-name">{{ selectedLog.actorName || selectedLog.actorEmail || 'System' }}</strong>
+              <div class="al-actor-sub">
+                <span class="al-actor-role">{{ selectedLog.actorRole || 'Member' }}</span>
+                <span *ngIf="selectedLog.actorEmail">{{ selectedLog.actorEmail }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="al-detail-card" *ngIf="selectedLog.entityTitle || selectedLog.entityCode">
+          <label>Target Work Item / Entity</label>
+          <div class="al-val">
+            <span class="al-code-chip" *ngIf="selectedLog.entityCode">{{ selectedLog.entityCode }}</span>
+            <strong>{{ selectedLog.entityTitle }}</strong>
+          </div>
+        </div>
+
+        <div class="al-detail-card" *ngIf="selectedLog.fromValue || selectedLog.toValue">
+          <label>State Modification</label>
+          <div class="al-transition-row" style="margin-top: 6px">
+            <span class="al-state-badge al-state--from">{{ selectedLog.fromValue || 'INITIAL' }}</span>
+            <mat-icon class="al-trans-arrow">arrow_forward</mat-icon>
+            <span class="al-state-badge al-state--to">{{ selectedLog.toValue }}</span>
+          </div>
+        </div>
+
+        <div class="al-detail-card" *ngIf="selectedLog.details">
+          <label>Execution Details</label>
+          <div class="al-val">{{ selectedLog.details }}</div>
+        </div>
+
+        <div class="al-detail-card" *ngIf="selectedLog.remarks">
+          <label>User Notes / Justification Reason</label>
+          <div class="al-val al-remarks-box">“{{ selectedLog.remarks }}”</div>
+        </div>
+      </div>
+
+      <footer class="al-drawer-foot">
+        <button mat-flat-button color="primary" (click)="closeDetails()">Done</button>
+      </footer>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,360 @@
+<div class="ems-page dm-view-page">
+  <!-- Top Header with Eyebrow, Screen Switcher and Action Buttons -->
+  <header class="dm-header">
+    <div class="dm-header__titles">
+      <div class="dm-header__eyebrow">
+        <span>Master Module</span>
+        <span class="dm-header__sep">/</span>
+        <span>{{ schema?.module || 'System Masters' }}</span>
+        <span class="dm-header__sep" *ngIf="schema?.subModule">/</span>
+        <span *ngIf="schema?.subModule">{{ schema?.subModule }}</span>
+      </div>
+
+      <div class="dm-title-wrap">
+        <h1 class="dm-header__title">{{ schema?.screenName || screenCode }}</h1>
+
+        <!-- Quick Screen Switcher -->
+        <div class="dm-screen-picker" *ngIf="allSchemas.length > 1">
+          <mat-icon>swap_horiz</mat-icon>
+          <select [ngModel]="screenCode" (ngModelChange)="switchScreen($event)" class="dm-screen-select">
+            <option *ngFor="let s of allSchemas" [value]="s.screenCode">
+              {{ s.screenName }} ({{ s.screenCode }})
+            </option>
+          </select>
+        </div>
+      </div>
+
+      <p class="dm-header__subtitle">
+        {{ schema?.description || ('Manage dynamic records, lookups, and configurations for ' + (schema?.screenName || screenCode) + '.') }}
+      </p>
+    </div>
+
+    <div class="dm-header__actions">
+      <!-- Edit Schema in Form Builder (Admin only) -->
+      <a
+        mat-stroked-button
+        *ngIf="canEditSchema"
+        [routerLink]="['/dynamic-masters/builder', screenCode]"
+        style="border-color: #38bdf8; color: #38bdf8;"
+        matTooltip="Open Visual Form Designer to modify fields and validations">
+        <mat-icon>tune</mat-icon>
+        Design Form Schema
+      </a>
+
+      <!-- Export to Excel -->
+      <button
+        mat-stroked-button
+        type="button"
+        (click)="exportExcel()"
+        [disabled]="exporting || pageResult.totalElements === 0"
+        matTooltip="Download records as Excel (.xlsx)">
+        <mat-icon>{{ exporting ? 'hourglass_top' : 'file_download' }}</mat-icon>
+        {{ exporting ? 'Exporting...' : 'Export Excel' }}
+      </button>
+
+      <!-- Back to Master Hub -->
+      <a mat-stroked-button routerLink="/dynamic-masters">
+        <mat-icon>grid_view</mat-icon>
+        Master Hub
+      </a>
+
+      <!-- Add Record Primary Button -->
+      <button mat-flat-button color="primary" type="button" (click)="openCreateModal()">
+        <mat-icon>add</mat-icon>
+        Add Record
+      </button>
+    </div>
+  </header>
+
+  <!-- Toolbar & Search -->
+  <section class="dm-toolbar ems-card">
+    <div class="dm-toolbar__left">
+      <span class="dm-stat-badge">
+        <mat-icon>dataset</mat-icon>
+        <strong>{{ pageResult.totalElements }}</strong> Total Records
+      </span>
+      <span class="dm-stat-badge dm-stat-badge--muted" *ngIf="schema?.fields">
+        <mat-icon>view_column</mat-icon>
+        <strong>{{ gridFields.length }}</strong> Columns Displayed
+      </span>
+    </div>
+
+    <div class="dm-toolbar__right">
+      <div class="dm-search-wrap">
+        <mat-icon>search</mat-icon>
+        <input
+          type="text"
+          [(ngModel)]="search"
+          (ngModelChange)="onSearchChange()"
+          placeholder="Search records..."
+          class="dm-search-input"
+        />
+        <button *ngIf="search" class="dm-search-clear" (click)="clearSearch()">&times;</button>
+      </div>
+
+      <button mat-stroked-button type="button" (click)="loadRecords()" [disabled]="loading" matTooltip="Refresh table">
+        <mat-icon>refresh</mat-icon>
+      </button>
+    </div>
+  </section>
+
+  <!-- Main Data Table Grid -->
+  <div class="ems-card dm-table-card">
+    <!-- Loading State -->
+    <div class="dm-loading" *ngIf="loading">
+      <mat-icon class="dm-spin">refresh</mat-icon>
+      <span>Loading master records...</span>
+    </div>
+
+    <!-- Empty State -->
+    <div class="dm-empty" *ngIf="!loading && pageResult.items.length === 0">
+      <mat-icon class="dm-empty__icon">inbox</mat-icon>
+      <h3>{{ search ? 'No records match “' + search + '”' : 'No records created yet' }}</h3>
+      <p>{{ search ? 'Try searching with another keyword.' : 'Click "Add Record" to enter your first data entry for this master.' }}</p>
+      <button mat-flat-button color="primary" *ngIf="!search" (click)="openCreateModal()">
+        <mat-icon>add</mat-icon>
+        Add First Record
+      </button>
+    </div>
+
+    <!-- Data Table -->
+    <div class="dm-table-wrap" *ngIf="!loading && pageResult.items.length > 0">
+      <table class="dm-table">
+        <thead>
+          <tr>
+            <th class="dm-th dm-th--id" (click)="sortBy('id')">
+              <span>ID</span>
+              <mat-icon class="dm-sort-icon" *ngIf="sortField === 'id'">{{ sortDir === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+            </th>
+
+            <th
+              class="dm-th"
+              *ngFor="let field of gridFields"
+              (click)="sortBy(field.fieldKey)">
+              <span>{{ field.fieldLabel }}</span>
+              <mat-icon class="dm-sort-icon" *ngIf="sortField === field.fieldKey">{{ sortDir === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+            </th>
+
+            <th class="dm-th dm-th--date" (click)="sortBy('createdAt')">
+              <span>Created</span>
+              <mat-icon class="dm-sort-icon" *ngIf="sortField === 'createdAt'">{{ sortDir === 'asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+            </th>
+
+            <th class="dm-th dm-th--actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of pageResult.items" class="dm-tr">
+            <!-- ID -->
+            <td class="dm-td dm-td--id">#{{ row.id }}</td>
+
+            <!-- Configured Dynamic Fields -->
+            <td class="dm-td" *ngFor="let field of gridFields">
+              <!-- Boolean Toggle -->
+              <ng-container *ngIf="field.fieldType === 'TOGGLE'">
+                <span class="ems-badge" [ngClass]="row.data[field.fieldKey] ? 'ems-badge--success' : 'ems-badge--neutral'">
+                  {{ row.data[field.fieldKey] ? 'Active' : 'Inactive' }}
+                </span>
+              </ng-container>
+
+              <!-- Master Lookup -->
+              <ng-container *ngIf="field.fieldType === 'LOOKUP'">
+                <span class="dm-lookup-val">
+                  {{ getLookupDisplayLabel(field, row.data[field.fieldKey]) }}
+                </span>
+              </ng-container>
+
+              <!-- Currency -->
+              <ng-container *ngIf="field.fieldType === 'CURRENCY'">
+                <strong>{{ row.data[field.fieldKey] !== undefined && row.data[field.fieldKey] !== null ? (row.data[field.fieldKey] | currency) : '—' }}</strong>
+              </ng-container>
+
+              <!-- Standard Value (Text, Number, Date, Select) -->
+              <ng-container *ngIf="field.fieldType !== 'TOGGLE' && field.fieldType !== 'LOOKUP' && field.fieldType !== 'CURRENCY'">
+                <span>{{ row.data[field.fieldKey] !== undefined && row.data[field.fieldKey] !== null ? row.data[field.fieldKey] : '—' }}</span>
+              </ng-container>
+            </td>
+
+            <!-- Created Date -->
+            <td class="dm-td dm-td--date">
+              <small>{{ row.createdAt || '—' }}</small>
+            </td>
+
+            <!-- Actions -->
+            <td class="dm-td dm-td--actions">
+              <button
+                type="button"
+                class="dm-action-icon dm-action-icon--edit"
+                (click)="openEditModal(row)"
+                matTooltip="Edit record">
+                <mat-icon>edit</mat-icon>
+              </button>
+              <button
+                type="button"
+                class="dm-action-icon dm-action-icon--delete"
+                (click)="deleteRecord(row)"
+                matTooltip="Delete record">
+                <mat-icon>delete_outline</mat-icon>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pager -->
+    <app-pager
+      *ngIf="pageResult.totalElements > 0"
+      [length]="pageResult.totalElements"
+      [pageIndex]="pageResult.page"
+      [pageSize]="pageResult.size"
+      (pageIndexChange)="onPageChange($event)"
+      (pageSizeChange)="onPageSizeChange($event)"
+      noun="record">
+    </app-pager>
+  </div>
+
+  <!-- =========================================================================
+       DYNAMIC RECORD FORM MODAL (CREATE / EDIT)
+       ========================================================================= -->
+  <div class="dm-modal-backdrop" *ngIf="showModal" (click)="closeModal()">
+    <div class="dm-modal ems-card" (click)="$event.stopPropagation()">
+      <div class="dm-modal__head">
+        <div class="dm-modal__titles">
+          <span class="dm-modal__eyebrow">{{ schema?.screenName || 'Master' }}</span>
+          <h2 class="dm-modal__title">
+            {{ isEditMode ? ('Edit Record #' + currentRecordId) : ('Add New ' + (schema?.screenName || 'Record')) }}
+          </h2>
+        </div>
+        <button type="button" class="dm-modal__close" (click)="closeModal()">&times;</button>
+      </div>
+
+      <form [formGroup]="recordForm" (ngSubmit)="submitRecord()" class="dm-modal__body">
+        <div class="dm-form-grid">
+          <div
+            class="dm-form-col"
+            *ngFor="let field of schema?.fields"
+            [ngClass]="'span-' + (field.colSpan || 6)">
+            
+            <label class="dm-form-label">
+              {{ field.fieldLabel }}
+              <span class="dm-req-star" *ngIf="field.required">*</span>
+              <span class="dm-unique-pill" *ngIf="field.unique">UNIQUE</span>
+            </label>
+
+            <!-- Field Input Types -->
+            <ng-container [ngSwitch]="field.fieldType">
+              <!-- Textarea -->
+              <textarea
+                *ngSwitchCase="'TEXTAREA'"
+                [formControlName]="field.fieldKey"
+                [placeholder]="field.placeholder || ''"
+                rows="3"
+                class="dm-form-input dm-form-textarea">
+              </textarea>
+
+              <!-- Number / Currency -->
+              <input
+                *ngSwitchCase="'NUMBER'"
+                type="number"
+                [formControlName]="field.fieldKey"
+                [placeholder]="field.placeholder || ''"
+                class="dm-form-input"
+              />
+              <input
+                *ngSwitchCase="'CURRENCY'"
+                type="number"
+                [formControlName]="field.fieldKey"
+                [placeholder]="field.placeholder || '0.00'"
+                class="dm-form-input"
+              />
+
+              <!-- Static Dropdown Select -->
+              <select
+                *ngSwitchCase="'SELECT'"
+                [formControlName]="field.fieldKey"
+                class="dm-form-select">
+                <option value="">-- Select {{ field.fieldLabel }} --</option>
+                <option *ngFor="let opt of field.options" [value]="opt.value">{{ opt.label }}</option>
+              </select>
+
+              <!-- Master Lookup Dropdown -->
+              <select
+                *ngSwitchCase="'LOOKUP'"
+                [formControlName]="field.fieldKey"
+                class="dm-form-select">
+                <option value="">-- Select from {{ field.lookupScreenCode || 'Master' }} --</option>
+                <option *ngFor="let opt of lookupOptionsMap[field.fieldKey]" [value]="opt.value">
+                  {{ opt.label }}
+                </option>
+              </select>
+
+              <!-- Slide Toggle -->
+              <div *ngSwitchCase="'TOGGLE'" class="dm-form-toggle-wrap">
+                <mat-slide-toggle [formControlName]="field.fieldKey" color="primary">
+                  {{ recordForm.get(field.fieldKey)?.value ? 'Active' : 'Inactive' }}
+                </mat-slide-toggle>
+              </div>
+
+              <!-- Radio Group -->
+              <div *ngSwitchCase="'RADIO'" class="dm-form-radio-group">
+                <label *ngFor="let opt of field.options" class="dm-form-radio-label">
+                  <input
+                    type="radio"
+                    [formControlName]="field.fieldKey"
+                    [value]="opt.value"
+                  />
+                  <span>{{ opt.label }}</span>
+                </label>
+              </div>
+
+              <!-- Default Text, Email, Phone, Date -->
+              <input
+                *ngSwitchDefault
+                [type]="field.fieldType === 'DATE' ? 'date' : (field.fieldType === 'EMAIL' ? 'email' : 'text')"
+                [formControlName]="field.fieldKey"
+                [placeholder]="field.placeholder || ''"
+                class="dm-form-input"
+              />
+            </ng-container>
+
+            <!-- Hint text -->
+            <small class="dm-form-hint" *ngIf="field.hint">{{ field.hint }}</small>
+
+            <!-- Validation Errors -->
+            <div
+              class="dm-form-error"
+              *ngIf="recordForm.get(field.fieldKey)?.invalid && recordForm.get(field.fieldKey)?.touched">
+              <span *ngIf="recordForm.get(field.fieldKey)?.errors?.['required']">
+                {{ field.fieldLabel }} is required.
+              </span>
+              <span *ngIf="recordForm.get(field.fieldKey)?.errors?.['minlength']">
+                Must be at least {{ field.minLength }} characters.
+              </span>
+              <span *ngIf="recordForm.get(field.fieldKey)?.errors?.['maxlength']">
+                Must not exceed {{ field.maxLength }} characters.
+              </span>
+              <span *ngIf="recordForm.get(field.fieldKey)?.errors?.['min']">
+                Must be at least {{ field.min }}.
+              </span>
+              <span *ngIf="recordForm.get(field.fieldKey)?.errors?.['max']">
+                Must not exceed {{ field.max }}.
+              </span>
+              <span *ngIf="recordForm.get(field.fieldKey)?.errors?.['pattern']">
+                {{ field.regexMessage || 'Format is invalid.' }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="dm-modal__actions">
+          <button type="button" mat-stroked-button (click)="closeModal()">Cancel</button>
+          <button type="submit" mat-flat-button color="primary" [disabled]="saving">
+            <mat-icon>{{ saving ? 'hourglass_top' : 'save' }}</mat-icon>
+            {{ saving ? 'Saving...' : (isEditMode ? 'Update Record' : 'Create Record') }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

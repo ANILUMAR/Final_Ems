@@ -1,0 +1,381 @@
+<section class="ems-page">
+  <header class="ems-page-head">
+    <div>
+      <h1 class="ems-page-title">Timesheet Approvals</h1>
+      <p class="ems-page-subtitle">Review daily task-wise entries submitted by your team members, verify working hours, and approve or request revisions.</p>
+    </div>
+    <div class="ems-actions">
+      <button mat-stroked-button (click)="loadApprovals()">
+        <mat-icon>refresh</mat-icon>
+        Refresh Queue
+      </button>
+    </div>
+  </header>
+
+  <!-- Metric Overview Cards -->
+  <div class="ems-stat-grid">
+    <article class="ems-stat">
+      <span class="ems-stat__label">Pending Approval</span>
+      <span class="ems-stat__value app-val--warning">{{ pendingCount }}</span>
+      <span class="ems-stat__hint">Awaiting your action</span>
+    </article>
+
+    <article class="ems-stat">
+      <span class="ems-stat__label">Under Review</span>
+      <span class="ems-stat__value">{{ underReviewCount }}</span>
+      <span class="ems-stat__hint">In review process</span>
+    </article>
+
+    <article class="ems-stat">
+      <span class="ems-stat__label">Approved</span>
+      <span class="ems-stat__value app-val--success">{{ approvedCount }}</span>
+      <span class="ems-stat__hint">Signed off</span>
+    </article>
+
+    <article class="ems-stat">
+      <span class="ems-stat__label">Revisions Requested</span>
+      <span class="ems-stat__value app-val--danger">{{ rejectedCount }}</span>
+      <span class="ems-stat__hint">Sent back with comments</span>
+    </article>
+  </div>
+
+  <!-- Filter & Search Toolbar -->
+  <div class="ems-card app-toolbar">
+    <div class="app-filters-row">
+      <!-- Search Field -->
+      <mat-form-field appearance="outline" class="app-search-field">
+        <mat-label>Search employee, task, project…</mat-label>
+        <input matInput [(ngModel)]="search" placeholder="Employee name, email, task title…" />
+        <mat-icon matPrefix>search</mat-icon>
+      </mat-form-field>
+
+      <!-- Date Range: From -->
+      <mat-form-field appearance="outline" class="app-filter-date">
+        <mat-label>From Date</mat-label>
+        <input matInput [matDatepicker]="fromPicker" [(ngModel)]="fromDate" (dateChange)="onFilterChange()" />
+        <mat-datepicker-toggle matIconSuffix [for]="fromPicker"></mat-datepicker-toggle>
+        <mat-datepicker #fromPicker></mat-datepicker>
+      </mat-form-field>
+
+      <!-- Date Range: To -->
+      <mat-form-field appearance="outline" class="app-filter-date">
+        <mat-label>To Date</mat-label>
+        <input matInput [matDatepicker]="toPicker" [(ngModel)]="toDate" (dateChange)="onFilterChange()" />
+        <mat-datepicker-toggle matIconSuffix [for]="toPicker"></mat-datepicker-toggle>
+        <mat-datepicker #toPicker></mat-datepicker>
+      </mat-form-field>
+
+      <button mat-button class="app-btn-reset" (click)="clearFilters()">
+        <mat-icon>clear_all</mat-icon>
+        Clear
+      </button>
+    </div>
+
+    <!-- Status Tabs -->
+    <div class="app-status-tabs">
+      <button
+        type="button"
+        class="ems-chip"
+        *ngFor="let tab of statusTabs"
+        [class.is-active]="statusFilter === tab.key"
+        (click)="setStatusTab(tab.key)">
+        {{ tab.label }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Error Note -->
+  <div class="ems-auth__note ems-auth__note--error" *ngIf="errorMessage">
+    <mat-icon>error_outline</mat-icon>
+    <span>{{ errorMessage }}</span>
+  </div>
+
+  <!-- Approvals Table -->
+  <div class="ems-table-wrap" *ngIf="filtered.length; else noSubmissions">
+    <table>
+      <thead>
+        <tr>
+          <th>Employee</th>
+          <th>Work Date</th>
+          <th>Projects</th>
+          <th class="app-num">Tasks</th>
+          <th class="app-num">Total Hours</th>
+          <th>Submitted On</th>
+          <th>Status</th>
+          <th class="app-actions-col">Review & Decisions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let sheet of pagedApprovals" [class.app-row--overtime]="sheet.totalHours > 8">
+          <!-- Employee Info -->
+          <td>
+            <div class="app-emp-cell">
+              <span class="ems-avatar-sm">{{ initials(sheet.employeeName) }}</span>
+              <div class="app-emp-info">
+                <strong>{{ sheet.employeeName }}</strong>
+                <small>{{ sheet.employeeEmail }}</small>
+              </div>
+            </div>
+          </td>
+
+          <!-- Work Date -->
+          <td>
+            <div class="app-date-cell">
+              <strong>{{ sheet.workDate | date: 'dd MMM yyyy' }}</strong>
+              <small>{{ sheet.workDate | date: 'EEEE' }}</small>
+            </div>
+          </td>
+
+          <!-- Projects -->
+          <td>
+            <span class="app-project-text">{{ getProjectsList(sheet) }}</span>
+          </td>
+
+          <!-- Tasks Count -->
+          <td class="app-num">
+            <span class="app-count-badge">{{ (sheet.entries || []).length }}</span>
+          </td>
+
+          <!-- Total Hours -->
+          <td class="app-num">
+            <span class="app-hours-text" [class.app-hours--overtime]="sheet.totalHours > 8">
+              {{ sheet.totalHours }}h
+            </span>
+            <small class="app-overtime-tag" *ngIf="sheet.totalHours > 8">Overtime</small>
+          </td>
+
+          <!-- Submitted Date -->
+          <td>
+            <span class="app-date-sub">
+              {{ sheet.submittedAt ? (sheet.submittedAt | date: 'dd MMM, HH:mm') : '—' }}
+            </span>
+          </td>
+
+          <!-- Status -->
+          <td>
+            <span class="ems-badge" [ngClass]="statusBadge(sheet.status)">
+              {{ statusLabel(sheet.status) }}
+            </span>
+          </td>
+
+          <!-- Actions -->
+          <td class="app-actions-col">
+            <div class="app-action-buttons">
+              <!-- Review Breakdown Button -->
+              <button
+                mat-stroked-button
+                color="primary"
+                class="app-btn-review"
+                (click)="openReview(sheet)">
+                <mat-icon>visibility</mat-icon>
+                Review Tasks
+              </button>
+
+              <!-- Quick Approve if Pending -->
+              <button
+                mat-flat-button
+                color="primary"
+                class="app-btn-quick-approve"
+                *ngIf="sheet.status === 'SUBMITTED' || sheet.status === 'PENDING' || sheet.status === 'UNDER_REVIEW'"
+                matTooltip="Approve timesheet"
+                (click)="approve(sheet)">
+                <mat-icon>check</mat-icon>
+                Approve
+              </button>
+
+              <!-- Quick Reject if Pending -->
+              <button
+                mat-stroked-button
+                color="warn"
+                class="app-btn-quick-reject"
+                *ngIf="sheet.status === 'SUBMITTED' || sheet.status === 'PENDING' || sheet.status === 'UNDER_REVIEW'"
+                matTooltip="Reject with comments"
+                (click)="promptReject(sheet)">
+                <mat-icon>close</mat-icon>
+                Reject
+              </button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <ng-template #noSubmissions>
+    <div class="ems-empty">
+      <mat-icon>task_alt</mat-icon>
+      <h3>No timesheets in this queue</h3>
+      <p>All timesheets matching the filter have been processed. Great job!</p>
+    </div>
+  </ng-template>
+
+  <!-- Pager -->
+  <app-pager
+    [length]="filtered.length"
+    [(pageIndex)]="pageIndex"
+    [(pageSize)]="pageSize"
+    noun="timesheet"
+    plural="timesheets">
+  </app-pager>
+
+  <!-- Detailed Review Modal -->
+  <div class="app-modal-overlay" *ngIf="activeSheet" (click)="closeReview()">
+    <div class="app-modal-dialog" (click)="$event.stopPropagation()">
+      <div class="app-modal-head">
+        <div class="app-modal-emp">
+          <span class="ems-avatar-sm">{{ initials(activeSheet.employeeName) }}</span>
+          <div>
+            <h3>{{ activeSheet.employeeName }} — {{ activeSheet.workDate | date: 'EEEE, dd MMMM yyyy' }}</h3>
+            <p>{{ activeSheet.employeeEmail }} ({{ activeSheet.employeeRole || 'Member' }}) | Total: <strong>{{ activeSheet.totalHours }}h</strong></p>
+          </div>
+        </div>
+        <button mat-icon-button (click)="closeReview()">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+
+      <!-- Overtime alert if > 8h -->
+      <div class="ts-policy-note ts-policy-note--warn" *ngIf="activeSheet.totalHours > 8">
+        <mat-icon>warning</mat-icon>
+        <span>
+          <strong>Overtime Logged ({{ activeSheet.totalHours }}h):</strong>
+          {{ activeSheet.overtimeRemarks || 'No overtime remark provided.' }}
+        </span>
+      </div>
+
+      <!-- If already rejected, show why -->
+      <div class="ts-alert ts-alert--danger" *ngIf="activeSheet.status === 'REJECTED' && activeSheet.rejectionReason">
+        <mat-icon>error</mat-icon>
+        <div>
+          <strong>Rejection Feedback:</strong>
+          <p>{{ activeSheet.rejectionReason }}</p>
+        </div>
+      </div>
+
+      <!-- Task-wise breakdown table -->
+      <div class="ems-table-wrap app-modal-table">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Project</th>
+              <th>Task / Bug</th>
+              <th>Kind</th>
+              <th>Work Description</th>
+              <th class="app-num">Hours</th>
+              <th>Remarks</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of activeSheet.entries; let idx = index">
+              <td>{{ idx + 1 }}</td>
+              <td><strong>{{ item.project }}</strong></td>
+              <td>
+                <span class="ts-task-badge" [class.ts-task-badge--bug]="item.kind === 'BUG'" [class.ts-task-badge--other]="item.taskCode === 'OTHER'">
+                  {{ item.taskCode }}
+                </span>
+                <span class="app-modal-task-title">{{ item.taskTitle }}</span>
+              </td>
+              <td><small>{{ item.kind }}</small></td>
+              <td>{{ item.workDescription }}</td>
+              <td class="app-num"><strong>{{ item.hours }}h</strong></td>
+              <td>{{ item.remarks || '—' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- History Trail -->
+      <div class="app-modal-history" *ngIf="activeSheet.history?.length">
+        <h4><mat-icon>timeline</mat-icon> Audit History</h4>
+        <ul class="app-history-list">
+          <li *ngFor="let h of activeSheet.history">
+            <span class="app-history-action">{{ h.action }}</span>
+            <span class="app-history-by">by {{ h.performedByName || h.performedBy }}</span>
+            <span class="app-history-time">{{ h.timestamp | date: 'dd MMM yyyy, HH:mm' }}</span>
+            <small class="app-history-comment" *ngIf="h.comment">{{ h.comment }}</small>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Decision Bar -->
+      <div class="app-modal-foot">
+        <button
+          mat-stroked-button
+          color="accent"
+          *ngIf="activeSheet.status === 'SUBMITTED' || activeSheet.status === 'PENDING'"
+          [disabled]="submittingAction"
+          (click)="markUnderReview(activeSheet)">
+          <mat-icon>rate_review</mat-icon>
+          Mark Under Review
+        </button>
+
+        <button
+          mat-stroked-button
+          color="warn"
+          *ngIf="activeSheet.status !== 'APPROVED' && activeSheet.status !== 'REJECTED'"
+          [disabled]="submittingAction"
+          (click)="promptReject(activeSheet)">
+          <mat-icon>close</mat-icon>
+          Reject Timesheet…
+        </button>
+
+        <button
+          mat-flat-button
+          color="primary"
+          *ngIf="activeSheet.status !== 'APPROVED'"
+          [disabled]="submittingAction"
+          (click)="approve(activeSheet)">
+          <mat-icon>check</mat-icon>
+          Approve Timesheet
+        </button>
+
+        <button mat-stroked-button (click)="closeReview()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rejection Reason Modal -->
+  <div class="app-modal-overlay" *ngIf="rejectingSheet" (click)="cancelReject()">
+    <div class="app-modal-dialog app-modal-dialog--sm" (click)="$event.stopPropagation()">
+      <div class="app-modal-head">
+        <div>
+          <h3>Reject Timesheet — Request Revision</h3>
+          <p>{{ rejectingSheet.employeeName }} on {{ rejectingSheet.workDate | date: 'dd MMM yyyy' }} ({{ rejectingSheet.totalHours }}h)</p>
+        </div>
+        <button mat-icon-button (click)="cancelReject()">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+
+      <div class="app-reject-body">
+        <p class="app-reject-hint">
+          Provide detailed feedback explaining why this timesheet cannot be approved. The employee will receive an email and notification with your notes to correct and resubmit.
+        </p>
+
+        <mat-form-field appearance="outline" class="app-field--full">
+          <mat-label>Rejection Reason / Required Changes (Mandatory)</mat-label>
+          <textarea
+            matInput
+            rows="4"
+            [(ngModel)]="rejectionReason"
+            placeholder="e.g. Please clarify work done on EMS-102; hours seem high for testing alone; adjust client meeting time..."></textarea>
+        </mat-form-field>
+      </div>
+
+      <div class="app-modal-foot">
+        <button mat-stroked-button (click)="cancelReject()" [disabled]="submittingAction">
+          Cancel
+        </button>
+        <button
+          mat-flat-button
+          color="warn"
+          (click)="confirmReject()"
+          [disabled]="submittingAction || !rejectionReason.trim()">
+          <mat-icon>send</mat-icon>
+          {{ submittingAction ? 'Sending…' : 'Confirm Rejection' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</section>

@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 
-export type ThemeName = 'dark' | 'light';
+export type ThemeName = 'dark' | 'light' | 'system';
 
 const STORAGE_KEY = 'theme';
 const DEFAULT_THEME: ThemeName = 'dark';
@@ -8,7 +8,11 @@ const DEFAULT_THEME: ThemeName = 'dark';
 /** The browser's remembered choice, falling back to the shipped dark theme. */
 function storedTheme(): ThemeName {
   try {
-    return localStorage.getItem(STORAGE_KEY) === 'light' ? 'light' : DEFAULT_THEME;
+    const val = localStorage.getItem(STORAGE_KEY);
+    if (val === 'light' || val === 'system') {
+      return val;
+    }
+    return DEFAULT_THEME;
   } catch {
     // Storage can be blocked; the default theme still works.
     return DEFAULT_THEME;
@@ -27,10 +31,15 @@ export class ThemeService {
 
   constructor() {
     this.apply(this.theme());
+    this.listenToSystemChanges();
   }
 
   get isDark(): boolean {
-    return this.theme() === 'dark';
+    const current = this.theme();
+    if (current === 'system') {
+      return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return current === 'dark';
   }
 
   set(theme: ThemeName): void {
@@ -48,6 +57,23 @@ export class ThemeService {
   }
 
   private apply(theme: ThemeName): void {
-    document.documentElement.setAttribute('data-theme', theme);
+    let effective = theme;
+    if (theme === 'system') {
+      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      effective = prefersDark ? 'dark' : 'light';
+    }
+    document.documentElement.setAttribute('data-theme', effective);
+    document.documentElement.setAttribute('data-theme-preference', theme);
+  }
+
+  private listenToSystemChanges(): void {
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      mediaQuery.addEventListener('change', () => {
+        if (this.theme() === 'system') {
+          this.apply('system');
+        }
+      });
+    }
   }
 }

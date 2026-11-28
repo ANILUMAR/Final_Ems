@@ -34,7 +34,7 @@
    who is asked to look at the report. */
 .kind-switch {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 10px;
   margin-bottom: 18px;
 }
@@ -92,6 +92,16 @@
 
 .kind-switch__option.is-active.is-bug strong {
   color: var(--ems-danger-text);
+}
+
+.kind-switch__option.is-active.is-prod {
+  border-color: rgba(245, 158, 11, 0.6);
+  background: rgba(245, 158, 11, 0.12);
+  color: #fbbf24;
+}
+
+.kind-switch__option.is-active.is-prod strong {
+  color: #fde68a;
 }
 
 .raise-hint {
@@ -209,10 +219,10 @@
 
 /* Flow Preview Card */
 .flow-preview-card {
-  background: #0f172a;
-  color: #ffffff;
+  background: var(--ems-surface, #0f172a);
+  color: var(--ems-text, #ffffff);
   border-radius: 8px;
-  border: 1px solid #334155;
+  border: 1px solid var(--ems-border, #334155);
   overflow: hidden;
 }
 
@@ -221,8 +231,8 @@
   justify-content: space-between;
   align-items: center;
   padding: 8px 14px;
-  background: #1e293b;
-  border-bottom: 1px solid #334155;
+  background: var(--ems-surface-2, #1e293b);
+  border-bottom: 1px solid var(--ems-border, #334155);
 }
 
 .flow-preview-card__title {
@@ -262,7 +272,7 @@
 
 .flow-preview-card__actions button {
   font-size: 0.75rem;
-  color: #cbd5e1;
+  color: var(--ems-text-2, #cbd5e1);
 }
 
 .flow-preview-card__img-wrap {
@@ -274,7 +284,7 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  background: #090e1a;
+  background: var(--ems-surface-3, #090e1a);
 }
 
 .flow-preview-card__img-wrap img {

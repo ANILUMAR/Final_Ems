@@ -9,10 +9,13 @@ import { MatInputModule } from '@angular/material/input';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { kindBadge, kindLabel, taskCodeOf, WorkItem } from '../models/work-item';
+import { isLeadRole, isSuperAdminRole } from '../models/role';
 import { WorkflowService } from '../services/workflow.service';
 import { Pager } from '../shared/pager';
 import { DEFAULT_PAGE_SIZE, lastPageOf, pageSlice } from '../shared/pagination';
 import { BugDetailDialog } from '../bug-detail-dialog/bug-detail-dialog';
+import { TicketDetailDialog } from '../ticket-detail-dialog/ticket-detail-dialog';
+import { WorkflowPipelineComponent } from '../shared/workflow-pipeline/workflow-pipeline.component';
 
 @Component({
   selector: 'app-tested-completed',
@@ -27,7 +30,8 @@ import { BugDetailDialog } from '../bug-detail-dialog/bug-detail-dialog';
     MatInputModule,
     MatTooltipModule,
     MatDialogModule,
-    Pager
+    Pager,
+    WorkflowPipelineComponent
   ],
   templateUrl: './tested-completed.html',
   styleUrl: './tested-completed.css'
@@ -58,7 +62,7 @@ export class TestedCompletedComponent implements OnInit {
   ) {
     this.currentRole = (localStorage.getItem('role') || '').trim().toUpperCase();
     this.currentEmail = (localStorage.getItem('email') || '').trim().toLowerCase();
-    this.isLeadOrAdmin = ['SUPER_ADMIN', 'ADMIN', 'TESTER_LEAD', 'DEVELOPER_LEAD'].includes(this.currentRole);
+    this.isLeadOrAdmin = isSuperAdminRole(this.currentRole) || isLeadRole(this.currentRole);
   }
 
   ngOnInit(): void {
@@ -122,14 +126,6 @@ export class TestedCompletedComponent implements OnInit {
     return taskCodeOf(item);
   }
 
-  kindBadge(kind?: string): string {
-    return kindBadge(kind);
-  }
-
-  kindLabel(kind?: string): string {
-    return kindLabel(kind);
-  }
-
   priorityBadge(priority?: string): string {
     switch ((priority || '').toUpperCase()) {
       case 'HIGH': return 'ems-badge--danger';
@@ -139,17 +135,109 @@ export class TestedCompletedComponent implements OnInit {
     }
   }
 
+  priorityLabel(priority?: string): string {
+    const p = (priority || 'MEDIUM').toUpperCase();
+    switch (p) {
+      case 'HIGH': return 'High';
+      case 'MEDIUM': return 'Medium';
+      case 'LOW': return 'Low';
+      default: return priority || 'Medium';
+    }
+  }
+
+  initials(name?: string): string {
+    return (name || '?')
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part.charAt(0).toUpperCase())
+      .join('');
+  }
+
+  isOverdue(item: { endDate?: string | Date | null }): boolean {
+    return !!item.endDate && new Date(item.endDate).getTime() < new Date().setHours(0, 0, 0, 0);
+  }
+
+  toIsoDate(date?: string | Date | null): string {
+    if (!date) return '—';
+    try {
+      return new Date(date).toISOString().slice(0, 10);
+    } catch {
+      return '—';
+    }
+  }
+
+  downloadCsv(): void {
+    const headers = ['Ticket ID', 'Kind', 'Title', 'Project', 'Module', 'Screen', 'Developer', 'Tester', 'Priority', 'Start Date', 'Due Date', 'Status'];
+    const rows = this.filteredItems.map(item => [
+      this.code(item),
+      item.kind || 'TASK',
+      item.taskTitle,
+      item.project || '—',
+      item.module || '—',
+      item.screen || '—',
+      item.assignedToName || 'Unassigned',
+      item.assignedTesterName || item.assignedTesterEmail || 'Unassigned',
+      this.priorityLabel(item.priority),
+      this.toIsoDate(item.startDate),
+      this.toIsoDate(item.endDate),
+      item.status || 'DONE'
+    ]);
+    this.exportCsvFile('Tested_Completed_Tickets', headers, rows);
+  }
+
+  exportCsvFile(filename: string, headers: string[], rows: (string | number | undefined | null)[][]): void {
+    const escapeCell = (val: any): string => {
+      if (val === null || val === undefined) return '""';
+      const s = String(val).replace(/"/g, '""');
+      return `"${s}"`;
+    };
+    const headerLine = headers.map(escapeCell).join(',');
+    const rowLines = rows.map(r => r.map(escapeCell).join(','));
+    const csvContent = '\uFEFF' + [headerLine, ...rowLines].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const dateStr = new Date().toISOString().slice(0, 10);
+    link.download = `${filename}_${dateStr}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   isBug(item: WorkItem): boolean {
-    return (item.kind || '').toUpperCase() === 'BUG';
+    return (item.kind || '').toUpperCase() === 'BUG' || (item.taskCode || '').startsWith('BUG');
+  }
+
+  isProdIssue(item: WorkItem): boolean {
+    const k = (item.kind || '').toUpperCase();
+    return k === 'PRODUCTION_ISSUE' || k === 'PROD_ISSUE' || k === 'PROD' || (item.taskCode || '').startsWith('PROD');
+  }
+
+  kindLabel(item: WorkItem): string {
+    if (this.isProdIssue(item)) return 'Production Issue';
+    return this.isBug(item) ? 'Bug' : 'Ticket';
+  }
+
+  kindBadge(item: WorkItem): string {
+    if (this.isProdIssue(item)) return 'ems-badge--prod';
+    return this.isBug(item) ? 'ems-badge--danger' : 'ems-badge--info';
+  }
+
+  openTicketDetails(item: WorkItem): void {
+    const ref = this.dialog.open(TicketDetailDialog, {
+      data: { item },
+      width: '92vw',
+      maxWidth: '1150px',
+      maxHeight: '92vh'
+    });
+    ref.afterClosed().subscribe(() => {
+      this.loadData();
+    });
   }
 
   openBugDetails(item: WorkItem): void {
-    this.dialog.open(BugDetailDialog, {
-      data: { item },
-      width: '92vw',
-      maxWidth: '1100px',
-      maxHeight: '92vh'
-    });
+    this.openTicketDetails(item);
   }
 
   reopenForDev(item: WorkItem): void {

@@ -5,15 +5,17 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterModule } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { TaskModel } from '../models/employee';
 import { ProjectItem, TaskItem, WorkspaceService } from '../services/workspace.service';
 import { ReferenceService } from '../services/reference.service';
+import { HierarchyService, ProjectRosterDto } from '../services/hierarchy.service';
 import { RoleGuard } from '../role-guard';
 import { Pager } from '../shared/pager';
 import { DEFAULT_PAGE_SIZE, lastPageOf, pageSlice } from '../shared/pagination';
 
-interface MyProjectRow {
+export interface MyProjectRow {
   name: string;
   description: string;
   myTasks: TaskModel[];
@@ -26,6 +28,21 @@ interface MyProjectRow {
   team: string[];
   status: string;
   statusClass: string;
+  // Team Hierarchy & Role details
+  myRole: string;
+  myRoleClass: string;
+  myResponsibilities: string;
+  myAllocation: number;
+  myPriority: string;
+  approvalStatus: string;
+  workAuthorized: boolean;
+  pmName?: string;
+  pmEmail?: string;
+  devLeadName?: string;
+  devLeadEmail?: string;
+  testerLeadName?: string;
+  testerLeadEmail?: string;
+  teamMembers?: { name: string; email: string; role: string; priority?: string }[];
 }
 
 @Component({
@@ -46,8 +63,12 @@ export class MyProjectsComponent implements OnInit {
   pageIndex = 0;
   pageSize = DEFAULT_PAGE_SIZE;
 
-    constructor(private http: HttpClient, private workspace: WorkspaceService,
-                private reference: ReferenceService) {}
+  constructor(
+    private http: HttpClient,
+    private workspace: WorkspaceService,
+    private reference: ReferenceService,
+    private hierarchyService: HierarchyService
+  ) {}
 
   ngOnInit(): void {
     this.reload();
@@ -81,6 +102,35 @@ export class MyProjectsComponent implements OnInit {
     return pageSlice(this.rows, this.pageIndex, this.pageSize);
   }
 
+  get userRole(): string {
+    return (localStorage.getItem('role') || '').toUpperCase();
+  }
+
+  isTester(row?: MyProjectRow): boolean {
+    const role = (row?.myRole || this.userRole).toUpperCase();
+    return role.includes('TESTER') || role === 'TESTER';
+  }
+
+  isDevLead(row?: MyProjectRow): boolean {
+    const role = (row?.myRole || this.userRole).toUpperCase();
+    return role.includes('JAVA') || role.includes('DEVELOPER_LEAD') || role.includes('DEV LEAD');
+  }
+
+  isTestLead(row?: MyProjectRow): boolean {
+    const role = (row?.myRole || this.userRole).toUpperCase();
+    return role.includes('TESTING TEAM LEADER') || role.includes('TESTER_LEAD');
+  }
+
+  isPM(row?: MyProjectRow): boolean {
+    const role = (row?.myRole || this.userRole).toUpperCase();
+    return role.includes('PROJECT MANAGER') || role === 'PROJECT_MANAGER';
+  }
+
+  isAdmin(): boolean {
+    const role = this.userRole;
+    return role === 'SUPER_ADMIN' || role === 'ADMIN';
+  }
+
   /* ---------- loading ---------- */
 
   reload(): void {
@@ -91,13 +141,28 @@ export class MyProjectsComponent implements OnInit {
     const headers = new HttpHeaders().set('Authorization', `Bearer ${localStorage.getItem('token') || ''}`);
 
     forkJoin({
-      assigned: this.http.get<TaskModel[]>(`http://localhost:9001/api/assigntasks/getAssignTask?email=${email}`, { headers }),
-      projects: this.workspace.getProjects(),
-      tracked: this.workspace.getTasks()
+      assigned: this.http.get<TaskModel[]>(`http://localhost:9001/api/assigntasks/getAssignTask?email=${email}`, { headers }).pipe(
+        catchError((err) => {
+          console.warn('Could not fetch personal assigned tasks:', err);
+          return of([] as TaskModel[]);
+        })
+      ),
+      projects: this.workspace.getProjects().pipe(
+        catchError(() => of([] as ProjectItem[]))
+      ),
+      tracked: this.workspace.getTasks().pipe(
+        catchError(() => of([] as TaskItem[]))
+      ),
+      hierarchyProjects: this.hierarchyService.getMyProjects().pipe(
+        catchError((err) => {
+          console.warn('Could not fetch hierarchy projects:', err);
+          return of([] as ProjectRosterDto[]);
+        })
+      )
     }).subscribe({
-      next: ({ assigned, projects, tracked }) => {
+      next: ({ assigned, projects, tracked, hierarchyProjects }) => {
         this.assignedTasks = assigned || [];
-        this.rows = this.groupByProject(this.assignedTasks, projects || [], tracked || []);
+        this.rows = this.groupByProject(this.assignedTasks, projects || [], tracked || [], hierarchyProjects || []);
         // Losing the last task of a project removes its card, so never leave the
         // pager past the last page.
         this.pageIndex = Math.min(this.pageIndex, lastPageOf(this.rows.length, this.pageSize));
@@ -113,23 +178,57 @@ export class MyProjectsComponent implements OnInit {
 
   /* ---------- grouping ---------- */
 
-  private groupByProject(tasks: TaskModel[], projects: ProjectItem[], tracked: TaskItem[]): MyProjectRow[] {
+  private groupByProject(
+    tasks: TaskModel[],
+    projects: ProjectItem[],
+    tracked: TaskItem[],
+    hierarchyProjects: ProjectRosterDto[]
+  ): MyProjectRow[] {
     const groups = new Map<string, TaskModel[]>();
 
+    // 1. Initialize groups from hierarchyProjects so every project the user is assigned to in hierarchy appears immediately!
+    hierarchyProjects.forEach((hp) => {
+      if (hp.projectName && hp.projectName.trim()) {
+        const key = hp.projectName.trim();
+        if (!groups.has(key)) {
+          groups.set(key, []);
+        }
+      }
+    });
+
+    // 2. Map personal tasks into project groups
     tasks.forEach((task) => {
-      const key = (task.project || 'Unassigned work').trim() || 'Unassigned work';
-      const bucket = groups.get(key) || [];
-      bucket.push(task);
-      groups.set(key, bucket);
+      const taskProj = (task.project || 'Unassigned work').trim() || 'Unassigned work';
+      // Match case-insensitively with existing keys if possible
+      let matchedKey = Array.from(groups.keys()).find((k) => k.toLowerCase() === taskProj.toLowerCase());
+      if (!matchedKey) {
+        matchedKey = taskProj;
+        groups.set(matchedKey, []);
+      }
+      groups.get(matchedKey)!.push(task);
     });
 
     return Array.from(groups.entries())
-      .map(([name, groupTasks]) => this.toRow(name, groupTasks, projects, tracked))
-      .sort((a, b) => b.myTasks.length - a.myTasks.length);
+      .map(([name, groupTasks]) => this.toRow(name, groupTasks, projects, tracked, hierarchyProjects))
+      .sort((a, b) => {
+        // Show work-authorized projects first, then by task count, then by name
+        if (a.workAuthorized !== b.workAuthorized) {
+          return a.workAuthorized ? -1 : 1;
+        }
+        return b.myTasks.length - a.myTasks.length || a.name.localeCompare(b.name);
+      });
   }
 
-  private toRow(name: string, tasks: TaskModel[], projects: ProjectItem[], tracked: TaskItem[]): MyProjectRow {
+  private toRow(
+    name: string,
+    tasks: TaskModel[],
+    projects: ProjectItem[],
+    tracked: TaskItem[],
+    hierarchyProjects: ProjectRosterDto[]
+  ): MyProjectRow {
     const project = projects.find((item) => (item.name || '').toLowerCase() === name.toLowerCase());
+    const roster = hierarchyProjects.find((hp) => (hp.projectName || '').toLowerCase() === name.toLowerCase());
+
     const projectTasks = tracked.filter((task) => {
       const label = typeof task.project === 'object' && task.project ? task.project.name : String(task.project || '');
       return (label || '').toLowerCase() === name.toLowerCase();
@@ -149,9 +248,48 @@ export class MyProjectsComponent implements OnInit {
       .filter((date): date is string => !!date)
       .sort();
 
+    // Collect team members: combine task assignees and hierarchy roster members
+    const teamSet = new Set<string>();
+    tasks.forEach((t) => { if (t.assignedToName) teamSet.add(t.assignedToName); });
+    if (roster) {
+      if (roster.pmName) teamSet.add(roster.pmName);
+      if (roster.devLeadName) teamSet.add(roster.devLeadName);
+      if (roster.testerLeadName) teamSet.add(roster.testerLeadName);
+      if (roster.members) {
+        roster.members.forEach((m) => { if (m.memberName) teamSet.add(m.memberName); });
+      }
+    }
+
+    const teamMembersList: { name: string; email: string; role: string; priority?: string }[] = [];
+    if (roster) {
+      if (roster.pmName) teamMembersList.push({ name: roster.pmName, email: roster.pmEmail || '', role: 'Project Manager' });
+      if (roster.devLeadName) teamMembersList.push({ name: roster.devLeadName, email: roster.devLeadEmail || '', role: 'Java Team Leader' });
+      if (roster.testerLeadName) teamMembersList.push({ name: roster.testerLeadName, email: roster.testerLeadEmail || '', role: 'Testing Team Leader' });
+      if (roster.members) {
+        roster.members.forEach((m) => teamMembersList.push({
+          name: m.memberName,
+          email: m.memberEmail,
+          role: m.memberRole,
+          priority: m.priority
+        }));
+      }
+    }
+
+    // Role styling
+    const myRole = roster?.myRoleOnProject || this.resolveFallbackRole();
+    let myRoleClass = 'badge-dev';
+    const roleLower = myRole.toLowerCase();
+    if (roleLower.includes('manager')) myRoleClass = 'badge-pm';
+    else if (roleLower.includes('java') || roleLower.includes('developer lead') || roleLower.includes('dev lead')) myRoleClass = 'badge-devlead';
+    else if (roleLower.includes('testing team leader') || roleLower.includes('tester lead') || roleLower.includes('qa lead')) myRoleClass = 'badge-testlead';
+    else if (roleLower.includes('tester')) myRoleClass = 'badge-tester';
+    else if (roleLower.includes('admin') || roleLower.includes('ceo')) myRoleClass = 'badge-admin';
+
+    const description = (roster?.projectDescription || project?.description || 'No project brief has been captured yet.').trim();
+
     return {
       name,
-      description: project?.description || 'No project brief has been captured yet.',
+      description,
       myTasks: tasks,
       tracked: projectTasks.length,
       done,
@@ -159,9 +297,33 @@ export class MyProjectsComponent implements OnInit {
       overdue,
       dueSoon,
       nextDue: dues[0] || null,
-      team: Array.from(new Set(tasks.map((task) => task.assignedToName || '').filter((value) => !!value))),
+      team: Array.from(teamSet),
+      myRole,
+      myRoleClass,
+      myResponsibilities: roster?.myResponsibilities || '',
+      myAllocation: roster?.myAllocation != null ? roster.myAllocation : 100,
+      myPriority: roster?.myPriority || 'HIGH',
+      approvalStatus: roster?.approvalStatus || 'APPROVED',
+      workAuthorized: roster ? (roster.workAuthorized ?? false) : true,
+      pmName: roster?.pmName,
+      pmEmail: roster?.pmEmail,
+      devLeadName: roster?.devLeadName,
+      devLeadEmail: roster?.devLeadEmail,
+      testerLeadName: roster?.testerLeadName,
+      testerLeadEmail: roster?.testerLeadEmail,
+      teamMembers: teamMembersList,
       ...this.statusFor(projectTasks.length, done, overdue)
     };
+  }
+
+  private resolveFallbackRole(): string {
+    const raw = (localStorage.getItem('role') || '').toUpperCase();
+    if (raw === 'SUPER_ADMIN' || raw === 'ADMIN') return 'Super Admin / CEO';
+    if (raw === 'PROJECT_MANAGER') return 'Project Manager';
+    if (raw === 'DEVELOPER_LEAD') return 'Java Team Leader';
+    if (raw === 'TESTER_LEAD') return 'Testing Team Leader';
+    if (raw === 'TESTER') return 'Tester';
+    return 'Developer';
   }
 
   /**

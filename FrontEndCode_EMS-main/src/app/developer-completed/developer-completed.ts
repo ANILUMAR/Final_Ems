@@ -8,12 +8,14 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { isManagerRole } from '../models/role';
+import { isManagerRole, isSuperAdminRole } from '../models/role';
 import { kindBadge, kindLabel, taskCodeOf, WorkItem } from '../models/work-item';
 import { WorkflowService } from '../services/workflow.service';
 import { Pager } from '../shared/pager';
 import { DEFAULT_PAGE_SIZE, lastPageOf, pageSlice } from '../shared/pagination';
 import { BugDetailDialog } from '../bug-detail-dialog/bug-detail-dialog';
+import { TicketDetailDialog } from '../ticket-detail-dialog/ticket-detail-dialog';
+import { WorkflowPipelineComponent } from '../shared/workflow-pipeline/workflow-pipeline.component';
 
 @Component({
   selector: 'app-developer-completed',
@@ -28,7 +30,8 @@ import { BugDetailDialog } from '../bug-detail-dialog/bug-detail-dialog';
     MatInputModule,
     MatTooltipModule,
     MatDialogModule,
-    Pager
+    Pager,
+    WorkflowPipelineComponent
   ],
   templateUrl: './developer-completed.html',
   styleUrl: './developer-completed.css'
@@ -53,8 +56,10 @@ export class DeveloperCompletedComponent implements OnInit {
 
   /** Leader rights */
   isLeader = false;
+  isSuperAdmin = false;
   currentRole = '';
   currentEmail = '';
+  kindFilter: 'ALL' | 'TASK' | 'BUG' | 'PROD' = 'ALL';
 
   /** Release dialog */
   releasingItem: WorkItem | null = null;
@@ -81,16 +86,24 @@ export class DeveloperCompletedComponent implements OnInit {
   ) {
     this.currentRole = (localStorage.getItem('role') || '').trim().toUpperCase();
     this.currentEmail = (localStorage.getItem('email') || '').trim().toLowerCase();
-    this.isLeader = isManagerRole(this.currentRole) || this.currentRole === 'DEVELOPER_LEAD';
+    this.isSuperAdmin = isSuperAdminRole(this.currentRole);
+    this.isLeader = isManagerRole(this.currentRole) || this.currentRole === 'DEVELOPER_LEAD' || this.currentRole === 'TEAM_LEAD' || this.currentRole === 'TEAM_LEADER';
+  }
+
+  openTicketDetails(item: WorkItem): void {
+    const ref = this.dialog.open(TicketDetailDialog, {
+      data: { item },
+      width: '92vw',
+      maxWidth: '1150px',
+      maxHeight: '92vh'
+    });
+    ref.afterClosed().subscribe(() => {
+      this.loadData();
+    });
   }
 
   openBugDetails(item: WorkItem): void {
-    this.dialog.open(BugDetailDialog, {
-      data: { item },
-      width: '92vw',
-      maxWidth: '1100px',
-      maxHeight: '92vh'
-    });
+    this.openTicketDetails(item);
   }
 
   ngOnInit(): void {
@@ -128,6 +141,20 @@ export class DeveloperCompletedComponent implements OnInit {
   get filteredItems(): WorkItem[] {
     const q = this.search.trim().toLowerCase();
     return this.items.filter((item) => {
+      // Kind filter (Tasks vs Bugs vs Prod Issues)
+      const isProd = this.isProdIssue(item);
+      const isBug = !isProd && this.isBug(item);
+      const isTask = !isProd && !isBug;
+      if (this.kindFilter === 'TASK' && !isTask) {
+        return false;
+      }
+      if (this.kindFilter === 'BUG' && !isBug) {
+        return false;
+      }
+      if (this.kindFilter === 'PROD' && !isProd) {
+        return false;
+      }
+
       // Status filter
       if (this.filter === 'AWAITING' && (item.releasedForTesting || item.leadReviewStatus === 'APPROVED')) {
         return false;
@@ -181,6 +208,32 @@ export class DeveloperCompletedComponent implements OnInit {
   onPageSizeChange(size: number): void {
     this.pageSize = size;
     this.pageIndex = 0;
+  }
+
+  setKindFilter(kind: 'ALL' | 'TASK' | 'BUG' | 'PROD'): void {
+    this.kindFilter = kind;
+    this.pageIndex = 0;
+  }
+
+  isProdIssue(item: WorkItem): boolean {
+    const k = (item.kind || '').toUpperCase();
+    return k === 'PRODUCTION_ISSUE' || k === 'PROD_ISSUE' || k === 'PROD' || (item.taskCode || '').startsWith('PROD');
+  }
+
+  isBug(item: WorkItem): boolean {
+    return (item.kind || '').toUpperCase() === 'BUG' || (item.taskCode || '').startsWith('BUG');
+  }
+
+  get taskCount(): number {
+    return this.items.filter((i) => !this.isProdIssue(i) && !this.isBug(i)).length;
+  }
+
+  get bugCount(): number {
+    return this.items.filter((i) => !this.isProdIssue(i) && this.isBug(i)).length;
+  }
+
+  get prodCount(): number {
+    return this.items.filter((i) => this.isProdIssue(i)).length;
   }
 
   /* ---------- Team Leader Review Actions (Approve / Hold) ---------- */
@@ -336,6 +389,87 @@ export class DeveloperCompletedComponent implements OnInit {
     } catch {
       return String(date);
     }
+  }
+
+  initials(name?: string): string {
+    return (name || '?')
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part.charAt(0).toUpperCase())
+      .join('');
+  }
+
+  priorityBadge(priority?: string): string {
+    switch ((priority || '').toUpperCase()) {
+      case 'HIGH': return 'ems-badge--danger';
+      case 'MEDIUM': return 'ems-badge--warning';
+      case 'LOW': return 'ems-badge--neutral';
+      default: return 'ems-badge--neutral';
+    }
+  }
+
+  priorityLabel(priority?: string): string {
+    const p = (priority || 'MEDIUM').toUpperCase();
+    switch (p) {
+      case 'HIGH': return 'High';
+      case 'MEDIUM': return 'Medium';
+      case 'LOW': return 'Low';
+      default: return priority || 'Medium';
+    }
+  }
+
+  isOverdue(item: WorkItem): boolean {
+    return !!item.endDate && new Date(item.endDate).getTime() < new Date().setHours(0, 0, 0, 0);
+  }
+
+  toIsoDate(date: any): string {
+    if (!date) return '—';
+    try {
+      return new Date(date).toISOString().slice(0, 10);
+    } catch {
+      return '—';
+    }
+  }
+
+  downloadCsv(): void {
+    const headers = ['Ticket ID', 'Kind', 'Title', 'Project', 'Module', 'Screen', 'Developer', 'Lead Review', 'Released For Testing', 'Tester', 'Priority', 'Start Date', 'Due Date', 'Status'];
+    const rows = this.filteredItems.map(item => [
+      this.codeOf(item),
+      item.kind || 'TASK',
+      item.taskTitle,
+      item.project || '—',
+      item.module || '—',
+      item.screen || '—',
+      item.assignedToName || 'Unassigned',
+      item.leadReviewStatus || 'AWAITING',
+      item.releasedForTesting ? 'YES' : 'NO',
+      item.assignedTesterName || 'Unassigned',
+      this.priorityLabel(item.priority),
+      this.toIsoDate(item.startDate),
+      this.toIsoDate(item.endDate),
+      item.status || 'DONE'
+    ]);
+    this.exportCsvFile('Developer_Completed_Tickets', headers, rows);
+  }
+
+  exportCsvFile(filename: string, headers: string[], rows: (string | number | undefined | null)[][]): void {
+    const escapeCell = (val: any): string => {
+      if (val === null || val === undefined) return '""';
+      const s = String(val).replace(/"/g, '""');
+      return `"${s}"`;
+    };
+    const headerLine = headers.map(escapeCell).join(',');
+    const rowLines = rows.map(r => r.map(escapeCell).join(','));
+    const csvContent = '\uFEFF' + [headerLine, ...rowLines].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const dateStr = new Date().toISOString().slice(0, 10);
+    link.download = `${filename}_${dateStr}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   }
 }
 

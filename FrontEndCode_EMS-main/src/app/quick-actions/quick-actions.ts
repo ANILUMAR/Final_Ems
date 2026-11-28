@@ -26,34 +26,50 @@ interface QuickAction {
  */
 const BY_ROLE: Record<string, QuickAction[]> = {
   SUPER_ADMIN: [
-    { icon: 'verified', label: 'Tested Completed Review', hint: 'Review tasks and bugs verified by testing team', link: '/tested-completed' },
-    { icon: 'assignment_ind', label: 'Java Team Assignment', hint: 'Hand approved work to a Java developer', link: '/triage' },
-    { icon: 'check_circle', label: 'Completed work (Java Dev)', hint: 'Review completed tasks and release for testing', link: '/developer-completed' },
-    { icon: 'pause_circle', label: 'On Hold Tasks', hint: 'Tasks held by Team Leader before testing release', link: '/on-hold-tasks' },
-    { icon: 'rule', label: 'Testing Lead Dashboard', hint: 'Assign released work to testers for verification', link: '/testing-lead-dashboard' },
-    { icon: 'approval', label: 'Testing review', hint: 'Approve or send back what the team raises', link: '/approvals' },
-    { icon: 'table_view', label: 'Review timesheets', hint: 'Approve hours logged this week', link: '/timesheets' },
-    { icon: 'groups', label: 'Registered employees', hint: 'Add people, change roles, switch accounts off', link: '/people/accounts' },
-    { icon: 'list_alt', label: 'All tasks', hint: 'The register: edit, hand over or remove work', link: '/tasks/all' }
+    { icon: 'view_quilt', label: 'Ticket Hub', hint: 'Unified review, assignment, completion & on-hold workspace', link: '/tasks/all' },
+    { icon: 'task_alt', label: 'Kanban Board', hint: 'Everything the team has in flight', link: '/tasks' },
+    { icon: 'table_view', label: 'Timesheet Reports', hint: 'Approve hours logged this week', link: '/timesheets' },
+    { icon: 'groups', label: 'Employee Directory', hint: 'Add people, change roles, switch accounts off', link: '/people/accounts' },
+    { icon: 'account_tree', label: 'Module & Screen Master', hint: 'Modules, submodules and screen vocabulary', link: '/masters' }
+  ],
+  PROJECT_MANAGER: [
+    { icon: 'insights', label: 'Projects Overview', hint: 'Portfolio health and milestone tracking', link: '/projects' },
+    { icon: 'account_tree', label: 'Teams & Hierarchy', hint: 'Structure project teams and allocations', link: '/hierarchy' },
+    { icon: 'approval', label: 'Timesheet Approvals', hint: 'Review and approve/reject team timesheets', link: '/timesheets/approvals' },
+    { icon: 'table_view', label: 'Timesheet Reports', hint: 'Project budget and time distribution', link: '/timesheets' },
+    { icon: 'manage_history', label: 'Audit Logs', hint: 'Review transaction and deletion history', link: '/audit-logs' },
+    { icon: 'folder_open', label: 'My Projects', hint: 'Work grouped by project', link: '/my-projects' }
+  ],
+  TEAM_LEAD: [
+    { icon: 'assignment_ind', label: 'Work Allocation', hint: 'Hand approved work to developers', link: '/triage' },
+    { icon: 'approval', label: 'QA Bug Triage', hint: 'Approve or send back what your team raises', link: '/approvals' },
+    { icon: 'check_circle', label: 'Pending QA Release', hint: 'Review completed tickets and release for testing', link: '/developer-completed' },
+    { icon: 'verified', label: 'QA Verification Sign-off', hint: 'Review tasks and bugs verified by testing team', link: '/tested-completed' },
+    { icon: 'pause_circle', label: 'On-Hold Tickets', hint: 'Tickets held before testing release', link: '/on-hold-tasks' },
+    { icon: 'task_alt', label: 'Kanban Board', hint: 'Everything the team has in flight', link: '/tasks' },
+    { icon: 'account_tree', label: 'Project Teams & Hierarchy', hint: 'Structure team leads and member assignments', link: '/hierarchy' },
+    { icon: 'approval', label: 'Timesheet Approvals', hint: 'Review and approve/reject team timesheets', link: '/timesheets/approvals' },
+    { icon: 'folder_open', label: 'My Projects', hint: 'Work grouped by project', link: '/my-projects' },
+    { icon: 'edit_calendar', label: 'Log Time', hint: 'Book time against a project', link: '/timesheets/new' }
   ],
   DEVELOPER_LEAD: [
-    { icon: 'verified', label: 'Tested Completed Review', hint: 'Review tasks and bugs verified by testing team', link: '/tested-completed' },
-    { icon: 'check_circle', label: 'Completed work (Java Dev)', hint: 'Review completed tasks and release for testing', link: '/developer-completed' },
-    { icon: 'pause_circle', label: 'On Hold Tasks', hint: 'Tasks held by Team Leader before testing release', link: '/on-hold-tasks' },
-    { icon: 'assignment_ind', label: 'Java Team Assignment', hint: 'Hand approved work to a Java developer', link: '/triage' },
-    { icon: 'task_alt', label: 'Task board', hint: 'Everything the team has in flight', link: '/tasks' },
-    { icon: 'list_alt', label: 'All tasks', hint: 'The register: edit, hand over or remove work', link: '/tasks/all' },
-    { icon: 'folder_open', label: 'My projects', hint: 'Work grouped by project', link: '/my-projects' },
-    { icon: 'edit_calendar', label: 'Log hours', hint: 'Book time against a project', link: '/timesheets/new' }
+    { icon: 'verified', label: 'QA Verification Sign-off', hint: 'Review tasks and bugs verified by testing team', link: '/tested-completed' },
+    { icon: 'check_circle', label: 'Pending QA Release', hint: 'Review completed tickets and release for testing', link: '/developer-completed' },
+    { icon: 'pause_circle', label: 'On-Hold Tickets', hint: 'Tickets held by Team Leader before testing release', link: '/on-hold-tasks' },
+    { icon: 'assignment_ind', label: 'Work Allocation', hint: 'Hand approved work to developers', link: '/triage' },
+    { icon: 'task_alt', label: 'Kanban Board', hint: 'Everything the team has in flight', link: '/tasks' },
+    { icon: 'list_alt', label: 'All Tickets Registry', hint: 'The register: edit, hand over or remove work', link: '/tasks/all' },
+    { icon: 'folder_open', label: 'My Projects', hint: 'Work grouped by project', link: '/my-projects' },
+    { icon: 'edit_calendar', label: 'Log Time', hint: 'Book time against a project', link: '/timesheets/new' }
   ],
   TESTER_LEAD: [
-    { icon: 'verified', label: 'Tested Completed Review', hint: 'Review tasks and bugs verified by testing team', link: '/tested-completed' },
-    { icon: 'rule', label: 'Testing Lead Dashboard', hint: 'Assign released work to testers for verification', link: '/testing-lead-dashboard' },
-    { icon: 'approval', label: 'Testing review', hint: 'Approve or send back what your team raises', link: '/approvals' },
-    { icon: 'add', label: 'Raise task / bug', hint: 'Report a defect or a new piece of work', link: '/issues/new' },
-    { icon: 'inbox', label: 'My submissions', hint: 'Follow what you raised through the chain', link: '/my-submissions' },
-    { icon: 'list_alt', label: 'All tasks', hint: 'The register: edit, hand over or remove work', link: '/tasks/all' },
-    { icon: 'edit_calendar', label: 'Log hours', hint: 'Book time against a project', link: '/timesheets/new' }
+    { icon: 'verified', label: 'QA Verification Sign-off', hint: 'Review tasks and bugs verified by testing team', link: '/tested-completed' },
+    { icon: 'rule', label: 'QA Lead Dashboard', hint: 'Assign released work to testers for verification', link: '/testing-lead-dashboard' },
+    { icon: 'approval', label: 'QA Bug Triage', hint: 'Approve or send back what your team raises', link: '/approvals' },
+    { icon: 'add', label: 'Create Issue', hint: 'Report a defect or a new piece of work', link: '/issues/new' },
+    { icon: 'inbox', label: 'My Reported Issues', hint: 'Follow what you raised through the chain', link: '/my-submissions' },
+    { icon: 'list_alt', label: 'All Tickets Registry', hint: 'The register: edit, hand over or remove work', link: '/tasks/all' },
+    { icon: 'edit_calendar', label: 'Log Time', hint: 'Book time against a project', link: '/timesheets/new' }
   ]
 };
 
@@ -77,7 +93,11 @@ export class QuickActions {
   @Input() wide = false;
 
   get actions(): QuickAction[] {
-    const role = (localStorage.getItem('role') || '').trim().toUpperCase();
+    const rawRole = (localStorage.getItem('role') || '').trim().toUpperCase();
+    let role = rawRole;
+    if (role === 'ADMIN') role = 'SUPER_ADMIN';
+    if (role === 'TEAM_LEADER') role = 'TEAM_LEAD';
+
     // The CEO's old ADMIN code reads the same list.
     if (isSuperAdminRole(role)) {
       return BY_ROLE['SUPER_ADMIN'];

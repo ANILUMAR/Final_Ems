@@ -1,125 +1,377 @@
 <section class="ems-page">
   <header class="ems-page-head">
     <div>
-      <h1 class="ems-page-title">Timesheets</h1>
-      <p class="ems-page-subtitle">Every hour logged across the workspace.</p>
+      <h1 class="ems-page-title">Timesheets & Reports</h1>
+      <p class="ems-page-subtitle">Workspace-wide task work hours, approval status tracking, and effort analytics.</p>
     </div>
     <div class="ems-actions">
-      <button mat-stroked-button matTooltip="Reload timesheets" (click)="loadTimesheets()">
+      <div class="vt-tab-switch">
+        <button
+          type="button"
+          class="ems-chip"
+          [class.is-active]="currentTab === 'ALL'"
+          (click)="setTab('ALL')">
+          <mat-icon>table_rows</mat-icon>
+          All Timesheets
+        </button>
+        <button
+          type="button"
+          class="ems-chip"
+          [class.is-active]="currentTab === 'REPORTS'"
+          (click)="setTab('REPORTS')">
+          <mat-icon>analytics</mat-icon>
+          Effort Reports
+        </button>
+      </div>
+
+      <button mat-stroked-button (click)="loadData()">
         <mat-icon>refresh</mat-icon>
         Refresh
       </button>
     </div>
   </header>
 
+  <!-- Metric Overview Cards -->
   <div class="ems-stat-grid">
     <article class="ems-stat">
-      <span class="ems-stat__label">Entries</span>
+      <span class="ems-stat__label">Total Entries</span>
       <span class="ems-stat__value">{{ filtered.length }}</span>
-      <span class="ems-stat__hint">In the current view</span>
+      <span class="ems-stat__hint">In current filter</span>
     </article>
 
     <article class="ems-stat">
-      <span class="ems-stat__label">Hours</span>
+      <span class="ems-stat__label">Total Hours</span>
       <span class="ems-stat__value">{{ totalHours }}h</span>
-      <span class="ems-stat__hint">Total for this view</span>
+      <span class="ems-stat__hint">Sum of effort</span>
     </article>
 
     <article class="ems-stat">
       <span class="ems-stat__label">Pending</span>
-      <span class="ems-stat__value">{{ pendingCount }}</span>
+      <span class="ems-stat__value vt-val--warning">{{ pendingCount }}</span>
       <span class="ems-stat__hint">Awaiting approval</span>
     </article>
 
     <article class="ems-stat">
       <span class="ems-stat__label">Approved</span>
-      <span class="ems-stat__value">{{ approvedCount }}</span>
+      <span class="ems-stat__value vt-val--success">{{ approvedCount }}</span>
       <span class="ems-stat__hint">Signed off</span>
     </article>
   </div>
 
-  <div class="ems-toolbar ts-toolbar">
-    <div class="ts-filters">
-      <mat-form-field appearance="outline" class="ems-search">
-        <mat-label>Search entries</mat-label>
-        <input matInput [(ngModel)]="search" (ngModelChange)="onSearchChange()" placeholder="Employee, project, date…" />
+  <!-- Filter & Search Toolbar -->
+  <div class="ems-card vt-toolbar">
+    <div class="vt-filters-row">
+      <!-- Search Field -->
+      <mat-form-field appearance="outline" class="vt-search-field">
+        <mat-label>Search employee, task, project…</mat-label>
+        <input matInput [(ngModel)]="search" placeholder="Name, email, project, task code…" />
         <mat-icon matPrefix>search</mat-icon>
       </mat-form-field>
 
-      <button
-        type="button"
-        class="ems-chip"
-        [class.is-active]="mineOnly"
-        (click)="toggleMine()">
-        Only my entries
+      <!-- Project Filter -->
+      <mat-form-field appearance="outline" class="vt-filter-select">
+        <mat-label>Project</mat-label>
+        <mat-select [(ngModel)]="selectedProject" (selectionChange)="onFilterChange()">
+          <mat-option value="ALL">All Projects</mat-option>
+          <mat-option *ngFor="let p of projectOptions" [value]="p">{{ p }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <!-- Date Range: From -->
+      <mat-form-field appearance="outline" class="vt-filter-date">
+        <mat-label>From Date</mat-label>
+        <input matInput [matDatepicker]="fromPicker" [(ngModel)]="fromDate" (dateChange)="onFilterChange()" />
+        <mat-datepicker-toggle matIconSuffix [for]="fromPicker"></mat-datepicker-toggle>
+        <mat-datepicker #fromPicker></mat-datepicker>
+      </mat-form-field>
+
+      <!-- Date Range: To -->
+      <mat-form-field appearance="outline" class="vt-filter-date">
+        <mat-label>To Date</mat-label>
+        <input matInput [matDatepicker]="toPicker" [(ngModel)]="toDate" (dateChange)="onFilterChange()" />
+        <mat-datepicker-toggle matIconSuffix [for]="toPicker"></mat-datepicker-toggle>
+        <mat-datepicker #toPicker></mat-datepicker>
+      </mat-form-field>
+
+      <button mat-button class="vt-btn-reset" (click)="clearFilters()">
+        <mat-icon>clear_all</mat-icon>
+        Clear
       </button>
     </div>
 
-    <div class="ems-chip-row">
+    <!-- Status Tabs -->
+    <div class="vt-status-chips" *ngIf="currentTab === 'ALL'">
       <button
         type="button"
         class="ems-chip"
-        *ngFor="let chip of statusChips"
-        [class.is-active]="status === chip.key"
-        (click)="setStatus(chip.key)">
-        {{ chip.label }}
-        <span class="ts-chip__count">{{ chip.count }}</span>
+        *ngFor="let s of statusFilters"
+        [class.is-active]="statusFilter === s.key"
+        (click)="setStatus(s.key)">
+        {{ s.label }}
       </button>
     </div>
   </div>
 
+  <!-- Error Note -->
   <div class="ems-auth__note ems-auth__note--error" *ngIf="errorMessage">
     <mat-icon>error_outline</mat-icon>
     <span>{{ errorMessage }}</span>
   </div>
 
-  <div class="ems-table-wrap" *ngIf="filtered.length; else noEntries">
-    <table>
-      <thead>
-        <tr>
-          <th>Employee</th>
-          <th>Date</th>
-          <th>Project</th>
-          <th class="ts-num">Hours</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let entry of pagedEntries">
-          <td>
-            <span class="ts-person">
-              <span class="ems-avatar-sm">{{ initials(entry.employeeName) }}</span>
-              <span class="ems-rows__main">
-                <strong>{{ entry.employeeName || 'Unknown' }}</strong>
-                <small>{{ weekDay(entry.date) }}</small>
+  <!-- TAB 1: ALL TIMESHEETS TABLE -->
+  <ng-container *ngIf="currentTab === 'ALL'">
+    <div class="ems-table-wrap" *ngIf="filtered.length; else noSubmissions">
+      <table>
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Work Date</th>
+            <th>Projects</th>
+            <th class="vt-num">Tasks</th>
+            <th class="vt-num">Hours</th>
+            <th>Status</th>
+            <th>Reporting Lead</th>
+            <th class="vt-actions-col">Details</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let sheet of pagedTimesheets">
+            <!-- Employee -->
+            <td>
+              <div class="vt-emp-cell">
+                <span class="ems-avatar-sm">{{ initials(sheet.employeeName) }}</span>
+                <div class="vt-emp-info">
+                  <strong>{{ sheet.employeeName }}</strong>
+                  <small>{{ sheet.employeeEmail }}</small>
+                </div>
+              </div>
+            </td>
+
+            <!-- Work Date -->
+            <td>
+              <div class="vt-date-cell">
+                <strong>{{ sheet.workDate | date: 'dd MMM yyyy' }}</strong>
+                <small>{{ sheet.workDate | date: 'EEEE' }}</small>
+              </div>
+            </td>
+
+            <!-- Projects -->
+            <td>
+              <span class="vt-project-text">{{ getProjectsList(sheet) }}</span>
+            </td>
+
+            <!-- Tasks Count -->
+            <td class="vt-num">
+              <span class="vt-count-badge">{{ (sheet.entries || []).length }}</span>
+            </td>
+
+            <!-- Hours -->
+            <td class="vt-num">
+              <span class="vt-hours-text" [class.vt-hours--overtime]="sheet.totalHours > 8">
+                {{ sheet.totalHours }}h
               </span>
-            </span>
-          </td>
-          <td>{{ formatDate(entry.date) }}</td>
-          <td>{{ entry.project || '—' }}</td>
-          <td class="ts-num">{{ entry.hours }}h</td>
-          <td>
-            <span class="ems-badge" [ngClass]="statusBadge(entry.status)">{{ statusLabel(entry.status) }}</span>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+            </td>
 
-  <ng-template #noEntries>
-    <div class="ems-empty">
-      <mat-icon>schedule</mat-icon>
-      <h3>No timesheet entries</h3>
-      <p>Nothing matches the current filters. Clear them to see everything again.</p>
+            <!-- Status -->
+            <td>
+              <span class="ems-badge" [ngClass]="statusBadge(sheet.status)">
+                {{ statusLabel(sheet.status) }}
+              </span>
+            </td>
+
+            <!-- Reporting Lead -->
+            <td>
+              <span class="vt-lead-text">{{ sheet.reportingPersonName || 'Team Lead' }}</span>
+            </td>
+
+            <!-- Details Action -->
+            <td class="vt-actions-col">
+              <button
+                mat-icon-button
+                matTooltip="View full task breakdown"
+                (click)="openBreakdown(sheet)">
+                <mat-icon>visibility</mat-icon>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
-  </ng-template>
 
-  <!-- Five entries a page by default, with the dropdown to change it. -->
-  <app-pager
-    [length]="filtered.length"
-    [(pageIndex)]="pageIndex"
-    [(pageSize)]="pageSize"
-    noun="entry"
-    plural="entries">
-  </app-pager>
+    <ng-template #noSubmissions>
+      <div class="ems-empty">
+        <mat-icon>schedule</mat-icon>
+        <h3>No timesheets found</h3>
+        <p>No records match the current filters. Adjust your filters to see entries.</p>
+      </div>
+    </ng-template>
+
+    <!-- Pager -->
+    <app-pager
+      [length]="filtered.length"
+      [(pageIndex)]="pageIndex"
+      [(pageSize)]="pageSize"
+      noun="timesheet"
+      plural="timesheets">
+    </app-pager>
+  </ng-container>
+
+  <!-- TAB 2: REPORTS & ANALYTICS -->
+  <ng-container *ngIf="currentTab === 'REPORTS'">
+    <div class="vt-reports-layout">
+      <!-- Employee-Wise Working Hours Summary -->
+      <div class="ems-card vt-report-card">
+        <h3 class="ems-section-title">
+          <mat-icon>badge</mat-icon>
+          Employee Working Hours & Productivity Summary
+        </h3>
+
+        <div class="ems-table-wrap" *ngIf="reportsData?.employeeSummary?.length; else noEmpReports">
+          <table>
+            <thead>
+              <tr>
+                <th>Employee</th>
+                <th>Role</th>
+                <th class="vt-num">Days Logged</th>
+                <th class="vt-num">Approved Hours</th>
+                <th class="vt-num">Pending Hours</th>
+                <th class="vt-num">Total Hours</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let emp of reportsData?.employeeSummary">
+                <td>
+                  <div class="vt-emp-cell">
+                    <span class="ems-avatar-sm">{{ initials(emp.employeeName) }}</span>
+                    <div>
+                      <strong>{{ emp.employeeName }}</strong>
+                      <br /><small>{{ emp.employeeEmail }}</small>
+                    </div>
+                  </div>
+                </td>
+                <td><small>{{ emp.employeeRole || 'Member' }}</small></td>
+                <td class="vt-num">{{ emp.timesheetCount }}</td>
+                <td class="vt-num vt-val--success"><strong>{{ emp.approvedHours }}h</strong></td>
+                <td class="vt-num vt-val--warning">{{ emp.submittedHours }}h</td>
+                <td class="vt-num"><strong>{{ emp.totalHours }}h</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <ng-template #noEmpReports>
+          <p class="vt-empty-hint">No employee summary data available for current period.</p>
+        </ng-template>
+      </div>
+
+      <!-- Project-Wise Working Hours Summary -->
+      <div class="ems-card vt-report-card">
+        <h3 class="ems-section-title">
+          <mat-icon>folder_special</mat-icon>
+          Project Effort & Task Distribution
+        </h3>
+
+        <div class="ems-table-wrap" *ngIf="reportsData?.projectSummary?.length; else noProjReports">
+          <table>
+            <thead>
+              <tr>
+                <th>Project</th>
+                <th class="vt-num">Task Entries Count</th>
+                <th class="vt-num">Total Effort Hours</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let proj of reportsData?.projectSummary">
+                <td><strong>{{ proj.project }}</strong></td>
+                <td class="vt-num">{{ proj.taskCount }}</td>
+                <td class="vt-num"><strong>{{ proj.totalHours }}h</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <ng-template #noProjReports>
+          <p class="vt-empty-hint">No project effort data available for current period.</p>
+        </ng-template>
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- Modal Breakdown Dialog -->
+  <div class="vt-modal-overlay" *ngIf="selectedSheet" (click)="closeBreakdown()">
+    <div class="vt-modal-dialog" (click)="$event.stopPropagation()">
+      <div class="vt-modal-head">
+        <div>
+          <h3>{{ selectedSheet.employeeName }} — {{ selectedSheet.workDate | date: 'EEEE, dd MMMM yyyy' }}</h3>
+          <p>Total Hours: <strong>{{ selectedSheet.totalHours }}h</strong> | Status: <span class="ems-badge" [ngClass]="statusBadge(selectedSheet.status)">{{ statusLabel(selectedSheet.status) }}</span></p>
+        </div>
+        <button mat-icon-button (click)="closeBreakdown()">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+
+      <!-- Overtime note in Modal -->
+      <div class="ts-policy-note ts-policy-note--warn" *ngIf="selectedSheet.overtimeRemarks">
+        <mat-icon>warning</mat-icon>
+        <span><strong>Overtime Note:</strong> {{ selectedSheet.overtimeRemarks }}</span>
+      </div>
+
+      <!-- Rejection feedback if applicable -->
+      <div class="ts-alert ts-alert--danger" *ngIf="selectedSheet.status === 'REJECTED' && selectedSheet.rejectionReason">
+        <mat-icon>error</mat-icon>
+        <div>
+          <strong>Rejection Feedback:</strong>
+          <p>{{ selectedSheet.rejectionReason }}</p>
+        </div>
+      </div>
+
+      <!-- Tasks Table -->
+      <div class="ems-table-wrap vt-modal-table">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Project</th>
+              <th>Task / Ticket</th>
+              <th>Kind</th>
+              <th>Work Description</th>
+              <th class="vt-num">Hours</th>
+              <th>Remarks</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of selectedSheet.entries; let idx = index">
+              <td>{{ idx + 1 }}</td>
+              <td><strong>{{ item.project }}</strong></td>
+              <td>
+                <span class="ts-task-badge" [class.ts-task-badge--bug]="item.kind === 'BUG'" [class.ts-task-badge--other]="item.taskCode === 'OTHER'">
+                  {{ item.taskCode }}
+                </span>
+                <span class="vt-modal-task-title">{{ item.taskTitle }}</span>
+              </td>
+              <td><small>{{ item.kind }}</small></td>
+              <td>{{ item.workDescription }}</td>
+              <td class="vt-num"><strong>{{ item.hours }}h</strong></td>
+              <td>{{ item.remarks || '—' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Status Audit History -->
+      <div class="vt-modal-history" *ngIf="selectedSheet.history?.length">
+        <h4><mat-icon>timeline</mat-icon> Audit History</h4>
+        <ul class="vt-history-list">
+          <li *ngFor="let h of selectedSheet.history">
+            <span class="vt-history-action">{{ h.action }}</span>
+            <span class="vt-history-by">by {{ h.performedByName || h.performedBy }}</span>
+            <span class="vt-history-time">{{ h.timestamp | date: 'dd MMM yyyy, HH:mm' }}</span>
+            <small class="vt-history-comment" *ngIf="h.comment">{{ h.comment }}</small>
+          </li>
+        </ul>
+      </div>
+
+      <div class="vt-modal-foot">
+        <button mat-stroked-button (click)="closeBreakdown()">Close</button>
+      </div>
+    </div>
+  </div>
 </section>

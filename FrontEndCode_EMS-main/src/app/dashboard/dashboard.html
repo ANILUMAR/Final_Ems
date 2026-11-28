@@ -1,9 +1,23 @@
 <div class="ems-page">
-  <div class="ems-page-head">
+  <!-- Header with Eyebrow, Title, Actions -->
+  <header class="ems-page-head">
     <div>
-      <h1 class="ems-page-title">Welcome back, {{ firstName }}</h1>
+      <div class="ems-eyebrow">
+        <span>WORKSPACE</span>
+        <span class="ems-eyebrow__sep">/</span>
+        <span>{{ isProjectManager ? 'PROJECT MANAGEMENT' : 'EXECUTIVE WORKSPACE' }}</span>
+      </div>
+      <h1 class="ems-page-title">
+        {{ isProjectManager ? 'Project Delivery & Operations' : 'Executive Overview, ' + firstName }}
+      </h1>
       <p class="ems-page-subtitle">
-        {{ today | date:'EEEE, d MMMM y' }} · {{ userRole }} workspace
+        {{ today | date:'EEEE, d MMMM y' }} · {{ userRole }} ·
+        <ng-container *ngIf="isProjectManager">
+          Tracking {{ projectCount }} project(s) · {{ overdueTasks.length }} overdue item(s) · {{ pendingTimesheets.length }} pending timesheet(s)
+        </ng-container>
+        <ng-container *ngIf="!isProjectManager">
+          System health across {{ projectCount }} project(s) · {{ openTaskCount }} open work item(s)
+        </ng-container>
       </p>
     </div>
 
@@ -12,166 +26,282 @@
         <mat-icon>help_outline</mat-icon>
         Guide
       </button>
-      <!-- The CEO no longer files work: the testing team raises it, so the
-           primary action here is the screen where that work is decided. -->
-      <a mat-flat-button color="primary" routerLink="/approvals">
-        <mat-icon>approval</mat-icon>
-        Testing review
-      </a>
-    </div>
-  </div>
 
+      <!-- Project Manager Actions -->
+      <ng-container *ngIf="isProjectManager">
+        <a mat-stroked-button routerLink="/timesheets/approvals" [matTooltip]="pendingTimesheets.length + ' timesheets awaiting approval'">
+          <mat-icon>approval</mat-icon>
+          Approvals ({{ pendingTimesheets.length }})
+        </a>
+        <a mat-flat-button color="primary" routerLink="/projects">
+          <mat-icon>insights</mat-icon>
+          Projects Portfolio
+        </a>
+      </ng-container>
+
+      <!-- Super Admin Actions -->
+      <ng-container *ngIf="!isProjectManager">
+        <a mat-stroked-button routerLink="/audit-logs">
+          <mat-icon>manage_history</mat-icon>
+          Audit Logs
+        </a>
+        <a mat-flat-button color="primary" routerLink="/tasks/all">
+          <mat-icon>view_quilt</mat-icon>
+          Ticket Hub
+        </a>
+      </ng-container>
+    </div>
+  </header>
+
+  <!-- Error Alert -->
   <div class="ems-auth__note ems-auth__note--error" *ngIf="errorMessage">
     <mat-icon>error_outline</mat-icon>
     <span>{{ errorMessage }}</span>
   </div>
 
-  <!-- live counters -->
+  <!-- Critical Overdue / Blocker Shelf for Project Managers & Admins -->
+  <section class="ems-card ems-alert-shelf" *ngIf="overdueTasks.length > 0 || blockedOrCriticalTasks.length > 0">
+    <div class="ems-alert-shelf__head">
+      <div class="ems-alert-shelf__title">
+        <mat-icon>warning_amber</mat-icon>
+        <strong>Attention Needed: {{ overdueTasks.length }} Overdue / {{ blockedOrCriticalTasks.length }} Critical Work Item(s)</strong>
+      </div>
+      <a routerLink="/tasks" mat-button class="ems-alert-shelf__link">View in Kanban Board &rarr;</a>
+    </div>
+
+    <div class="ems-alert-shelf__grid">
+      <div class="ems-alert-item" *ngFor="let item of (overdueTasks.length ? overdueTasks : blockedOrCriticalTasks)">
+        <div class="ems-alert-item__badge" [ngClass]="item.dueDate && (overdueTasks.includes(item)) ? 'is-overdue' : 'is-critical'">
+          {{ item.dueDate && (overdueTasks.includes(item)) ? 'OVERDUE' : (item.priority || 'HIGH PRIORITY') }}
+        </div>
+        <div class="ems-alert-item__body">
+          <strong>{{ item.title || item.taskName || 'Untitled Work Item' }}</strong>
+          <small>{{ item.project?.name || item.projectName || 'Unassigned Project' }} · Due: {{ item.dueDate ? (item.dueDate | date:'mediumDate') : 'No date' }}</small>
+        </div>
+        <span class="ems-badge ems-badge--neutral">{{ item.status || 'TODO' }}</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Role-Tailored 4-KPI Metric Grid -->
   <div class="ems-stat-grid">
-    <article class="ems-stat">
-      <span class="ems-stat__label">Team members</span>
-      <strong class="ems-stat__value">{{ teamSize }}</strong>
-      <span class="ems-stat__hint">
-        <a routerLink="/people/accounts">Manage people</a>
-      </span>
-    </article>
 
-    <article class="ems-stat">
-      <span class="ems-stat__label">Projects</span>
-      <strong class="ems-stat__value">{{ projectCount }}</strong>
-      <span class="ems-stat__hint">
-        <a routerLink="/projects">Project overview</a>
-      </span>
-    </article>
+    <!-- Super Admin KPI Grid -->
+    <ng-container *ngIf="!isProjectManager">
+      <article class="ems-stat ems-stat--accent-blue">
+        <span class="ems-stat__label">Total Workforce</span>
+        <strong class="ems-stat__value">{{ teamSize }}</strong>
+        <span class="ems-stat__hint">
+          <a routerLink="/people/accounts">Active registered accounts &rarr;</a>
+        </span>
+      </article>
 
-    <article class="ems-stat">
-      <span class="ems-stat__label">Open tasks</span>
-      <strong class="ems-stat__value">{{ openTaskCount }}</strong>
-      <span class="ems-stat__hint">{{ inProgressCount }} in progress · {{ todoCount }} to do</span>
-    </article>
+      <article class="ems-stat ems-stat--accent-indigo">
+        <span class="ems-stat__label">Active Projects</span>
+        <strong class="ems-stat__value">{{ projectCount }}</strong>
+        <span class="ems-stat__hint">
+          {{ healthSummary.onTrack }} on track · {{ healthSummary.delayed }} delayed
+        </span>
+      </article>
 
-    <article class="ems-stat">
-      <span class="ems-stat__label">Hours logged</span>
-      <strong class="ems-stat__value">{{ totalHours }}<small>h</small></strong>
-      <span class="ems-stat__hint">{{ timesheets.length }} timesheet entries</span>
-    </article>
+      <article class="ems-stat ems-stat--accent-amber">
+        <span class="ems-stat__label">Work Delivery Velocity</span>
+        <strong class="ems-stat__value">{{ completionRate }}<small>%</small></strong>
+        <span class="ems-stat__hint">
+          {{ doneTaskCount }} of {{ tasks.length }} tickets completed
+        </span>
+      </article>
+
+      <article class="ems-stat ems-stat--accent-green">
+        <span class="ems-stat__label">Total Billable Hours</span>
+        <strong class="ems-stat__value">{{ totalHours }}<small>h</small></strong>
+        <span class="ems-stat__hint">{{ timesheets.length }} timesheet entries logged</span>
+      </article>
+    </ng-container>
+
+    <!-- Project Manager KPI Grid -->
+    <ng-container *ngIf="isProjectManager">
+      <article class="ems-stat ems-stat--accent-blue">
+        <span class="ems-stat__label">Managed Projects</span>
+        <strong class="ems-stat__value">{{ projectCount }}</strong>
+        <span class="ems-stat__hint">
+          <a routerLink="/projects">Review project portfolio &rarr;</a>
+        </span>
+      </article>
+
+      <article class="ems-stat ems-stat--accent-rose">
+        <span class="ems-stat__label">Overdue Tasks</span>
+        <strong class="ems-stat__value" [class.ems-text-danger]="overdueTasks.length > 0">{{ overdueTasks.length }}</strong>
+        <span class="ems-stat__hint">Requiring milestone schedule action</span>
+      </article>
+
+      <article class="ems-stat ems-stat--accent-amber">
+        <span class="ems-stat__label">Timesheet Approvals</span>
+        <strong class="ems-stat__value">{{ pendingTimesheets.length }}</strong>
+        <span class="ems-stat__hint">
+          <a routerLink="/timesheets/approvals">Pending manager review &rarr;</a>
+        </span>
+      </article>
+
+      <article class="ems-stat ems-stat--accent-green">
+        <span class="ems-stat__label">Sprint Completion</span>
+        <strong class="ems-stat__value">{{ completionRate }}<small>%</small></strong>
+        <span class="ems-stat__hint">{{ inProgressCount }} currently in development</span>
+      </article>
+    </ng-container>
+
   </div>
 
-  <div class="ems-dash-grid">
-    <!-- task pipeline -->
-    <section class="ems-card">
-      <h2 class="ems-section-title">
-        <mat-icon>view_kanban</mat-icon>
-        Task pipeline
-      </h2>
+  <!-- Main Content Layout -->
+  <div class="ems-dash-split">
 
-      <div class="ems-empty" *ngIf="!loading && tasks.length === 0">
-        <mat-icon>inbox</mat-icon>
-        <h3>No tasks yet</h3>
-        <p>Work enters through the testing team: a tester raises it, their leader approves it, and the developer leader hands it out.</p>
-        <a mat-stroked-button routerLink="/approvals" class="ems-empty__cta">Open testing review</a>
-      </div>
+    <!-- Left Main Column (65%) -->
+    <div class="ems-dash-col-main">
 
-      <div class="ems-pipeline" *ngIf="tasks.length > 0">
-        <div class="ems-pipeline__row" *ngFor="let item of statusBreakdown">
-          <div class="ems-pipeline__meta">
-            <span class="ems-badge" [ngClass]="{
-              'ems-badge--neutral': item.tone === 'neutral',
-              'ems-badge--info': item.tone === 'info',
-              'ems-badge--success': item.tone === 'success'
-            }">{{ item.label }}</span>
-            <strong>{{ item.count }}</strong>
-          </div>
-          <div class="ems-pipeline__track">
-            <span class="ems-pipeline__fill" [ngClass]="'is-' + item.tone" [style.width.%]="item.percent"></span>
-          </div>
+      <!-- Cross-Department Delivery Workflow Velocity (Admin View) -->
+      <section class="ems-card" *ngIf="!isProjectManager">
+        <div class="ems-card-head">
+          <h2 class="ems-section-title">
+            <mat-icon>timeline</mat-icon>
+            Cross-Department Delivery Pipeline
+          </h2>
+          <span class="ems-badge ems-badge--info">{{ tasks.length }} Total Tickets</span>
         </div>
 
-        <div class="ems-pipeline__summary">
-          <div>
-            <span class="ems-pipeline__summary-value">{{ completionRate }}%</span>
-            <span class="ems-pipeline__summary-label">completed across {{ tasks.length }} tasks</span>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- quick actions: the list comes from the signed-in role -->
-    <app-quick-actions></app-quick-actions>
-  </div>
-
-  <div class="ems-dash-grid">
-    <!-- projects -->
-    <section class="ems-card">
-      <h2 class="ems-section-title">
-        <mat-icon>folder_open</mat-icon>
-        Project health
-      </h2>
-
-      <div class="ems-empty" *ngIf="!loading && projectRows.length === 0">
-        <mat-icon>folder_off</mat-icon>
-        <h3>No projects yet</h3>
-        <p>Projects group tasks and timesheets together.</p>
-      </div>
-
-      <ul class="ems-rows" *ngIf="projectRows.length > 0">
-        <li class="ems-rows__item" *ngFor="let project of projectRows">
-          <div class="ems-rows__main">
-            <strong>{{ project.name }}</strong>
-            <small>{{ project.description || 'No description' }}</small>
-          </div>
-          <div class="ems-rows__side">
-            <span class="ems-badge ems-badge--neutral">{{ project.doneCount }}/{{ project.taskCount }} done</span>
-            <div class="ems-pipeline__track ems-pipeline__track--sm">
-              <span class="ems-pipeline__fill is-info" [style.width.%]="project.progress"></span>
+        <div class="ems-workflow-pipeline">
+          <div class="ems-workflow-stage" *ngFor="let stage of workflowStages">
+            <div class="ems-workflow-stage__head">
+              <span class="ems-workflow-stage__icon" [style.color]="stage.color">
+                <mat-icon>{{ stage.icon }}</mat-icon>
+              </span>
+              <div class="ems-workflow-stage__info">
+                <strong>{{ stage.label }}</strong>
+                <small>{{ stage.count }} ticket(s)</small>
+              </div>
+              <span class="ems-workflow-stage__pct">{{ stage.percent }}%</span>
+            </div>
+            <div class="ems-workflow-track">
+              <div class="ems-workflow-fill" [style.width.%]="stage.percent" [style.background-color]="stage.color"></div>
             </div>
           </div>
-        </li>
-      </ul>
-    </section>
+        </div>
+      </section>
 
-    <!-- timesheets -->
-    <section class="ems-card">
-      <h2 class="ems-section-title">
-        <mat-icon>schedule</mat-icon>
-        Latest timesheets
-      </h2>
-
-      <div class="ems-empty" *ngIf="!loading && recentTimesheets.length === 0">
-        <mat-icon>event_busy</mat-icon>
-        <h3>No hours logged</h3>
-        <p>Timesheet entries appear here as the team submits them.</p>
-      </div>
-
-      <ul class="ems-rows" *ngIf="recentTimesheets.length > 0">
-        <li class="ems-rows__item" *ngFor="let entry of recentTimesheets">
-          <div class="ems-rows__main">
-            <strong>{{ entry.employeeName || 'Unknown' }}</strong>
-            <small>{{ entry.project || 'Unassigned project' }} · {{ entry.date }}</small>
+      <!-- Project Health Portfolio (Admin & Project Manager) -->
+      <section class="ems-card">
+        <div class="ems-card-head">
+          <h2 class="ems-section-title">
+            <mat-icon>insights</mat-icon>
+            Project Portfolio Health
+          </h2>
+          <div class="ems-health-pills">
+            <span class="ems-health-pill is-on-track">{{ healthSummary.onTrack }} On Track</span>
+            <span class="ems-health-pill is-at-risk">{{ healthSummary.atRisk }} At Risk</span>
+            <span class="ems-health-pill is-delayed">{{ healthSummary.delayed }} Delayed</span>
           </div>
-          <div class="ems-rows__side">
-            <span class="ems-badge" [ngClass]="{
-              'ems-badge--success': entry.status === 'APPROVED',
-              'ems-badge--warning': entry.status === 'PENDING',
-              'ems-badge--neutral': !entry.status || (entry.status !== 'APPROVED' && entry.status !== 'PENDING')
-            }">{{ entry.status || 'LOGGED' }}</span>
-            <span class="ems-rows__hours">{{ entry.hours }}h</span>
+        </div>
+
+        <div class="ems-empty" *ngIf="!loading && projectRows.length === 0">
+          <mat-icon>folder_off</mat-icon>
+          <h3>No projects found</h3>
+          <p>Projects group deliverables, team allocations, and timesheets together.</p>
+        </div>
+
+        <div class="ems-project-list" *ngIf="projectRows.length > 0">
+          <div class="ems-project-item" *ngFor="let p of projectRows">
+            <div class="ems-project-item__header">
+              <div class="ems-project-item__title">
+                <strong>{{ p.name }}</strong>
+                <small>{{ p.description || 'Enterprise project deliverable' }}</small>
+              </div>
+              <span class="ems-health-tag" [ngClass]="{
+                'is-on-track': p.health === 'ON_TRACK',
+                'is-at-risk': p.health === 'AT_RISK',
+                'is-delayed': p.health === 'DELAYED'
+              }">
+                {{ p.health === 'ON_TRACK' ? 'On Track' : (p.health === 'AT_RISK' ? 'At Risk' : 'Delayed') }}
+              </span>
+            </div>
+
+            <div class="ems-project-item__progress">
+              <div class="ems-project-track">
+                <div class="ems-project-fill" [style.width.%]="p.progress" [ngClass]="{
+                  'is-green': p.health === 'ON_TRACK',
+                  'is-amber': p.health === 'AT_RISK',
+                  'is-rose': p.health === 'DELAYED'
+                }"></div>
+              </div>
+              <div class="ems-project-metrics">
+                <span>{{ p.doneCount }} of {{ p.taskCount }} tasks completed</span>
+                <strong>{{ p.progress }}%</strong>
+              </div>
+            </div>
           </div>
-        </li>
-      </ul>
-    </section>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- Right Side Column (35%) -->
+    <div class="ems-dash-col-side">
+
+      <!-- Role-Tailored Quick Operations -->
+      <app-quick-actions></app-quick-actions>
+
+      <!-- Timesheet Submissions / Approval Queue -->
+      <section class="ems-card">
+        <div class="ems-card-head">
+          <h2 class="ems-section-title">
+            <mat-icon>schedule</mat-icon>
+            {{ isProjectManager ? 'Timesheets for Review' : 'Recent Timesheets' }}
+          </h2>
+          <a [routerLink]="isProjectManager ? '/timesheets/approvals' : '/timesheets'" class="ems-card-head__link">
+            {{ isProjectManager ? 'Approve' : 'View all' }} &rarr;
+          </a>
+        </div>
+
+        <div class="ems-empty" *ngIf="!loading && recentTimesheets.length === 0">
+          <mat-icon>event_busy</mat-icon>
+          <h3>No timesheet entries</h3>
+          <p>Timesheet entries logged by developers and testers will appear here.</p>
+        </div>
+
+        <ul class="ems-timesheet-list" *ngIf="recentTimesheets.length > 0">
+          <li class="ems-timesheet-item" *ngFor="let entry of (isProjectManager && pendingTimesheets.length ? pendingTimesheets.slice(0, 5) : recentTimesheets)">
+            <div class="ems-timesheet-item__avatar">
+              {{ (entry.employeeName || 'U').slice(0, 2).toUpperCase() }}
+            </div>
+            <div class="ems-timesheet-item__details">
+              <strong>{{ entry.employeeName || 'Team Member' }}</strong>
+              <small>{{ entry.project || 'Unassigned project' }} · {{ entry.date | date:'mediumDate' }}</small>
+            </div>
+            <div class="ems-timesheet-item__badge">
+              <span class="ems-badge" [ngClass]="{
+                'ems-badge--success': entry.status === 'APPROVED',
+                'ems-badge--warning': entry.status === 'PENDING' || !entry.status,
+                'ems-badge--danger': entry.status === 'REJECTED'
+              }">{{ entry.status || 'PENDING' }}</span>
+              <span class="ems-timesheet-hours">{{ entry.hours }}h</span>
+            </div>
+          </li>
+        </ul>
+      </section>
+
+    </div>
+
   </div>
 </div>
 
+<!-- Help Dialog -->
 <ng-template #helpDialog>
-  <h2 mat-dialog-title>Dashboard guide</h2>
+  <h2 mat-dialog-title>Executive Dashboard Guide</h2>
   <mat-dialog-content>
-    <p>Every number on this page is read live from the database.</p>
+    <p>Every metric on this console is computed live from the enterprise database:</p>
     <ul>
-      <li><strong>Team members</strong> — accounts registered in the system.</li>
-      <li><strong>Projects</strong> — projects stored against the team.</li>
-      <li><strong>Open tasks</strong> — everything not yet marked done.</li>
-      <li><strong>Hours logged</strong> — total of all timesheet entries.</li>
+      <li><strong>Total Workforce</strong> — Active registered users and employee accounts.</li>
+      <li><strong>Project Portfolio</strong> — Evaluated across milestones, completion rates, and overdue ticket counts.</li>
+      <li><strong>Delivery Velocity</strong> — Percentage of total sprint tickets resolved and closed.</li>
+      <li><strong>Billable Hours</strong> — Total work hours logged across daily task-wise timesheets.</li>
     </ul>
   </mat-dialog-content>
   <div mat-dialog-actions align="end">

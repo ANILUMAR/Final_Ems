@@ -39,7 +39,7 @@ public class ProjectSequenceService {
 
     private static final Logger log = LoggerFactory.getLogger(ProjectSequenceService.class);
     private static final String COUNTERS_COLLECTION = "counters";
-    private static final Pattern CODE_PATTERN = Pattern.compile("^(TASK|BUG)-(\\d+)$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern CODE_PATTERN = Pattern.compile("^(TASK|BUG|PROD)-(\\d+)$", Pattern.CASE_INSENSITIVE);
 
     @Autowired
     private MongoDatabaseFactory databaseFactory;
@@ -60,15 +60,22 @@ public class ProjectSequenceService {
     }
 
     /**
-     * Generates the next unique code for a Task or Bug in the given project.
+     * Generates the next unique code for a Task, Bug, or Production Issue in the given project.
      *
-     * @param kind "TASK" or "BUG"
+     * @param kind "TASK", "BUG", or "PRODUCTION_ISSUE"
      * @param project Project name
-     * @return Formatted code, e.g. "TASK-001", "BUG-001"
+     * @return Formatted code, e.g. "TASK-001", "BUG-001", "PROD-001"
      */
     public String nextCode(String kind, String project) {
-        boolean isBug = "BUG".equalsIgnoreCase(kind == null ? "" : kind.trim());
-        String prefix = isBug ? "BUG" : "TASK";
+        String k = kind == null ? "" : kind.trim().toUpperCase(Locale.ROOT);
+        String prefix;
+        if ("BUG".equals(k)) {
+            prefix = "BUG";
+        } else if ("PRODUCTION_ISSUE".equals(k) || "PROD_ISSUE".equals(k) || "PROD".equals(k)) {
+            prefix = "PROD";
+        } else {
+            prefix = "TASK";
+        }
         String normalizedProject = normalizeProject(project);
         String counterKey = "seq_" + prefix.toLowerCase(Locale.ROOT) + "_" + normalizedProject;
 
@@ -103,18 +110,31 @@ public class ProjectSequenceService {
 
     private long findMaxExistingSequence(String prefix, String project) {
         long max = 0;
-        boolean isBug = "BUG".equalsIgnoreCase(prefix);
         String normProject = normalizeProject(project);
 
-        if (isBug) {
+        if ("BUG".equalsIgnoreCase(prefix)) {
             for (AssignBug bug : bugRepository.findAll()) {
                 if (normProject.equals(normalizeProject(bug.getProject()))) {
                     max = Math.max(max, parseSequenceNumber(bug.getTaskCode()));
                 }
             }
+        } else if ("PROD".equalsIgnoreCase(prefix)) {
+            for (AssignTask task : taskRepository.findAll()) {
+                if (normProject.equals(normalizeProject(task.getProject())) &&
+                        (task.getTaskCode() != null && task.getTaskCode().toUpperCase(Locale.ROOT).startsWith("PROD-"))) {
+                    max = Math.max(max, parseSequenceNumber(task.getTaskCode()));
+                }
+            }
+            for (AssignBug bug : bugRepository.findAll()) {
+                if (normProject.equals(normalizeProject(bug.getProject())) &&
+                        (bug.getTaskCode() != null && bug.getTaskCode().toUpperCase(Locale.ROOT).startsWith("PROD-"))) {
+                    max = Math.max(max, parseSequenceNumber(bug.getTaskCode()));
+                }
+            }
         } else {
             for (AssignTask task : taskRepository.findAll()) {
-                if (normProject.equals(normalizeProject(task.getProject()))) {
+                if (normProject.equals(normalizeProject(task.getProject())) &&
+                        (task.getTaskCode() == null || !task.getTaskCode().toUpperCase(Locale.ROOT).startsWith("PROD-"))) {
                     max = Math.max(max, parseSequenceNumber(task.getTaskCode()));
                 }
             }
@@ -158,13 +178,14 @@ public class ProjectSequenceService {
             if (code != null) {
                 Matcher m = CODE_PATTERN.matcher(code.trim());
                 if (m.find()) {
+                    String prefix = m.group(1).toUpperCase(Locale.ROOT);
                     long seq = Long.parseLong(m.group(2));
-                    String formatted = String.format("TASK-%03d", seq);
+                    String formatted = String.format("%s-%03d", prefix, seq);
                     if (!formatted.equals(code)) {
                         task.setTaskCode(formatted);
                         taskRepository.save(task);
                     }
-                    String counterKey = "seq_task_" + normalizeProject(task.getProject());
+                    String counterKey = "seq_" + prefix.toLowerCase(Locale.ROOT) + "_" + normalizeProject(task.getProject());
                     updateCounterMax(counters, counterKey, seq);
                 }
             }
@@ -176,13 +197,14 @@ public class ProjectSequenceService {
             if (code != null) {
                 Matcher m = CODE_PATTERN.matcher(code.trim());
                 if (m.find()) {
+                    String prefix = m.group(1).toUpperCase(Locale.ROOT);
                     long seq = Long.parseLong(m.group(2));
-                    String formatted = String.format("BUG-%03d", seq);
+                    String formatted = String.format("%s-%03d", prefix, seq);
                     if (!formatted.equals(code)) {
                         bug.setTaskCode(formatted);
                         bugRepository.save(bug);
                     }
-                    String counterKey = "seq_bug_" + normalizeProject(bug.getProject());
+                    String counterKey = "seq_" + prefix.toLowerCase(Locale.ROOT) + "_" + normalizeProject(bug.getProject());
                     updateCounterMax(counters, counterKey, seq);
                 }
             }

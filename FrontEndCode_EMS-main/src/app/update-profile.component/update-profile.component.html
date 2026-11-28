@@ -19,7 +19,7 @@
 
   <div class="up-layout">
     <aside class="ems-card up-identity">
-      <img *ngIf="profilePhotoUrl; else initialsTpl" class="up-avatar" [src]="profilePhotoUrl" alt="Profile photo" />
+      <img *ngIf="profilePhotoUrl; else initialsTpl" class="up-avatar" [src]="profilePhotoUrl" (error)="onPhotoError($event)" alt="Profile photo" />
       <ng-template #initialsTpl>
         <span class="up-avatar up-avatar--initials">{{ initials }}</span>
       </ng-template>
@@ -43,14 +43,12 @@
           <span class="ems-dim">{{ completeness }}%</span>
         </div>
         <div class="ems-pipeline__track">
-          <span
-            class="ems-pipeline__fill"
-            [class.is-success]="completeness === 100"
-            [class.is-info]="completeness < 100"
-            [style.width.%]="completeness"></span>
+          <span class="ems-pipeline__fill" [class.is-success]="completeness === 100"
+            [class.is-info]="completeness < 100" [style.width.%]="completeness"></span>
         </div>
         <p class="up-hint">
-          {{ completeness === 100 ? 'Everything is filled in. Nice work.' : 'Add the missing details below to complete your profile.' }}
+          {{ completeness === 100 ? 'Everything is filled in. Nice work.' : 'Add the missing details below to complete
+          your profile.' }}
         </p>
       </div>
     </aside>
@@ -80,7 +78,8 @@
             <mat-form-field appearance="outline" class="ems-field">
               <mat-label>Phone number</mat-label>
               <input matInput formControlName="phoneNumber" placeholder="10 digit number" />
-              <mat-error *ngIf="profileForm.get('phoneNumber')?.hasError('pattern')">Use a 10 digit phone number</mat-error>
+              <mat-error *ngIf="profileForm.get('phoneNumber')?.hasError('pattern')">Use a 10 digit phone
+                number</mat-error>
             </mat-form-field>
 
             <mat-form-field appearance="outline" class="ems-field">
@@ -92,14 +91,35 @@
 
         <div class="ems-form-section">
           <h3 class="ems-form-section__title">Access</h3>
-          <mat-form-field appearance="outline" class="ems-field up-role">
+
+          <!-- When Admin: Editable Role Dropdown -->
+          <mat-form-field appearance="outline" class="ems-field up-role" *ngIf="canEditRole">
             <mat-label>Role</mat-label>
-            <mat-select formControlName="role" [disabled]="!canEditRole">
-              <mat-option *ngFor="let role of roles" [value]="role">{{ roleName(role) }}</mat-option>
+            <mat-select formControlName="role">
+              <mat-option *ngFor="let role of roles" [value]="role">
+                <mat-icon class="up-role-icon">{{ getRoleIcon(role) }}</mat-icon>
+                <span>{{ roleName(role) }}</span>
+              </mat-option>
             </mat-select>
+            <mat-icon matSuffix matTooltip="Administrator role management">admin_panel_settings</mat-icon>
             <mat-error *ngIf="profileForm.get('role')?.hasError('required')">Role is required</mat-error>
           </mat-form-field>
-          <p class="up-hint">Only an admin can change a role. Changes take effect the next time you sign in.</p>
+
+          <!-- When Non-Admin: Read-Only Locked Field -->
+          <mat-form-field appearance="outline" class="ems-field up-role up-role--readonly" *ngIf="!canEditRole">
+            <mat-label>Role</mat-label>
+            <input matInput [value]="roleName(profileForm.get('role')?.value)" readonly />
+            <mat-icon matSuffix matTooltip="Only an administrator can change roles">lock</mat-icon>
+          </mat-form-field>
+
+          <p class="up-hint" *ngIf="canEditRole">
+            As an Administrator, you can reassign account roles. Changes take effect on next sign in.
+          </p>
+          <p class="up-hint up-hint--locked" *ngIf="!canEditRole">
+            <mat-icon
+              style="font-size:14px;width:14px;height:14px;vertical-align:middle;margin-right:4px">lock</mat-icon>
+            Only an administrator can change account roles. Contact your Super Admin to request an adjustment.
+          </p>
         </div>
 
         <div class="ems-form-actions">

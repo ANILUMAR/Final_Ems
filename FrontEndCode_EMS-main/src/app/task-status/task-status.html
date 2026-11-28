@@ -1,35 +1,23 @@
 <span class="ts">
   <!-- Read-only: the state, plus the audit trail behind it. No transition menu. -->
-  <button
-    *ngIf="!editable; else editor"
-    type="button"
-    class="ems-badge ts__pill ts__pill--static"
-    [ngClass]="meta.badge"
-    matTooltip="View status history"
-    [attr.aria-label]="'View status history: ' + meta.label"
+  <button *ngIf="!editable; else editor" type="button" class="ems-badge ts__pill ts__pill--static"
+    [ngClass]="meta.badge" [matTooltip]="readOnlyTooltip" [attr.aria-label]="'Status: ' + meta.label"
     (click)="openHistory()">
     <mat-icon class="ts__icon">{{ meta.icon }}</mat-icon>
     <span>{{ meta.label }}</span>
+    <mat-icon class="ts__lock" style="font-size:12px;width:12px;height:12px;margin-left:3px;opacity:0.75">lock</mat-icon>
   </button>
 
   <ng-template #editor>
-    <button
-      type="button"
-      class="ems-badge ts__pill"
-      [ngClass]="meta.badge"
-      [matMenuTriggerFor]="menu"
-      [disabled]="saving"
-      [attr.aria-label]="'Change status: ' + meta.label">
+    <button type="button" class="ems-badge ts__pill" [ngClass]="meta.badge" [matMenuTriggerFor]="menu"
+      [disabled]="saving" [attr.aria-label]="'Change status: ' + meta.label">
       <mat-icon class="ts__icon">{{ saving ? 'hourglass_top' : meta.icon }}</mat-icon>
       <span>{{ saving ? 'Saving…' : meta.label }}</span>
       <mat-icon class="ts__caret">expand_more</mat-icon>
     </button>
 
     <mat-menu #menu="matMenu" xPosition="before">
-      <button
-        mat-menu-item
-        *ngFor="let option of options"
-        (click)="select(option.value)"
+      <button mat-menu-item *ngFor="let option of options" (click)="select(option.value)"
         [disabled]="option.value === status">
         <mat-icon>{{ option.icon }}</mat-icon>
         <span>{{ option.label }}</span>

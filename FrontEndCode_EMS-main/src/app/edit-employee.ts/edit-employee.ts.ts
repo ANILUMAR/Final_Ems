@@ -10,6 +10,7 @@ import { CommonModule } from '@angular/common';
 import { assignableRoles, roleBadgeClass, roleLabel } from '../models/role';
 import { AuthService } from '../services/auth-service';
 import { ReferenceService } from '../services/reference.service';
+import { LocalAvatarService } from '../services/local-avatar.service';
 
 @Component({
   selector: 'app-edit-employee',
@@ -28,7 +29,7 @@ import { ReferenceService } from '../services/reference.service';
   template: `
     <div class="ee-head">
       <span class="ee-avatar">
-        <img *ngIf="hasPhoto(); else initialsTpl" [src]="photoUrl()" [alt]="data.name" (error)="photoFailed = true" />
+        <img *ngIf="hasPhoto(); else initialsTpl" [src]="photoUrl()" [alt]="data.name" (error)="onPhotoError($event)" />
         <ng-template #initialsTpl>{{ initials }}</ng-template>
       </span>
 
@@ -356,7 +357,8 @@ export class EditEmployeeComponent {
     @Inject(MAT_DIALOG_DATA) public data: any,
     private dialogRef: MatDialogRef<EditEmployeeComponent>,
     private authservice:AuthService,
-    private reference: ReferenceService
+    private reference: ReferenceService,
+    private avatarService: LocalAvatarService
   ) {
     // Status is not edited here any more - the switch in the accounts table owns
     // it, so this dialog never sends `active` and cannot contradict the row.
@@ -375,11 +377,22 @@ export class EditEmployeeComponent {
   }
 
   hasPhoto(): boolean {
-    return !!this.data.registerImage && !this.photoFailed;
+    return true;
   }
 
   photoUrl(): string {
-    return 'http://localhost:9001/attachments/' + this.data.registerImage;
+    if (this.photoFailed) {
+      return this.avatarService.getDefaultAvatarForRole(this.data.role);
+    }
+    return this.avatarService.getAvatarUrl(this.data.registerImage, this.data.role, this.data.name);
+  }
+
+  onPhotoError(event: Event): void {
+    this.photoFailed = true;
+    const img = event.target as HTMLImageElement;
+    if (img) {
+      img.src = this.avatarService.getDefaultAvatarForRole(this.data.role);
+    }
   }
 
   loadRoles() {
